@@ -14,7 +14,9 @@ final class MarkdownEnvelopeTests: XCTestCase {
     XCTAssertEqual(envelope.lineEnding, .mixed)
     XCTAssertTrue(envelope.hadFinalNewline)
     XCTAssertEqual(try envelope.encodedData(for: envelope.text), original)
-    XCTAssertEqual(try envelope.encodedData(for: "changed\n"), Data([0xEF, 0xBB, 0xBF]) + Data("changed\r\n".utf8))
+    XCTAssertEqual(
+      try envelope.encodedData(for: "changed\n"),
+      Data([0xEF, 0xBB, 0xBF]) + Data("changed\r\n".utf8))
     XCTAssertEqual(try envelope.encodedData(for: envelope.text), original)
   }
 

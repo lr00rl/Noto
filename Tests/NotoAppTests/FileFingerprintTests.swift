@@ -19,7 +19,8 @@ final class FileFingerprintTests: XCTestCase {
     XCTAssertEqual(first, try FileFingerprint.capture(at: file))
 
     try Data("other".utf8).write(to: file)
-    try FileManager.default.setAttributes([.modificationDate: originalDate], ofItemAtPath: file.path)
+    try FileManager.default.setAttributes(
+      [.modificationDate: originalDate], ofItemAtPath: file.path)
     let second = try FileFingerprint.capture(at: file)
 
     XCTAssertEqual(first.byteCount, second.byteCount)

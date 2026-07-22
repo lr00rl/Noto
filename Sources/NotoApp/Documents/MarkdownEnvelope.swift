@@ -16,7 +16,7 @@ enum MarkdownEnvelopeError: Error, Equatable, LocalizedError, Sendable {
 
   var errorDescription: String? {
     switch self {
-    case let .bodyTooLarge(actualBytes, maximumBytes):
+    case .bodyTooLarge(let actualBytes, let maximumBytes):
       return "Markdown is \(actualBytes) bytes; the maximum is \(maximumBytes) bytes."
     case .invalidUTF8:
       return "Markdown must be valid UTF-8."
@@ -96,7 +96,8 @@ struct MarkdownEnvelope: Equatable, Sendable {
       separator = "\n"
     }
 
-    let rendered = separator == "\n"
+    let rendered =
+      separator == "\n"
       ? normalized
       : normalized.replacingOccurrences(of: "\n", with: separator)
     var result = Data()

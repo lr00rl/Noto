@@ -27,15 +27,16 @@ final class AtomicFileWriterTests: XCTestCase {
 
   func testInjectedFailuresBeforeReplacementDoNotReachReplace() throws {
     for stage in FakeAtomicFileSystem.Stage.allCases
-    where stage != .directoryFlush && stage != .cleanup
-    {
+    where stage != .directoryFlush && stage != .cleanup {
       let fileSystem = FakeAtomicFileSystem(failingAt: stage)
       XCTAssertThrowsError(
-        try AtomicFileWriter(fileSystem: fileSystem).write(Data("new".utf8), to: URL(fileURLWithPath: "/tmp/document.md")),
+        try AtomicFileWriter(fileSystem: fileSystem).write(
+          Data("new".utf8), to: URL(fileURLWithPath: "/tmp/document.md")),
         "Expected failure at \(stage)"
       )
       if stage != .replace {
-        XCTAssertFalse(fileSystem.events.contains(.replace), "Replacement reached after \(stage) failure")
+        XCTAssertFalse(
+          fileSystem.events.contains(.replace), "Replacement reached after \(stage) failure")
       }
       XCTAssertTrue(fileSystem.events.contains(.cleanup) || stage == .create)
     }
