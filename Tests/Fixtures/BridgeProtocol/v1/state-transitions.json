@@ -2,10 +2,10 @@
   "states": ["created", "loading", "ready", "editing", "snapshotting", "committing", "conflict", "saveFailed", "closed"],
   "allowed": {
     "created": ["loading", "closed"],
-    "loading": ["ready", "closed"],
+    "loading": ["ready", "saveFailed", "closed"],
     "ready": ["editing", "closed"],
     "editing": ["snapshotting", "conflict", "closed"],
-    "snapshotting": ["committing", "closed"],
+    "snapshotting": ["committing", "conflict", "saveFailed", "closed"],
     "committing": ["editing", "conflict", "saveFailed", "closed"],
     "conflict": ["closed"],
     "saveFailed": ["editing", "closed"],

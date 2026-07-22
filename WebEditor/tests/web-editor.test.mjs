@@ -69,4 +69,22 @@ test("the WebEditor test command consumes the frozen shared protocol fixtures", 
     "state-transitions.json",
     "valid-messages.json",
   ]);
+
+  const fixtureEntries = await Promise.all(fixtureNames.map(async (name) => [name, JSON.parse(await readFile(join(sharedFixtures, name), "utf8"))]));
+  const fixtures = Object.fromEntries(fixtureEntries);
+  const validMessages = fixtures["valid-messages.json"];
+  const invalidMessages = fixtures["invalid-messages.json"];
+  const revisionCases = fixtures["revision-cases.json"];
+
+  assert.equal(fixtures["protocol.schema.json"].$defs.revision.maximum, Number.MAX_SAFE_INTEGER);
+  assert.deepEqual(fixtures["protocol.schema.json"].$defs.editorDelta.required, ["transactionId", "fromRevision", "toRevision", "utf8ByteLength", "sha256"]);
+  assert.deepEqual(fixtures["state-transitions.json"].allowed.loading, ["ready", "saveFailed", "closed"]);
+  assert.deepEqual(fixtures["state-transitions.json"].allowed.snapshotting, ["committing", "conflict", "saveFailed", "closed"]);
+  assert.equal(validMessages.find((message) => message.type === "editor.delta").payload.text, undefined);
+  assert(invalidMessages.some((fixture) => fixture.name === "delta-carries-inline-text"));
+  assert.equal(invalidMessages.filter((fixture) => fixture.reason === "unsafeInteger").length, 5);
+  assert(revisionCases.some((fixture) => fixture.name === "conflicting-length-duplicate" && fixture.expected === "rejectCheckpointRequired"));
+  assert(revisionCases.some((fixture) => fixture.name === "conflicting-hash-duplicate" && fixture.expected === "rejectCheckpointRequired"));
+  assert(revisionCases.some((fixture) => fixture.name === "saved-current-revision-is-clean" && fixture.expected === "acceptClean"));
+  assert(revisionCases.some((fixture) => fixture.name === "saved-prior-revision-remains-dirty" && fixture.expected === "acceptDirty"));
 });

@@ -12,7 +12,7 @@ const sha256 = /^[0-9a-f]{64}$/;
 const envelopeKeys = ["payload", "protocolVersion", "requestId", "revision", "sessionGeneration", "sessionId", "type"];
 const messageTypes = new Set(["editor.ready", "editor.delta", "editor.checkpoint", "document.open", "document.snapshot.request", "document.snapshot.response", "document.saved", "document.saveFailed", "document.externalChange", "theme.set", "chunk.begin", "chunk.data", "chunk.ack", "chunk.end", "error"]);
 const exactKeys = (value, keys) => assert.deepEqual(Object.keys(value).sort(), [...keys].sort());
-const integerAtLeast = (value, minimum) => assert(Number.isInteger(value) && value >= minimum);
+const integerAtLeast = (value, minimum) => assert(Number.isSafeInteger(value) && value >= minimum);
 const transferReference = (payload) => {
   exactKeys(payload, ["transferId", "utf8ByteLength", "sha256"]);
   assert(uuid.test(payload.transferId));
@@ -41,6 +41,7 @@ function validatePayload(message) {
       assert(uuid.test(payload.transactionId));
       integerAtLeast(payload.fromRevision, 0);
       assert.equal(payload.toRevision, payload.fromRevision + 1);
+      integerAtLeast(payload.toRevision, 1);
       integerAtLeast(payload.utf8ByteLength, 0);
       assert(payload.utf8ByteLength <= 16_777_216);
       assert.equal(message.revision, payload.toRevision);
@@ -120,8 +121,8 @@ function validateEnvelope(message) {
   assert(messageTypes.has(message.type));
   assert(uuid.test(message.requestId));
   assert(uuid.test(message.sessionId));
-  assert(Number.isInteger(message.sessionGeneration) && message.sessionGeneration >= 1);
-  assert(Number.isInteger(message.revision) && message.revision >= 0);
+  integerAtLeast(message.sessionGeneration, 1);
+  integerAtLeast(message.revision, 0);
   assert(message.payload && typeof message.payload === "object" && !Array.isArray(message.payload));
   validatePayload(message);
 }
@@ -131,7 +132,12 @@ function deltaDecision(test) {
   if (candidate.sessionId !== current.sessionId) return "rejectWrongSession";
   if (candidate.generation !== current.generation) return candidate.generation < current.generation ? "ignoreRetiredSession" : "rejectWrongSession";
   const prior = test.seen.find((item) => item.transactionId === candidate.transactionId);
-  if (prior) return prior.fromRevision === candidate.fromRevision && prior.toRevision === candidate.toRevision && prior.sha256 === candidate.sha256 ? "ignoreExactDuplicate" : "rejectCheckpointRequired";
+  if (prior) return prior.fromRevision === candidate.fromRevision
+    && prior.toRevision === candidate.toRevision
+    && prior.utf8ByteLength === candidate.utf8ByteLength
+    && prior.sha256 === candidate.sha256
+    ? "ignoreExactDuplicate"
+    : "rejectCheckpointRequired";
   return candidate.fromRevision === current.revision && candidate.toRevision === current.revision + 1 ? "accept" : "rejectCheckpointRequired";
 }
 
@@ -145,7 +151,30 @@ function revisionDecision(test) {
     return test.candidate.revision === test.pending.frozenRevision ? "accept" : "rejectRevisionMismatch";
   }
   if (test.kind === "checkpoint") return test.candidate.revision >= test.current.revision && test.candidate.byteLengthValid && test.candidate.hashValid ? "acceptSupersedingCheckpoint" : "rejectCheckpoint";
+  if (test.kind === "saved") {
+    if (test.candidate.durableRevision > test.current.revision) return "rejectRevisionMismatch";
+    return test.candidate.durableRevision === test.current.revision ? "acceptClean" : "acceptDirty";
+  }
   throw new Error(`unknown revision case: ${test.kind}`);
+}
+
+function validateChunkedBodyPath(messages, operationType) {
+  const operationIndex = messages.findIndex((message) => message.type === operationType);
+  assert.notEqual(operationIndex, -1, `missing ${operationType}`);
+  const operation = messages[operationIndex];
+  const transferMessages = messages.filter((message) =>
+    message.requestId === operation.requestId
+    && message.sessionId === operation.sessionId
+    && message.sessionGeneration === operation.sessionGeneration
+    && message.revision === operation.revision
+    && message.payload.transferId === operation.payload.transferId
+  );
+  assert.deepEqual(transferMessages.map((message) => message.type), [operationType, "chunk.begin", "chunk.data", "chunk.ack", "chunk.end"]);
+  const begin = transferMessages[1];
+  assert.equal(begin.payload.purpose, operationType);
+  assert.equal(begin.payload.totalBytes, operation.payload.utf8ByteLength);
+  assert.equal(begin.payload.sha256, operation.payload.sha256);
+  assert.equal(transferMessages.at(-1).payload.sha256, operation.payload.sha256);
 }
 
 function bytesFor(event) {
@@ -197,18 +226,31 @@ assert.equal(schema.properties.protocolVersion.const, 1);
 assert.equal(schema.$defs.chunkBegin.properties.totalBytes.maximum, 16_777_216);
 assert.equal(schema.$defs.chunkBegin.properties.chunkBytes.minimum, 262_144);
 assert.equal(schema.$defs.chunkBegin.properties.chunkBytes.maximum, 524_288);
+assert.equal(schema.$defs.revision.maximum, Number.MAX_SAFE_INTEGER);
+assert.equal(schema.$defs.sessionGeneration.maximum, Number.MAX_SAFE_INTEGER);
+assert.equal(schema.properties.sessionId.$ref, "#/$defs/uuid");
+assert.equal(schema.properties.sessionGeneration.$ref, "#/$defs/sessionGeneration");
+assert.deepEqual(schema.$defs.editorDelta.required, ["transactionId", "fromRevision", "toRevision", "utf8ByteLength", "sha256"]);
+assert.equal(schema.$defs.editorDelta.properties.fromRevision.$ref, "#/$defs/revision");
+assert.equal(schema.$defs.editorDelta.properties.toRevision.$ref, "#/$defs/revision");
+assert.equal(schema.$defs.snapshotRequest.properties.frozenRevision.$ref, "#/$defs/revision");
+assert.equal(schema.$defs.saved.properties.durableRevision.$ref, "#/$defs/revision");
 
-for (const message of await load("valid-messages.json")) validateEnvelope(message);
-for (const fixture of await load("invalid-messages.json")) assert.throws(() => validateEnvelope(fixture.message), undefined, fixture.name);
+const validMessages = await load("valid-messages.json");
+const invalidMessages = await load("invalid-messages.json");
+for (const message of validMessages) validateEnvelope(message);
+for (const fixture of invalidMessages) assert.throws(() => validateEnvelope(fixture.message), undefined, fixture.name);
+validateChunkedBodyPath(validMessages, "document.open");
+validateChunkedBodyPath(validMessages, "document.snapshot.response");
 
 const transitions = await load("state-transitions.json");
 assert.deepEqual(Object.keys(transitions.allowed), transitions.states);
 const expectedAllowed = {
   created: ["loading", "closed"],
-  loading: ["ready", "closed"],
+  loading: ["ready", "saveFailed", "closed"],
   ready: ["editing", "closed"],
   editing: ["snapshotting", "conflict", "closed"],
-  snapshotting: ["committing", "closed"],
+  snapshotting: ["committing", "conflict", "saveFailed", "closed"],
   committing: ["editing", "conflict", "saveFailed", "closed"],
   conflict: ["closed"],
   saveFailed: ["editing", "closed"],
@@ -224,9 +266,15 @@ for (const from of transitions.states) {
 }
 assert.deepEqual(transitions.allowed.closed, []);
 assert.equal(checkedLifecyclePairs, 81);
+assert.deepEqual(transitions.newGenerationOnly, [
+  { from: "conflict", to: "created", operation: "reloadOrSaveAs" },
+  { from: "editing", to: "created", operation: "recoveryOrCleanReload" },
+  { from: "saveFailed", to: "created", operation: "reloadOrSaveAs" }
+]);
 
-for (const test of await load("revision-cases.json")) assert.equal(revisionDecision(test), test.expected, test.name);
+const revisionCases = await load("revision-cases.json");
+for (const test of revisionCases) assert.equal(revisionDecision(test), test.expected, test.name);
 const chunkFixtures = await load("chunk-cases.json");
 for (const test of chunkFixtures.cases) assert.equal(chunkDecision(test, chunkFixtures.constants), test.expected, test.name);
 
-console.log("PASS bridge protocol v1: schema constants, 15 valid messages, 10 invalid messages, 81 lifecycle pairs, 15 revision cases, and 12 chunk cases");
+console.log(`PASS bridge protocol v1: schema constants, ${validMessages.length} valid messages, ${invalidMessages.length} invalid messages, ${checkedLifecyclePairs} lifecycle pairs, ${revisionCases.length} revision cases, and ${chunkFixtures.cases.length} chunk cases`);
