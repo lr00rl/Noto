@@ -1,0 +1,47 @@
+:root {
+  color-scheme: light dark;
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --noto-canvas: light-dark(#f8f7f4, #191918);
+  --noto-text: light-dark(#262522, #ecebe6);
+  --noto-selection: light-dark(#cfe1ff, #294b77);
+  background: var(--noto-canvas);
+  color: var(--noto-text);
+}
+
+html,
+body,
+#editor {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--noto-canvas);
+}
+
+#editor {
+  box-sizing: border-box;
+}
+
+.cm-editor {
+  min-height: 100vh;
+}
+
+.cm-editor.cm-focused {
+  outline: none;
+}
+
+.cm-content {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: clamp(2rem, 7vw, 5rem) clamp(1.25rem, 9vw, 8rem);
+  caret-color: currentColor;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.cm-line::selection,
+.cm-selectionBackground {
+  background: var(--noto-selection) !important;
+}
