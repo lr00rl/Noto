@@ -1,0 +1,10 @@
+.build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.DS_Store
+WebEditor/node_modules/
+WebEditor/coverage/
+.omx/logs/
+.omx/state/
+.omx/tmux-hook.json
