@@ -50,7 +50,7 @@ final class AtomicFileWriterTests: XCTestCase {
     )
     XCTAssertEqual(
       fileSystem.events,
-      [.create, .write, .flush, .metadata, .close, .replace, .directoryFlush]
+      [.create, .write, .flush, .metadata, .flush, .close, .replace, .directoryFlush]
     )
   }
 }

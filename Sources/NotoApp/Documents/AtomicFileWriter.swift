@@ -44,6 +44,7 @@ struct AtomicFileWriter: FileWriting, Sendable {
     try fileSystem.write(data, to: descriptor)
     try fileSystem.flushFile(descriptor)
     try fileSystem.copyMetadata(from: destinationURL, to: descriptor)
+    try fileSystem.flushFile(descriptor)
     try fileSystem.closeFile(descriptor)
     descriptorIsOpen = false
     try fileSystem.replaceItem(at: destinationURL, with: temporaryURL)
