@@ -2,7 +2,67 @@ import Foundation
 
 enum SecurityScopedBookmarkError: Error, Equatable, Sendable {
   case accessDenied
+  case missingBookmark(identifier: String)
   case staleBookmark
+}
+
+protocol BookmarkPersisting: Sendable {
+  func data(for identifier: String) -> Data?
+  func setData(_ data: Data, for identifier: String)
+  func removeData(for identifier: String)
+}
+
+struct UserDefaultsBookmarkPersistence: BookmarkPersisting, @unchecked Sendable {
+  private let defaults: UserDefaults
+  private let keyPrefix: String
+
+  init(defaults: UserDefaults = .standard, keyPrefix: String = "SecurityScopedBookmark.") {
+    self.defaults = defaults
+    self.keyPrefix = keyPrefix
+  }
+
+  func data(for identifier: String) -> Data? {
+    defaults.data(forKey: keyPrefix + identifier)
+  }
+
+  func setData(_ data: Data, for identifier: String) {
+    defaults.set(data, forKey: keyPrefix + identifier)
+  }
+
+  func removeData(for identifier: String) {
+    defaults.removeObject(forKey: keyPrefix + identifier)
+  }
+}
+
+struct SecurityScopedBookmarkStore: Sendable {
+  private let persistence: any BookmarkPersisting
+  private let resolver: any BookmarkDataResolving
+
+  init(
+    persistence: any BookmarkPersisting = UserDefaultsBookmarkPersistence(),
+    resolver: any BookmarkDataResolving = SystemBookmarkDataResolver()
+  ) {
+    self.persistence = persistence
+    self.resolver = resolver
+  }
+
+  @discardableResult
+  func save(url: URL, identifier: String) throws -> SecurityScopedBookmark {
+    let bookmark = try SecurityScopedBookmark.create(for: url, resolver: resolver)
+    persistence.setData(bookmark.data, for: identifier)
+    return bookmark
+  }
+
+  func bookmark(identifier: String) throws -> SecurityScopedBookmark {
+    guard let data = persistence.data(for: identifier) else {
+      throw SecurityScopedBookmarkError.missingBookmark(identifier: identifier)
+    }
+    return SecurityScopedBookmark(data: data)
+  }
+
+  func remove(identifier: String) {
+    persistence.removeData(for: identifier)
+  }
 }
 
 protocol BookmarkDataResolving: Sendable {
