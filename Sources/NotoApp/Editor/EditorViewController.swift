@@ -2,9 +2,23 @@ import AppKit
 import WebKit
 
 @MainActor
-final class EditorViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
+final class EditorViewController: NSViewController, WKNavigationDelegate, WKUIDelegate,
+  WKScriptMessageHandler
+{
   private let schemeHandler = EditorResourceSchemeHandler()
+  private let session: DocumentSession?
   private var webView: WKWebView?
+  private var transport: WebKitEditorJavaScriptTransport?
+  private var bridge: EditorBridge?
+
+  init(session: DocumentSession? = nil) {
+    self.session = session
+    super.init(nibName: nil, bundle: nil)
+  }
+
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
 
   override func loadView() {
     view = NSView()
@@ -18,6 +32,7 @@ final class EditorViewController: NSViewController, WKNavigationDelegate, WKUIDe
 
     let configuration = WKWebViewConfiguration()
     configuration.websiteDataStore = .nonPersistent()
+    configuration.userContentController.add(self, name: "notoBridge")
     configuration.setURLSchemeHandler(
       schemeHandler, forURLScheme: EditorResourceSchemeHandler.scheme)
 
@@ -33,9 +48,50 @@ final class EditorViewController: NSViewController, WKNavigationDelegate, WKUIDe
       editorView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
     ])
     webView = editorView
+    if let session {
+      let transport = WebKitEditorJavaScriptTransport(webView: editorView)
+      self.transport = transport
+      bridge = EditorBridge(session: session, transport: transport)
+    }
 
     let entryURL = URL(string: "\(EditorResourceSchemeHandler.scheme)://bundle/index.html")!
     editorView.load(URLRequest(url: entryURL))
+  }
+
+  func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    guard let bridge else { return }
+    Task { @MainActor in
+      do { try await bridge.bootstrap() } catch { bridge.invalidate() }
+    }
+  }
+
+  func userContentController(
+    _ userContentController: WKUserContentController, didReceive message: WKScriptMessage
+  ) {
+    guard message.name == "notoBridge", let bridge else { return }
+    Task { @MainActor in
+      do {
+        try await bridge.receive(message.body)
+      } catch {
+        // Diagnostics intentionally omit content.
+      }
+    }
+  }
+
+  func saveDocument() {
+    guard let bridge else {
+      NSSound.beep()
+      return
+    }
+    Task { @MainActor in
+      do { try await bridge.requestSave() } catch { NSSound.beep() }
+    }
+  }
+
+  override func viewDidDisappear() {
+    bridge?.invalidate()
+    webView?.configuration.userContentController.removeScriptMessageHandler(forName: "notoBridge")
+    super.viewDidDisappear()
   }
 
   func webView(
