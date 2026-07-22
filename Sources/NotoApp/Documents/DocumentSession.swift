@@ -56,9 +56,9 @@ final class DocumentSession {
     try transition(to: .loading, allowedFrom: [.created])
     do {
       let lease = try bookmark.access(resolver: bookmarkResolver, accessor: scopeAccessor)
+      self.lease = lease
       let snapshot = try fileAccess.read(at: lease.url)
       let envelope = try MarkdownEnvelope(data: snapshot.data)
-      self.lease = lease
       self.envelope = envelope
       acceptedFingerprint = snapshot.fingerprint
       text = envelope.text

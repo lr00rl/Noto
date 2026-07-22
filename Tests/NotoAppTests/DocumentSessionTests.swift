@@ -5,6 +5,24 @@ import XCTest
 
 @MainActor
 final class DocumentSessionTests: XCTestCase {
+  func testBookmarkDataSurvivesStoreReconstruction() throws {
+    let fixture = try TemporaryMarkdownFixture(data: Data("hello".utf8))
+    let persistence = MemoryBookmarkPersistence()
+    let resolver = FixedBookmarkResolver(url: fixture.fileURL, isStale: false)
+
+    let firstStore = SecurityScopedBookmarkStore(
+      persistence: persistence,
+      resolver: resolver
+    )
+    let saved = try firstStore.save(url: fixture.fileURL, identifier: "document")
+
+    let restored = try SecurityScopedBookmarkStore(
+      persistence: persistence,
+      resolver: resolver
+    ).bookmark(identifier: "document")
+    XCTAssertEqual(restored, saved)
+  }
+
   func testOpenAndCloseBalanceSecurityScopedAccess() throws {
     let fixture = try TemporaryMarkdownFixture(data: Data("hello\n".utf8))
     let accessor = RecordingScopeAccessor(allowsAccess: true)
@@ -36,6 +54,19 @@ final class DocumentSessionTests: XCTestCase {
     XCTAssertEqual(session.state, .saveFailed)
     XCTAssertEqual(accessor.startCount, 0)
     XCTAssertEqual(accessor.stopCount, 0)
+  }
+
+  func testInvalidMarkdownBalancesAccessAndCreatesNoEditableSession() throws {
+    let fixture = try TemporaryMarkdownFixture(data: Data([0xFF]))
+    let accessor = RecordingScopeAccessor(allowsAccess: true)
+    let session = makeSession(fixture: fixture, accessor: accessor)
+
+    XCTAssertThrowsError(try session.open()) { error in
+      XCTAssertEqual(error as? MarkdownEnvelopeError, .invalidUTF8)
+    }
+    XCTAssertEqual(session.state, .saveFailed)
+    XCTAssertEqual(accessor.startCount, 1)
+    XCTAssertEqual(accessor.stopCount, 1)
   }
 
   func testExternalModificationAbortsSaveWithoutOverwritingDisk() throws {
@@ -101,6 +132,23 @@ private struct FixedBookmarkResolver: BookmarkDataResolving {
 
   func resolveBookmark(_ data: Data) throws -> (url: URL, isStale: Bool) {
     (url, isStale)
+  }
+}
+
+private final class MemoryBookmarkPersistence: BookmarkPersisting, @unchecked Sendable {
+  private let lock = NSLock()
+  private var values: [String: Data] = [:]
+
+  func data(for identifier: String) -> Data? {
+    lock.withLock { values[identifier] }
+  }
+
+  func setData(_ data: Data, for identifier: String) {
+    lock.withLock { values[identifier] = data }
+  }
+
+  func removeData(for identifier: String) {
+    lock.withLock { values.removeValue(forKey: identifier) }
   }
 }
 
