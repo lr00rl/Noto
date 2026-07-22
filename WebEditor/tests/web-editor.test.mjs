@@ -44,6 +44,27 @@ test("production bundle contains only local HTML, CSS, and JavaScript assets", a
   assert.doesNotMatch(javascript, /\b(?:fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon)\s*\(|\bwindow\.open\s*\(/);
 });
 
+test("bridge exposes fixed bootstrap, receive, and native post capabilities without content logging or execution APIs", async () => {
+  const source = await read("src/editor.ts");
+  const runtime = await read("src/session.ts");
+
+  assert.equal(source.match(/createNativePostMessage\(bridgeWindow\.webkit\?\.messageHandlers\?\.notoBridge\)/g)?.length, 1);
+  assert.equal(source.match(/bridgeWindow\.notoBridge\s*=/g)?.length, 1);
+  assert.match(source, /Object\.freeze\(\{ bootstrap, receive \}\)/);
+  assert.match(runtime, /bootstrap\(input: unknown\)/);
+  assert.match(source, /bridgeState = "fatal"/);
+  assert.match(source, /Native bridge unavailable/);
+  assert.match(source, /editable\.of\(EditorView\.editable\.of\(false\)\)/);
+  assert.match(source, /setEditable: \(isEditable\) => view\.dispatch/);
+  assert.doesNotMatch(`${source}\n${runtime}`, /console\.|(?:filePath|filesystem|readFile|writeFile|exec|spawn|eval\s*\()/i);
+  assert.doesNotMatch(runtime, /postMessage\([^)]*(?:text|dataBase64|markdown)/i);
+});
+
+test("session tests establish state through public behavior rather than mutating internals", async () => {
+  const tests = await read("tests/session-runtime.test.mjs");
+  assert.doesNotMatch(tests, /\.session\.(?:dirty|phase|revision|savedThroughRevision|lastSaveFailure)\s*=(?!=)/);
+});
+
 test("CodeMirror state preserves Markdown and applies edits without DOM reconstruction", () => {
   const markdown = "# Noto\n\nPlain **Markdown**.";
   const state = EditorState.create({ doc: markdown });
