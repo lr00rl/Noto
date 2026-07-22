@@ -13,6 +13,17 @@
 		100000000000000000000005 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 200000000000000000000007 /* WebKit.framework */; };
 		100000000000000000000006 /* BootstrapConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000008 /* BootstrapConfigurationTests.swift */; };
 		100000000000000000000007 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 200000000000000000000009 /* XCTest.framework */; };
+		100000000000000000000008 /* AtomicFileWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000B /* AtomicFileWriter.swift */; };
+		100000000000000000000009 /* CoordinatedFileAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000C /* CoordinatedFileAccess.swift */; };
+		10000000000000000000000A /* DocumentSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000D /* DocumentSession.swift */; };
+		10000000000000000000000B /* ExternalChangeMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000E /* ExternalChangeMonitor.swift */; };
+		10000000000000000000000C /* FileFingerprint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000F /* FileFingerprint.swift */; };
+		10000000000000000000000D /* MarkdownEnvelope.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000010 /* MarkdownEnvelope.swift */; };
+		10000000000000000000000E /* SecurityScopedBookmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000011 /* SecurityScopedBookmark.swift */; };
+		10000000000000000000000F /* AtomicFileWriterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000012 /* AtomicFileWriterTests.swift */; };
+		100000000000000000000010 /* DocumentSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000013 /* DocumentSessionTests.swift */; };
+		100000000000000000000011 /* FileFingerprintTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000014 /* FileFingerprintTests.swift */; };
+		100000000000000000000012 /* MarkdownEnvelopeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000015 /* MarkdownEnvelopeTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -36,6 +47,17 @@
 		200000000000000000000008 /* BootstrapConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BootstrapConfigurationTests.swift; sourceTree = "<group>"; };
 		200000000000000000000009 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 		20000000000000000000000A /* NotoAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NotoAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		20000000000000000000000B /* AtomicFileWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtomicFileWriter.swift; sourceTree = "<group>"; };
+		20000000000000000000000C /* CoordinatedFileAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoordinatedFileAccess.swift; sourceTree = "<group>"; };
+		20000000000000000000000D /* DocumentSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentSession.swift; sourceTree = "<group>"; };
+		20000000000000000000000E /* ExternalChangeMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExternalChangeMonitor.swift; sourceTree = "<group>"; };
+		20000000000000000000000F /* FileFingerprint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileFingerprint.swift; sourceTree = "<group>"; };
+		200000000000000000000010 /* MarkdownEnvelope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownEnvelope.swift; sourceTree = "<group>"; };
+		200000000000000000000011 /* SecurityScopedBookmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityScopedBookmark.swift; sourceTree = "<group>"; };
+		200000000000000000000012 /* AtomicFileWriterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtomicFileWriterTests.swift; sourceTree = "<group>"; };
+		200000000000000000000013 /* DocumentSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentSessionTests.swift; sourceTree = "<group>"; };
+		200000000000000000000014 /* FileFingerprintTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileFingerprintTests.swift; sourceTree = "<group>"; };
+		200000000000000000000015 /* MarkdownEnvelopeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownEnvelopeTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -46,13 +68,14 @@
 /* Begin PBXGroup section */
 		700000000000000000000001 = {isa = PBXGroup; children = (700000000000000000000002 /* Sources */, 700000000000000000000006 /* Tests */, 700000000000000000000007 /* Frameworks */, 700000000000000000000008 /* Products */,); sourceTree = "<group>"; };
 		700000000000000000000002 /* Sources */ = {isa = PBXGroup; children = (700000000000000000000003 /* NotoApp */,); path = Sources; sourceTree = "<group>"; };
-		700000000000000000000003 /* NotoApp */ = {isa = PBXGroup; children = (700000000000000000000004 /* App */, 700000000000000000000005 /* Editor */, 200000000000000000000005 /* Noto.entitlements */,); path = NotoApp; sourceTree = "<group>"; };
+		700000000000000000000003 /* NotoApp */ = {isa = PBXGroup; children = (700000000000000000000004 /* App */, 70000000000000000000000A /* Documents */, 700000000000000000000005 /* Editor */, 200000000000000000000005 /* Noto.entitlements */,); path = NotoApp; sourceTree = "<group>"; };
 		700000000000000000000004 /* App */ = {isa = PBXGroup; children = (200000000000000000000001 /* NotoApplication.swift */, 200000000000000000000002 /* AppDelegate.swift */,); path = App; sourceTree = "<group>"; };
 		700000000000000000000005 /* Editor */ = {isa = PBXGroup; children = (200000000000000000000003 /* EditorViewController.swift */, 200000000000000000000004 /* EditorResourceSchemeHandler.swift */,); path = Editor; sourceTree = "<group>"; };
 		700000000000000000000006 /* Tests */ = {isa = PBXGroup; children = (700000000000000000000009 /* NotoAppTests */,); path = Tests; sourceTree = "<group>"; };
 		700000000000000000000007 /* Frameworks */ = {isa = PBXGroup; children = (200000000000000000000007 /* WebKit.framework */, 200000000000000000000009 /* XCTest.framework */,); name = Frameworks; sourceTree = "<group>"; };
 		700000000000000000000008 /* Products */ = {isa = PBXGroup; children = (200000000000000000000006 /* Noto.app */, 20000000000000000000000A /* NotoAppTests.xctest */,); name = Products; sourceTree = "<group>"; };
-		700000000000000000000009 /* NotoAppTests */ = {isa = PBXGroup; children = (200000000000000000000008 /* BootstrapConfigurationTests.swift */,); path = NotoAppTests; sourceTree = "<group>"; };
+		700000000000000000000009 /* NotoAppTests */ = {isa = PBXGroup; children = (200000000000000000000012 /* AtomicFileWriterTests.swift */, 200000000000000000000008 /* BootstrapConfigurationTests.swift */, 200000000000000000000013 /* DocumentSessionTests.swift */, 200000000000000000000014 /* FileFingerprintTests.swift */, 200000000000000000000015 /* MarkdownEnvelopeTests.swift */,); path = NotoAppTests; sourceTree = "<group>"; };
+		70000000000000000000000A /* Documents */ = {isa = PBXGroup; children = (20000000000000000000000B /* AtomicFileWriter.swift */, 20000000000000000000000C /* CoordinatedFileAccess.swift */, 20000000000000000000000D /* DocumentSession.swift */, 20000000000000000000000E /* ExternalChangeMonitor.swift */, 20000000000000000000000F /* FileFingerprint.swift */, 200000000000000000000010 /* MarkdownEnvelope.swift */, 200000000000000000000011 /* SecurityScopedBookmark.swift */,); path = Documents; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -118,8 +141,8 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		900000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000001, 100000000000000000000002, 100000000000000000000003, 100000000000000000000004,); runOnlyForDeploymentPostprocessing = 0; };
-		900000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000006,); runOnlyForDeploymentPostprocessing = 0; };
+		900000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000001, 100000000000000000000002, 100000000000000000000008, 100000000000000000000009, 10000000000000000000000A, 10000000000000000000000B, 100000000000000000000003, 100000000000000000000004, 10000000000000000000000C, 10000000000000000000000D, 10000000000000000000000E,); runOnlyForDeploymentPostprocessing = 0; };
+		900000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (10000000000000000000000F, 100000000000000000000006, 100000000000000000000010, 100000000000000000000011, 100000000000000000000012,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */

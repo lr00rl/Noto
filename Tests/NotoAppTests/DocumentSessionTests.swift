@@ -69,6 +69,70 @@ final class DocumentSessionTests: XCTestCase {
     XCTAssertEqual(accessor.stopCount, 1)
   }
 
+  func testOversizedRealFileRejectsBeforeEditableStateOrWrites() throws {
+    let oversized = Data(repeating: 0x61, count: MarkdownEnvelope.maximumByteCount + 1)
+    let fixture = try TemporaryMarkdownFixture(data: oversized)
+    let accessor = RecordingScopeAccessor(allowsAccess: true)
+    let session = makeSession(fixture: fixture, accessor: accessor)
+
+    XCTAssertThrowsError(try session.open()) { error in
+      XCTAssertEqual(
+        error as? MarkdownEnvelopeError,
+        .bodyTooLarge(
+          actualBytes: MarkdownEnvelope.maximumByteCount + 1,
+          maximumBytes: MarkdownEnvelope.maximumByteCount
+        )
+      )
+    }
+
+    XCTAssertEqual(session.state, .saveFailed)
+    XCTAssertEqual(session.text, "")
+    XCTAssertEqual(accessor.startCount, 1)
+    XCTAssertEqual(accessor.stopCount, 1)
+    XCTAssertEqual(try Data(contentsOf: fixture.fileURL), oversized)
+  }
+
+  func testOversizedSaveFailsWithoutReplacingRealFileOrReportingSuccess() throws {
+    let original = Data("initial\n".utf8)
+    let fixture = try TemporaryMarkdownFixture(data: original)
+    let accessor = RecordingScopeAccessor(allowsAccess: true)
+    let session = makeSession(fixture: fixture, accessor: accessor)
+    try session.open()
+
+    let oversizedText = String(
+      repeating: "a",
+      count: MarkdownEnvelope.maximumByteCount + 1
+    )
+    try session.recordEditorChange(text: oversizedText, revision: 1)
+
+    XCTAssertThrowsError(try session.save(text: oversizedText, revision: 1)) { error in
+      guard case .bodyTooLarge = error as? MarkdownEnvelopeError else {
+        return XCTFail("Expected bodyTooLarge, received \(error)")
+      }
+    }
+    XCTAssertEqual(session.state, .saveFailed)
+    XCTAssertTrue(session.isDirty)
+    XCTAssertEqual(session.acceptedRevision, 0)
+    XCTAssertEqual(try Data(contentsOf: fixture.fileURL), original)
+  }
+
+  func testEditUndoSavePreservesOriginalRealFileBytes() throws {
+    let original = Data([0xEF, 0xBB, 0xBF]) + Data("one\r\ntwo\nthree\r".utf8)
+    let fixture = try TemporaryMarkdownFixture(data: original)
+    let accessor = RecordingScopeAccessor(allowsAccess: true)
+    let session = makeSession(fixture: fixture, accessor: accessor)
+    try session.open()
+
+    let originalText = session.text
+    try session.recordEditorChange(text: "changed\n", revision: 1)
+    try session.recordEditorChange(text: originalText, revision: 2)
+    try session.save(text: originalText, revision: 2)
+
+    XCTAssertFalse(session.isDirty)
+    XCTAssertEqual(session.acceptedRevision, 2)
+    XCTAssertEqual(try Data(contentsOf: fixture.fileURL), original)
+  }
+
   func testExternalModificationAbortsSaveWithoutOverwritingDisk() throws {
     let fixture = try TemporaryMarkdownFixture(data: Data("initial\n".utf8))
     let accessor = RecordingScopeAccessor(allowsAccess: true)
