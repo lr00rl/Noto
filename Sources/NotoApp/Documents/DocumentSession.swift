@@ -15,11 +15,17 @@ enum DocumentSessionState: Equatable, Sendable {
 enum DocumentSessionError: Error, Equatable, Sendable {
   case invalidTransition(from: DocumentSessionState, to: DocumentSessionState)
   case externalChange
+  case snapshotContentMismatch(revision: UInt64)
   case closed
 }
 
 @MainActor
 final class DocumentSession {
+  typealias MonitorFactory = (
+    URL,
+    @escaping @Sendable (ExternalChangeEvent) -> Void
+  ) -> ExternalChangeMonitor
+
   private(set) var state: DocumentSessionState = .created
   private(set) var generation = UUID()
   private(set) var editorRevision: UInt64 = 0
@@ -33,6 +39,7 @@ final class DocumentSession {
   private let fileAccess: CoordinatedFileAccess
   private let bookmarkResolver: any BookmarkDataResolving
   private let scopeAccessor: any SecurityScopeAccessing
+  private let monitorFactory: MonitorFactory
   private var lease: SecurityScopedResourceLease?
   private var monitor: ExternalChangeMonitor?
   private var envelope: MarkdownEnvelope?
@@ -43,13 +50,15 @@ final class DocumentSession {
     bookmark: SecurityScopedBookmark,
     fileAccess: CoordinatedFileAccess = CoordinatedFileAccess(),
     bookmarkResolver: any BookmarkDataResolving = SystemBookmarkDataResolver(),
-    scopeAccessor: any SecurityScopeAccessing = SystemSecurityScopeAccessor()
+    scopeAccessor: any SecurityScopeAccessing = SystemSecurityScopeAccessor(),
+    monitorFactory: @escaping MonitorFactory = ExternalChangeMonitor.init
   ) {
     self.fileURL = fileURL
     self.bookmark = bookmark
     self.fileAccess = fileAccess
     self.bookmarkResolver = bookmarkResolver
     self.scopeAccessor = scopeAccessor
+    self.monitorFactory = monitorFactory
   }
 
   func open() throws {
@@ -62,12 +71,14 @@ final class DocumentSession {
       self.envelope = envelope
       acceptedFingerprint = snapshot.fingerprint
       text = envelope.text
-      monitor = ExternalChangeMonitor(url: lease.url) { [weak self] in
-        Task { @MainActor [weak self] in self?.handlePresentedItemChange() }
+      monitor = monitorFactory(lease.url) { [weak self] event in
+        Task { @MainActor [weak self] in self?.handlePresentedItemChange(event) }
       }
       try transition(to: .ready, allowedFrom: [.loading])
       try transition(to: .editing, allowedFrom: [.ready])
     } catch {
+      monitor?.invalidate()
+      monitor = nil
       lease?.close()
       lease = nil
       state = .saveFailed
@@ -99,7 +110,29 @@ final class DocumentSession {
     else {
       throw DocumentSessionError.invalidTransition(from: state, to: .snapshotting)
     }
+    guard candidateText == text else {
+      throw DocumentSessionError.snapshotContentMismatch(revision: revision)
+    }
 
+    guard let monitor else {
+      throw DocumentSessionError.invalidTransition(from: state, to: .snapshotting)
+    }
+
+    let pendingPresenterChanges = monitor.snapshot()
+    guard
+      pendingPresenterChanges.events.allSatisfy({ event in
+        if case .changed(let fingerprint) = event {
+          return fingerprint == acceptedFingerprint
+        }
+        return false
+      })
+    else {
+      state = .conflict
+      throw DocumentSessionError.externalChange
+    }
+    monitor.acknowledge(through: pendingPresenterChanges.generation)
+
+    let presenterGeneration = pendingPresenterChanges.generation
     try transition(to: .snapshotting, allowedFrom: [.editing])
     do {
       let data = try envelope.encodedData(for: candidateText)
@@ -109,11 +142,24 @@ final class DocumentSession {
         expectedFingerprint: acceptedFingerprint,
         data: data
       )
+      let presenterChanges = monitor.snapshot(since: presenterGeneration)
+      guard committed.data == data,
+        presenterChanges.events.allSatisfy({ event in
+          if case .changed(let fingerprint) = event {
+            return fingerprint == committed.fingerprint
+          }
+          return false
+        })
+      else {
+        throw DocumentSessionError.externalChange
+      }
+
       self.envelope = try MarkdownEnvelope(data: committed.data)
       self.acceptedFingerprint = committed.fingerprint
       text = candidateText
       acceptedRevision = revision
       isDirty = false
+      monitor.acknowledge(through: presenterChanges.generation)
       try transition(to: .editing, allowedFrom: [.committing])
     } catch DocumentSessionError.externalChange {
       state = .conflict
@@ -126,23 +172,37 @@ final class DocumentSession {
 
   func close() {
     guard state != .closed else { return }
+    monitor?.invalidate()
     monitor = nil
     lease?.close()
     lease = nil
     state = .closed
   }
 
-  private func handlePresentedItemChange() {
+  private func handlePresentedItemChange(_ event: ExternalChangeEvent) {
     guard state != .closed else { return }
+    switch event {
+    case .moved, .deleted:
+      monitor?.invalidate()
+      state = .conflict
+      return
+    case .changed:
+      break
+    }
     if isDirty || state == .snapshotting || state == .committing {
       state = .conflict
       return
     }
 
     do {
-      guard let sourceURL = lease?.url else { throw DocumentSessionError.closed }
+      guard let sourceURL = monitor?.presentedItemURL else {
+        throw DocumentSessionError.externalChange
+      }
       let snapshot = try fileAccess.read(at: sourceURL)
-      guard snapshot.fingerprint != acceptedFingerprint else { return }
+      guard snapshot.fingerprint != acceptedFingerprint else {
+        acknowledgePresentedChanges()
+        return
+      }
       let envelope = try MarkdownEnvelope(data: snapshot.data)
       generation = UUID()
       self.envelope = envelope
@@ -151,9 +211,15 @@ final class DocumentSession {
       editorRevision = 0
       acceptedRevision = 0
       state = .editing
+      acknowledgePresentedChanges()
     } catch {
       state = .conflict
     }
+  }
+
+  private func acknowledgePresentedChanges() {
+    guard let monitor else { return }
+    monitor.acknowledge(through: monitor.snapshot().generation)
   }
 
   private func transition(
