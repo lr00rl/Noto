@@ -124,23 +124,24 @@ struct MarkdownEnvelope: Equatable, Sendable {
     in text: String
   ) -> (classification: MarkdownLineEnding, preferred: MarkdownLineEnding, hadFinalNewline: Bool) {
     var kinds: [MarkdownLineEnding] = []
-    var index = text.startIndex
-    while index < text.endIndex {
-      switch text[index] {
-      case "\r":
-        let next = text.index(after: index)
-        if next < text.endIndex, text[next] == "\n" {
+    let bytes = Array(text.utf8)
+    var index = 0
+    while index < bytes.count {
+      switch bytes[index] {
+      case 0x0D:
+        let next = index + 1
+        if next < bytes.count, bytes[next] == 0x0A {
           kinds.append(.carriageReturnLineFeed)
-          index = text.index(after: next)
+          index += 2
         } else {
           kinds.append(.carriageReturn)
-          index = next
+          index += 1
         }
-      case "\n":
+      case 0x0A:
         kinds.append(.lineFeed)
-        index = text.index(after: index)
+        index += 1
       default:
-        index = text.index(after: index)
+        index += 1
       }
     }
 
