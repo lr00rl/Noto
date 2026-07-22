@@ -46,4 +46,24 @@ final class BootstrapConfigurationTests: XCTestCase {
     XCTAssertNil(entitlements["com.apple.security.network.client"])
     XCTAssertNil(entitlements["com.apple.security.network.server"])
   }
+
+  func testBundledWebEditorResourcesHaveNetworkDisabledCSP() throws {
+    let htmlURL = try XCTUnwrap(
+      Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "Editor")
+    )
+    let cssURL = try XCTUnwrap(
+      Bundle.main.url(forResource: "editor", withExtension: "css", subdirectory: "Editor")
+    )
+    let javascriptURL = try XCTUnwrap(
+      Bundle.main.url(forResource: "editor", withExtension: "js", subdirectory: "Editor")
+    )
+    let html = try String(contentsOf: htmlURL, encoding: .utf8)
+
+    XCTAssertTrue(FileManager.default.fileExists(atPath: cssURL.path))
+    XCTAssertTrue(FileManager.default.fileExists(atPath: javascriptURL.path))
+    XCTAssertTrue(html.contains("default-src 'self'"))
+    XCTAssertTrue(html.contains("connect-src 'none'"))
+    XCTAssertFalse(html.contains("http://"))
+    XCTAssertFalse(html.contains("https://"))
+  }
 }

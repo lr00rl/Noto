@@ -19,3 +19,7 @@
   repository inputs.
 - Repository source is private and unlicensed until an explicit license is
   selected.
+
+See [`../THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md) for the G001
+runtime notice and `WebEditor/DEPENDENCY_LICENSES.md` for the generated frozen
+package inventory.

@@ -113,7 +113,7 @@
 			outputPaths = ("$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Editor",);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -eu\nsource_dir=\"${SRCROOT}/WebEditor/dist\"\ndestination=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Editor\"\nrm -rf \"${destination}\"\nmkdir -p \"${destination}\"\nif [ -d \"${source_dir}\" ]; then\n  /usr/bin/ditto \"${source_dir}\" \"${destination}\"\nelse\n  echo \"warning: WebEditor/dist is absent; the native shell will show its development placeholder\"\nfi\n";
+			shellScript = "set -eu\nsource_dir=\"${SRCROOT}/WebEditor/dist\"\ndestination=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Editor\"\nfor resource in index.html editor.css editor.js; do\n  if [ ! -f \"${source_dir}/${resource}\" ]; then\n    echo \"error: missing required WebEditor bundle resource: ${source_dir}/${resource}\" >&2\n    exit 1\n  fi\ndone\nrm -rf \"${destination}\"\nmkdir -p \"${destination}\"\n/usr/bin/ditto \"${source_dir}\" \"${destination}\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
