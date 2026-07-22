@@ -67,16 +67,23 @@ struct CoordinatedFileAccess: Sendable {
     data: Data
   ) throws -> CoordinatedFileSnapshot {
     try coordinator.coordinateWriting(at: url) { coordinatedURL in
-      let currentData = try Data(contentsOf: coordinatedURL, options: [.mappedIfSafe])
-      let currentFingerprint = try FileFingerprint.capture(
-        at: coordinatedURL,
-        data: currentData
-      )
-      guard currentFingerprint == expectedFingerprint else {
-        throw DocumentSessionError.externalChange
+      func validateDestination() throws {
+        let currentData = try Data(contentsOf: coordinatedURL, options: [.mappedIfSafe])
+        let currentFingerprint = try FileFingerprint.capture(
+          at: coordinatedURL,
+          data: currentData
+        )
+        guard currentFingerprint == expectedFingerprint else {
+          throw DocumentSessionError.externalChange
+        }
       }
 
-      try writer.write(data, to: coordinatedURL)
+      try validateDestination()
+      try writer.write(
+        data,
+        to: coordinatedURL,
+        validatingDestination: validateDestination
+      )
       let committedData = try Data(contentsOf: coordinatedURL, options: [.mappedIfSafe])
       return CoordinatedFileSnapshot(
         data: committedData,

@@ -2,7 +2,11 @@ import Darwin
 import Foundation
 
 protocol FileWriting: Sendable {
-  func write(_ data: Data, to destinationURL: URL) throws
+  func write(
+    _ data: Data,
+    to destinationURL: URL,
+    validatingDestination: () throws -> Void
+  ) throws
 }
 
 protocol AtomicFileSystem: Sendable {
@@ -23,7 +27,11 @@ struct AtomicFileWriter: FileWriting, Sendable {
     self.fileSystem = fileSystem
   }
 
-  func write(_ data: Data, to destinationURL: URL) throws {
+  func write(
+    _ data: Data,
+    to destinationURL: URL,
+    validatingDestination: () throws -> Void
+  ) throws {
     let directoryURL = destinationURL.deletingLastPathComponent()
     let temporaryURL = directoryURL.appendingPathComponent(
       ".\(destinationURL.lastPathComponent).noto-\(UUID().uuidString).tmp"
@@ -47,6 +55,9 @@ struct AtomicFileWriter: FileWriting, Sendable {
     try fileSystem.flushFile(descriptor)
     try fileSystem.closeFile(descriptor)
     descriptorIsOpen = false
+    // This rejects mutations visible before the final check. macOS does not provide a
+    // conditional compare-and-replace against an uncooperative writer after this point.
+    try validatingDestination()
     try fileSystem.replaceItem(at: destinationURL, with: temporaryURL)
     replacementCompleted = true
     try fileSystem.flushDirectory(at: directoryURL)

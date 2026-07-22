@@ -192,6 +192,11 @@ final class DocumentSessionTests: XCTestCase {
     XCTAssertEqual(session.state, .conflict)
     XCTAssertTrue(session.isDirty)
     XCTAssertEqual(session.acceptedRevision, 0)
+    XCTAssertEqual(try Data(contentsOf: fixture.fileURL), externalData)
+    XCTAssertEqual(
+      try FileManager.default.contentsOfDirectory(atPath: fixture.directoryURL.path),
+      ["fixture.md"]
+    )
   }
 
   func testSaveSuppressesOnlyPresenterEventMatchingCommittedFingerprint() throws {
@@ -400,9 +405,17 @@ private struct InterleavingFileWriter: FileWriting, Sendable {
     self.afterWrite = afterWrite
   }
 
-  func write(_ data: Data, to destinationURL: URL) throws {
+  func write(
+    _ data: Data,
+    to destinationURL: URL,
+    validatingDestination: () throws -> Void
+  ) throws {
     try beforeWrite(destinationURL)
-    try writer.write(data, to: destinationURL)
+    try writer.write(
+      data,
+      to: destinationURL,
+      validatingDestination: validatingDestination
+    )
     try afterWrite(destinationURL)
   }
 }
