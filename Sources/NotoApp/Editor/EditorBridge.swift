@@ -1,10 +1,50 @@
 import Foundation
 import WebKit
 
+struct EditorJavaScriptResult: Equatable, Sendable {
+  enum Outcome: String, Sendable {
+    case inFlight
+    case completed
+    case failed
+  }
+
+  let decision: String
+  let outcome: Outcome?
+  let response: EditorMessage?
+
+  static func decode(_ value: Any?) throws -> Self {
+    guard let object = value as? [String: Any] else {
+      throw EditorBridgeError.invalidJavaScriptResult
+    }
+    let allowed = Set(["decision", "outcome", "response"])
+    guard Set(object.keys).isSubset(of: allowed), let decision = object["decision"] as? String,
+      !decision.isEmpty
+    else { throw EditorBridgeError.invalidJavaScriptResult }
+
+    let outcome: Outcome?
+    if let rawOutcome = object["outcome"] {
+      guard let raw = rawOutcome as? String, let parsed = Outcome(rawValue: raw) else {
+        throw EditorBridgeError.invalidJavaScriptResult
+      }
+      outcome = parsed
+    } else {
+      outcome = nil
+    }
+
+    let response: EditorMessage?
+    if let rawResponse = object["response"] {
+      response = try EditorProtocolCodec.decode(rawResponse)
+    } else {
+      response = nil
+    }
+    return Self(decision: decision, outcome: outcome, response: response)
+  }
+}
+
 @MainActor
 protocol EditorJavaScriptTransport: AnyObject {
-  func bootstrap(sessionID: UUID, generation: UInt64) async throws
-  func receive(_ message: EditorMessage) async throws
+  func bootstrap(sessionID: UUID, generation: UInt64) async throws -> EditorJavaScriptResult
+  func receive(_ message: EditorMessage) async throws -> EditorJavaScriptResult
 }
 
 @MainActor
@@ -15,10 +55,10 @@ final class WebKitEditorJavaScriptTransport: EditorJavaScriptTransport {
     self.webView = webView
   }
 
-  func bootstrap(sessionID: UUID, generation: UInt64) async throws {
+  func bootstrap(sessionID: UUID, generation: UInt64) async throws -> EditorJavaScriptResult {
     guard let webView else { throw EditorBridgeError.transportUnavailable }
-    _ = try await webView.callAsyncJavaScript(
-      "return window.notoBridge.bootstrap(command)",
+    let raw = try await webView.callAsyncJavaScript(
+      "return globalThis.notoBridge.bootstrap(arguments.command)",
       arguments: [
         "command": [
           "command": "bootstrap",
@@ -29,24 +69,27 @@ final class WebKitEditorJavaScriptTransport: EditorJavaScriptTransport {
       in: nil,
       contentWorld: .page
     )
+    return try EditorJavaScriptResult.decode(raw)
   }
 
-  func receive(_ message: EditorMessage) async throws {
+  func receive(_ message: EditorMessage) async throws -> EditorJavaScriptResult {
     guard let webView else { throw EditorBridgeError.transportUnavailable }
-    _ = try await webView.callAsyncJavaScript(
-      "return window.notoBridge.receive(message)",
+    let raw = try await webView.callAsyncJavaScript(
+      "return globalThis.notoBridge.receive(arguments.message)",
       arguments: ["message": message.foundationObject],
       in: nil,
       contentWorld: .page
     )
+    return try EditorJavaScriptResult.decode(raw)
   }
 }
 
 enum EditorBridgeError: Error, Equatable, Sendable {
   case transportUnavailable
+  case invalidJavaScriptResult
+  case rejected(String)
   case invalidState
   case wrongSession
-  case retiredGeneration
   case futureGeneration
   case unexpectedMessage
   case desynchronized
@@ -71,7 +114,10 @@ final class EditorBridge {
 
   private let session: DocumentSession
   private weak var transport: (any EditorJavaScriptTransport)?
+  private let operationTimeoutMilliseconds: Int
+  private let openReplayLimit: Int
   private var openTransfer: OutboundChunkTransfer?
+  private var openMessage: EditorMessage?
   private var openRequestID: UUID?
   private var incomingSnapshot: InboundChunkTransfer?
   private var pendingSnapshotReference: (transferID: UUID, byteCount: Int, sha256: String)?
@@ -86,22 +132,28 @@ final class EditorBridge {
     session: DocumentSession,
     transport: any EditorJavaScriptTransport,
     sessionID: UUID = UUID(),
-    sessionGeneration: UInt64 = 1
+    sessionGeneration: UInt64 = 1,
+    operationTimeoutMilliseconds: Int = 10_000,
+    openReplayLimit: Int = 64
   ) {
     self.session = session
     self.transport = transport
     self.sessionID = sessionID
     self.sessionGeneration = sessionGeneration
+    self.operationTimeoutMilliseconds = operationTimeoutMilliseconds
+    self.openReplayLimit = openReplayLimit
   }
 
   func bootstrap() async throws {
     guard state == .created else { throw EditorBridgeError.invalidState }
     state = .bootstrapping
     do {
-      try await requireTransport().bootstrap(sessionID: sessionID, generation: sessionGeneration)
+      let result = try await requireTransport().bootstrap(
+        sessionID: sessionID, generation: sessionGeneration)
+      try require(result, decisions: ["acceptBootstrap"])
       state = .awaitingReady
     } catch {
-      state = .desynchronized
+      enterDesynchronized()
       throw error
     }
   }
@@ -114,10 +166,13 @@ final class EditorBridge {
     let revision = session.editorRevision
     pendingSnapshotRequestID = requestID
     pendingSnapshotRevision = revision
+    startSnapshotTimeout(requestID: requestID, revision: revision)
     do {
-      try await send(
+      let result = try await send(
         .documentSnapshotRequest, requestID: requestID, revision: revision,
         payload: ["frozenRevision": .integer(revision)])
+      try require(result, decisions: ["acceptSnapshot"], responseType: .documentSnapshotResponse)
+      if let response = result.response { try receiveSnapshotReference(response) }
     } catch {
       failPendingSnapshot()
       throw error
@@ -126,68 +181,47 @@ final class EditorBridge {
 
   func receive(_ body: Any) async throws {
     guard state != .invalidated else { throw EditorBridgeError.invalidated }
+    guard state != .desynchronized else { throw EditorBridgeError.desynchronized }
     let message = try EditorProtocolCodec.decode(body)
     guard message.sessionID == sessionID else { throw EditorBridgeError.wrongSession }
     if message.sessionGeneration < sessionGeneration { return }
     guard message.sessionGeneration == sessionGeneration else {
-      state = .desynchronized
+      enterDesynchronized()
       throw EditorBridgeError.futureGeneration
     }
 
-    switch message.type {
-    case .editorReady:
-      try await receiveReady(message)
-    case .editorDelta:
-      try await receiveDelta(message)
-    case .documentSnapshotResponse:
-      do { try receiveSnapshotReference(message) } catch {
-        await failSnapshotTransfer(message)
-        throw error
-      }
-    case .chunkBegin:
-      do { try receiveChunkBegin(message) } catch {
-        await failSnapshotTransfer(message)
-        throw error
-      }
-    case .chunkData:
-      do { try await receiveChunkData(message) } catch {
-        await failSnapshotTransfer(message)
-        throw error
-      }
-    case .chunkAck:
-      try await receiveChunkAcknowledgement(message)
-    case .chunkEnd:
-      do { try await receiveChunkEnd(message) } catch {
-        await failSnapshotTransfer(message)
-        throw error
-      }
-    case .error:
-      if message.requestID == openRequestID {
-        state = .desynchronized
-      } else if message.requestID == pendingSnapshotRequestID,
-        message.revision == pendingSnapshotRevision
-      {
-        failPendingSnapshot()
-      } else {
+    do {
+      switch message.type {
+      case .editorReady:
+        try await receiveReady(message)
+      case .editorDelta:
+        try receiveDelta(message)
+      case .documentSnapshotResponse:
+        try receiveSnapshotReference(message)
+      case .chunkBegin:
+        try receiveChunkBegin(message)
+      case .chunkData:
+        try await receiveChunkData(message)
+      case .chunkAck:
+        try await receiveChunkAcknowledgement(message)
+      case .chunkEnd:
+        try await receiveChunkEnd(message)
+      case .error:
+        receiveWebError(message)
+      default:
         throw EditorBridgeError.unexpectedMessage
       }
-    default:
-      throw EditorBridgeError.unexpectedMessage
+    } catch {
+      if state == .opening || (isPendingSnapshot(message) && message.type != .error) {
+        enterDesynchronized()
+      }
+      throw error
     }
   }
 
   func invalidate() {
     guard state != .invalidated else { return }
-    openTransfer?.cancel()
-    incomingSnapshot?.cancel()
-    openTimeoutTask?.cancel()
-    snapshotTimeoutTask?.cancel()
-    openTransfer = nil
-    openRequestID = nil
-    incomingSnapshot = nil
-    pendingSnapshotRequestID = nil
-    pendingSnapshotRevision = nil
-    pendingSnapshotReference = nil
+    cancelPendingOperations()
     transport = nil
     state = .invalidated
   }
@@ -205,39 +239,29 @@ final class EditorBridge {
       revision: 0, transferID: UUID())
     let transfer = try OutboundChunkTransfer(
       identity: identity, purpose: "document.open", body: body)
-    openTransfer = transfer
-    openRequestID = identity.requestID
-    let timeout = transfer.descriptor.timeoutMilliseconds
-    openTimeoutTask = Task { @MainActor [weak self, weak transfer] in
-      try? await Task.sleep(for: .milliseconds(timeout))
-      guard !Task.isCancelled, let self, let transfer, self.openTransfer === transfer else {
-        return
-      }
-      transfer.timeout()
-      self.openTransfer = nil
-      self.state = .desynchronized
-      try? await self.send(
-        .error, requestID: transfer.descriptor.identity.requestID,
-        revision: transfer.descriptor.identity.revision,
-        payload: [
-          "code": .string("transferTimeout"),
-          "message": .string("Open transfer timed out"),
-          "retryable": .bool(false),
-        ])
-    }
-    try await send(
+    let message = try makeMessage(
       .documentOpen, requestID: identity.requestID, revision: 0,
       payload: [
         "transferId": .string(identity.transferID.uuidString.lowercased()),
         "utf8ByteLength": .integer(UInt64(body.count)),
         "sha256": .string(transfer.descriptor.sha256),
       ])
-    try await sendBegin(transfer.descriptor)
-    try await sendNextOpenChunk()
+    openTransfer = transfer
+    openMessage = message
+    openRequestID = identity.requestID
+    startOpenTimeout(transfer)
+    do {
+      try require(try await requireTransport().receive(message), decisions: ["acceptReference"])
+      try await sendBegin(transfer.descriptor)
+      try await sendNextOpenChunk()
+    } catch {
+      enterDesynchronized()
+      throw error
+    }
   }
 
-  private func receiveDelta(_ message: EditorMessage) async throws {
-    guard state == .editing || pendingSnapshotRequestID != nil,
+  private func receiveDelta(_ message: EditorMessage) throws {
+    guard state == .editing,
       case .string(let transaction) = message.payload["transactionId"],
       let transactionID = UUID(uuidString: transaction),
       case .integer(let from) = message.payload["fromRevision"],
@@ -251,32 +275,25 @@ final class EditorBridge {
         utf8ByteLength: Int(byteLength), sha256: sha256)
       openRequestID = nil
     } catch {
-      state = .desynchronized
-      try? await send(
-        .error, requestID: message.requestID, revision: message.revision,
-        payload: [
-          "code": .string("checkpointRequired"),
-          "message": .string("Revision metadata is desynchronized"),
-          "retryable": .bool(false),
-        ])
+      enterDesynchronized()
       throw EditorBridgeError.desynchronized
     }
   }
 
   private func receiveSnapshotReference(_ message: EditorMessage) throws {
-    guard message.requestID == pendingSnapshotRequestID,
+    guard state == .editing, message.requestID == pendingSnapshotRequestID,
       message.revision == pendingSnapshotRevision,
+      message.revision >= session.acceptedRevision,
       case .string(let transfer) = message.payload["transferId"],
       let transferID = UUID(uuidString: transfer),
       case .integer(let byteCount) = message.payload["utf8ByteLength"],
-      case .string(let sha256) = message.payload["sha256"]
+      case .string(let sha256) = message.payload["sha256"], pendingSnapshotReference == nil
     else { throw EditorBridgeError.unexpectedMessage }
-    guard pendingSnapshotReference == nil else { throw EditorBridgeError.unexpectedMessage }
     pendingSnapshotReference = (transferID, Int(byteCount), sha256)
   }
 
   private func receiveChunkBegin(_ message: EditorMessage) throws {
-    guard incomingSnapshot == nil, let reference = pendingSnapshotReference,
+    guard state == .editing, incomingSnapshot == nil, let reference = pendingSnapshotReference,
       message.requestID == pendingSnapshotRequestID,
       message.revision == pendingSnapshotRevision,
       case .string(let transfer) = message.payload["transferId"],
@@ -287,9 +304,8 @@ final class EditorBridge {
       case .integer(let chunkBytes) = message.payload["chunkBytes"],
       case .integer(let totalChunks) = message.payload["totalChunks"],
       case .string(let sha256) = message.payload["sha256"],
-      case .integer(let timeout) = message.payload["timeoutMs"]
-    else { throw EditorBridgeError.unexpectedMessage }
-    guard transferID == reference.transferID, Int(totalBytes) == reference.byteCount,
+      case .integer(let timeout) = message.payload["timeoutMs"],
+      transferID == reference.transferID, Int(totalBytes) == reference.byteCount,
       sha256 == reference.sha256
     else { throw EditorBridgeError.unexpectedMessage }
     let descriptor = try ChunkTransferDescriptor(
@@ -299,29 +315,10 @@ final class EditorBridge {
       purpose: purpose, totalBytes: Int(totalBytes), chunkBytes: Int(chunkBytes),
       totalChunks: Int(totalChunks), sha256: sha256, timeoutMilliseconds: Int(timeout))
     incomingSnapshot = InboundChunkTransfer(descriptor: descriptor)
-    snapshotTimeoutTask = Task { @MainActor [weak self, weak incoming = incomingSnapshot] in
-      try? await Task.sleep(for: .milliseconds(Int(timeout)))
-      guard !Task.isCancelled, let self, let incoming, self.incomingSnapshot === incoming else {
-        return
-      }
-      incoming.timeout()
-      let requestID = self.pendingSnapshotRequestID
-      let revision = self.pendingSnapshotRevision
-      self.failPendingSnapshot()
-      if let requestID, let revision {
-        try? await self.send(
-          .documentSaveFailed, requestID: requestID, revision: revision,
-          payload: [
-            "code": .string("transferTimeout"),
-            "message": .string("Snapshot transfer timed out"),
-            "retryable": .bool(true),
-          ])
-      }
-    }
   }
 
   private func receiveChunkData(_ message: EditorMessage) async throws {
-    guard let transfer = incomingSnapshot,
+    guard state == .editing, let transfer = incomingSnapshot,
       case .string(let transferString) = message.payload["transferId"],
       let transferID = UUID(uuidString: transferString),
       case .integer(let index) = message.payload["index"],
@@ -335,17 +332,18 @@ final class EditorBridge {
       ChunkDataFrame(
         identity: identity, index: Int(index), byteLength: Int(byteLength),
         dataBase64: dataBase64))
-    try await send(
+    let result = try await send(
       .chunkAck, requestID: message.requestID, revision: message.revision,
       payload: [
         "transferId": .string(transferID.uuidString.lowercased()),
         "ackedThrough": .integer(UInt64(acknowledged)),
       ])
+    try require(result, decisions: ["acceptAck"])
     try transfer.didSendAcknowledgement(through: acknowledged)
   }
 
   private func receiveChunkAcknowledgement(_ message: EditorMessage) async throws {
-    guard let transfer = openTransfer,
+    guard state == .opening, let transfer = openTransfer,
       case .string(let transferString) = message.payload["transferId"],
       let transferID = UUID(uuidString: transferString),
       case .integer(let acknowledged) = message.payload["ackedThrough"]
@@ -358,9 +356,11 @@ final class EditorBridge {
   }
 
   private func sendNextOpenChunk() async throws {
-    guard let transfer = openTransfer else { throw EditorBridgeError.invalidState }
+    guard state == .opening, let transfer = openTransfer else {
+      throw EditorBridgeError.invalidState
+    }
     if let frame = try transfer.nextFrame() {
-      try await send(
+      let result = try await send(
         .chunkData, requestID: frame.identity.requestID, revision: frame.identity.revision,
         payload: [
           "transferId": .string(frame.identity.transferID.uuidString.lowercased()),
@@ -368,19 +368,54 @@ final class EditorBridge {
           "byteLength": .integer(UInt64(frame.byteLength)),
           "dataBase64": .string(frame.dataBase64),
         ])
+      try require(result, decisions: ["acceptChunk"])
       return
     }
     let end = try transfer.endFrame()
-    try await sendEnd(end)
-    openTransfer = nil
+    let result = try await sendEnd(end)
+    try require(result, decisions: ["acceptEndPendingValidation"])
+    try await replayOpenUntilTerminal()
+  }
+
+  private func replayOpenUntilTerminal() async throws {
+    guard let message = openMessage else { throw EditorBridgeError.invalidState }
+    for _ in 0..<openReplayLimit {
+      guard state == .opening else { throw EditorBridgeError.desynchronized }
+      await Task.yield()
+      let result = try await requireTransport().receive(message)
+      switch result.decision {
+      case "acceptReference":
+        try require(result, decisions: ["acceptReference"])
+      case "completed":
+        try require(result, decisions: ["completed"], outcome: .completed)
+        completeOpen()
+        return
+      case "failed":
+        try require(result, decisions: ["failed"], outcome: .failed, responseType: .error)
+        guard let response = result.response, response.requestID == message.requestID,
+          response.revision == message.revision
+        else { throw EditorBridgeError.invalidJavaScriptResult }
+        enterDesynchronized()
+        throw EditorBridgeError.desynchronized
+      default:
+        throw EditorBridgeError.rejected(result.decision)
+      }
+    }
+    enterDesynchronized()
+    throw EditorBridgeError.desynchronized
+  }
+
+  private func completeOpen() {
     openTimeoutTask?.cancel()
     openTimeoutTask = nil
-    try session.beginEditing()
-    state = .editing
+    openTransfer = nil
+    openMessage = nil
+    try? session.beginEditing()
+    state = session.state == .editing ? .editing : .desynchronized
   }
 
   private func receiveChunkEnd(_ message: EditorMessage) async throws {
-    guard let transfer = incomingSnapshot,
+    guard state == .editing, let transfer = incomingSnapshot,
       case .string(let transferString) = message.payload["transferId"],
       let transferID = UUID(uuidString: transferString),
       case .integer(let totalBytes) = message.payload["totalBytes"],
@@ -395,33 +430,53 @@ final class EditorBridge {
         identity: identity, totalBytes: Int(totalBytes), totalChunks: Int(totalChunks),
         sha256: sha256))
     incomingSnapshot = nil
-    snapshotTimeoutTask?.cancel()
-    snapshotTimeoutTask = nil
-    let snapshot: VerifiedDocumentSnapshot
+    let snapshot = try VerifiedDocumentSnapshot(
+      revision: message.revision, data: body, sha256: sha256)
     do {
-      snapshot = try VerifiedDocumentSnapshot(
-        revision: message.revision, data: body, sha256: sha256)
       try session.save(snapshot: snapshot)
     } catch {
-      failPendingSnapshot()
-      try await send(
-        .documentSaveFailed, requestID: message.requestID, revision: message.revision,
+      let requestID = message.requestID
+      let revision = message.revision
+      let result = try await send(
+        .documentSaveFailed, requestID: requestID, revision: revision,
         payload: [
           "code": .string("replaceFailed"), "message": .string("Atomic replacement failed"),
           "retryable": .bool(true),
         ])
+      try require(result, decisions: ["acceptSaveFailure"])
+      failPendingSnapshot()
       return
     }
-    failPendingSnapshot()
-    try await send(
-      .documentSaved, requestID: message.requestID, revision: message.revision,
-      payload: [
-        "durableRevision": .integer(message.revision), "sha256": .string(sha256),
-      ])
+
+    let result: EditorJavaScriptResult
+    do {
+      result = try await send(
+        .documentSaved, requestID: message.requestID, revision: message.revision,
+        payload: [
+          "durableRevision": .integer(message.revision), "sha256": .string(sha256),
+        ])
+      try require(result, decisions: ["acceptClean", "acceptDirty"])
+      failPendingSnapshot()
+    } catch {
+      failPendingSnapshot()
+      enterDesynchronized()
+      throw error
+    }
+  }
+
+  private func receiveWebError(_ message: EditorMessage) {
+    if message.requestID == openRequestID
+      || (message.requestID == pendingSnapshotRequestID
+        && message.revision == pendingSnapshotRevision)
+    {
+      enterDesynchronized()
+      return
+    }
+    enterDesynchronized()
   }
 
   private func sendBegin(_ descriptor: ChunkTransferDescriptor) async throws {
-    try await send(
+    let result = try await send(
       .chunkBegin, requestID: descriptor.identity.requestID, revision: descriptor.identity.revision,
       payload: [
         "transferId": .string(descriptor.identity.transferID.uuidString.lowercased()),
@@ -432,9 +487,10 @@ final class EditorBridge {
         "sha256": .string(descriptor.sha256),
         "timeoutMs": .integer(UInt64(descriptor.timeoutMilliseconds)),
       ])
+    try require(result, decisions: ["acceptBegin"])
   }
 
-  private func sendEnd(_ frame: ChunkEndFrame) async throws {
+  private func sendEnd(_ frame: ChunkEndFrame) async throws -> EditorJavaScriptResult {
     try await send(
       .chunkEnd, requestID: frame.identity.requestID, revision: frame.identity.revision,
       payload: [
@@ -447,16 +503,67 @@ final class EditorBridge {
   private func send(
     _ type: EditorMessageType, requestID: UUID, revision: UInt64,
     payload: [String: JSONValue]
-  ) async throws {
-    let message = try EditorMessage(
+  ) async throws -> EditorJavaScriptResult {
+    try await requireTransport().receive(
+      makeMessage(type, requestID: requestID, revision: revision, payload: payload))
+  }
+
+  private func makeMessage(
+    _ type: EditorMessageType, requestID: UUID, revision: UInt64,
+    payload: [String: JSONValue]
+  ) throws -> EditorMessage {
+    try EditorMessage(
       type: type, requestID: requestID, sessionID: sessionID,
       sessionGeneration: sessionGeneration, revision: revision, payload: payload)
-    try await requireTransport().receive(message)
+  }
+
+  private func require(
+    _ result: EditorJavaScriptResult, decisions: Set<String>,
+    outcome: EditorJavaScriptResult.Outcome? = nil,
+    responseType: EditorMessageType? = nil
+  ) throws {
+    guard decisions.contains(result.decision), result.outcome == outcome else {
+      throw EditorBridgeError.rejected(result.decision)
+    }
+    if let responseType {
+      if let response = result.response {
+        guard response.type == responseType, response.sessionID == sessionID,
+          response.sessionGeneration == sessionGeneration
+        else { throw EditorBridgeError.invalidJavaScriptResult }
+      }
+    } else if result.response != nil {
+      throw EditorBridgeError.invalidJavaScriptResult
+    }
   }
 
   private func requireTransport() throws -> any EditorJavaScriptTransport {
     guard let transport else { throw EditorBridgeError.transportUnavailable }
     return transport
+  }
+
+  private func startOpenTimeout(_ transfer: OutboundChunkTransfer) {
+    openTimeoutTask = Task { @MainActor [weak self, weak transfer] in
+      try? await Task.sleep(for: .milliseconds(self?.operationTimeoutMilliseconds ?? 0))
+      guard !Task.isCancelled, let self, let transfer, self.openTransfer === transfer else {
+        return
+      }
+      self.enterDesynchronized()
+    }
+  }
+
+  private func startSnapshotTimeout(requestID: UUID, revision: UInt64) {
+    snapshotTimeoutTask?.cancel()
+    snapshotTimeoutTask = Task { @MainActor [weak self] in
+      try? await Task.sleep(for: .milliseconds(self?.operationTimeoutMilliseconds ?? 0))
+      guard !Task.isCancelled, let self, self.pendingSnapshotRequestID == requestID,
+        self.pendingSnapshotRevision == revision
+      else { return }
+      self.enterDesynchronized()
+    }
+  }
+
+  private func isPendingSnapshot(_ message: EditorMessage) -> Bool {
+    message.requestID == pendingSnapshotRequestID && message.revision == pendingSnapshotRevision
   }
 
   private func failPendingSnapshot() {
@@ -469,19 +576,25 @@ final class EditorBridge {
     pendingSnapshotReference = nil
   }
 
-  private func failSnapshotTransfer(_ message: EditorMessage) async {
-    guard message.requestID == pendingSnapshotRequestID,
-      message.revision == pendingSnapshotRevision
-    else { return }
-    let requestID = message.requestID
-    let revision = message.revision
-    failPendingSnapshot()
-    try? await send(
-      .documentSaveFailed, requestID: requestID, revision: revision,
-      payload: [
-        "code": .string("transferRejected"),
-        "message": .string("Snapshot transfer rejected"),
-        "retryable": .bool(true),
-      ])
+  private func cancelPendingOperations() {
+    openTransfer?.cancel()
+    incomingSnapshot?.cancel()
+    openTimeoutTask?.cancel()
+    snapshotTimeoutTask?.cancel()
+    openTransfer = nil
+    openMessage = nil
+    openRequestID = nil
+    incomingSnapshot = nil
+    pendingSnapshotRequestID = nil
+    pendingSnapshotRevision = nil
+    pendingSnapshotReference = nil
+    openTimeoutTask = nil
+    snapshotTimeoutTask = nil
+  }
+
+  private func enterDesynchronized() {
+    guard state != .invalidated else { return }
+    cancelPendingOperations()
+    state = .desynchronized
   }
 }

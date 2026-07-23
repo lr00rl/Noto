@@ -112,7 +112,8 @@ final class InboundChunkTransfer: @unchecked Sendable {
         frame.byteLength <= descriptor.chunkBytes,
         receivedBytes + frame.byteLength <= descriptor.totalBytes
       else { return try fail(.lengthMismatch) }
-      guard let bytes = Data(base64Encoded: frame.dataBase64),
+      guard Self.hasCanonicalBase64Shape(frame.dataBase64, byteLength: frame.byteLength),
+        let bytes = Data(base64Encoded: frame.dataBase64),
         bytes.count == frame.byteLength, bytes.base64EncodedString() == frame.dataBase64
       else { return try fail(.invalidBase64) }
       chunks.append(bytes)
@@ -177,6 +178,28 @@ final class InboundChunkTransfer: @unchecked Sendable {
     terminalError = error
     chunks.removeAll(keepingCapacity: false)
     throw error
+  }
+
+  private static func hasCanonicalBase64Shape(_ value: String, byteLength: Int) -> Bool {
+    guard byteLength >= 0 else { return false }
+    let encodedLength = ((byteLength + 2) / 3) * 4
+    let bytes = value.utf8
+    guard bytes.count == encodedLength else { return false }
+    if byteLength == 0 { return value.isEmpty }
+
+    let requiredPadding = (3 - byteLength % 3) % 3
+    for (index, byte) in bytes.enumerated() {
+      let isPadding = index >= encodedLength - requiredPadding
+      if isPadding {
+        guard byte == 0x3D else { return false }
+      } else {
+        let isAlphabet =
+          (0x41...0x5A).contains(byte) || (0x61...0x7A).contains(byte)
+          || (0x30...0x39).contains(byte) || byte == 0x2B || byte == 0x2F
+        guard isAlphabet else { return false }
+      }
+    }
+    return true
   }
 }
 

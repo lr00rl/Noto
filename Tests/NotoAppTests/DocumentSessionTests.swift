@@ -153,6 +153,22 @@ final class DocumentSessionTests: XCTestCase {
     XCTAssertEqual(try Data(contentsOf: fixture.fileURL), externalData)
   }
 
+  func testCleanPresenterChangeRequiresOwnerRebuildWithoutReloadingNativeText() async throws {
+    let fixture = try TemporaryMarkdownFixture(data: Data("initial\n".utf8))
+    let accessor = RecordingScopeAccessor(allowsAccess: true)
+    let monitor = LockedValue<ExternalChangeMonitor?>(nil)
+    let session = makeSession(fixture: fixture, accessor: accessor, monitor: monitor)
+    try openForEditing(session)
+
+    try Data("external\n".utf8).write(to: fixture.fileURL)
+    monitor.value?.presentedItemDidChange()
+    await Task.yield()
+
+    XCTAssertEqual(session.state, .conflict)
+    XCTAssertEqual(session.text, "initial\n")
+    XCTAssertEqual(session.acceptedRevision, 0)
+  }
+
   func testSuccessfulSaveAcceptsOnlyTheRequestedRevision() throws {
     let fixture = try TemporaryMarkdownFixture(data: Data("initial\n".utf8))
     let accessor = RecordingScopeAccessor(allowsAccess: true)

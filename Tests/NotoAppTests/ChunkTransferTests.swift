@@ -68,6 +68,21 @@ final class ChunkTransferTests: XCTestCase {
     ) { error in XCTAssertEqual(error as? ChunkTransferError, .timedOut) }
   }
 
+  func testBase64ShapeIsRejectedBeforeDecodeForLengthAlphabetAndPadding() throws {
+    let body = Data("a".utf8)
+    let descriptor = try ChunkTransferDescriptor(
+      identity: identity, purpose: "document.snapshot.response", totalBytes: 1,
+      sha256: ChunkHash.sha256(body))
+    for malformed in ["A", "!!!!", "YQ=A", "YQ==AAAA"] {
+      let transfer = InboundChunkTransfer(descriptor: descriptor)
+      XCTAssertThrowsError(
+        try transfer.receive(
+          ChunkDataFrame(
+            identity: identity, index: 0, byteLength: 1, dataBase64: malformed))
+      ) { error in XCTAssertEqual(error as? ChunkTransferError, .invalidBase64) }
+    }
+  }
+
   private var identity: ChunkTransferIdentity {
     ChunkTransferIdentity(
       requestID: requestID, sessionID: sessionID, sessionGeneration: 1,
