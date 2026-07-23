@@ -30,10 +30,13 @@ final class DocumentSessionTests: XCTestCase {
 
     try session.open()
 
-    XCTAssertEqual(session.state, .editing)
+    XCTAssertEqual(session.state, .ready)
     XCTAssertEqual(session.text, "hello\n")
     XCTAssertEqual(accessor.startCount, 1)
     XCTAssertEqual(accessor.stopCount, 0)
+
+    try session.beginEditing()
+    XCTAssertEqual(session.state, .editing)
 
     session.close()
     XCTAssertEqual(session.state, .closed)
@@ -48,7 +51,7 @@ final class DocumentSessionTests: XCTestCase {
     let accessor = RecordingScopeAccessor(allowsAccess: true)
     let session = makeSession(fixture: fixture, accessor: accessor, isStale: true)
 
-    XCTAssertThrowsError(try session.open()) { error in
+    XCTAssertThrowsError(try openForEditing(session)) { error in
       XCTAssertEqual(error as? SecurityScopedBookmarkError, .staleBookmark)
     }
     XCTAssertEqual(session.state, .saveFailed)
@@ -61,7 +64,7 @@ final class DocumentSessionTests: XCTestCase {
     let accessor = RecordingScopeAccessor(allowsAccess: true)
     let session = makeSession(fixture: fixture, accessor: accessor)
 
-    XCTAssertThrowsError(try session.open()) { error in
+    XCTAssertThrowsError(try openForEditing(session)) { error in
       XCTAssertEqual(error as? MarkdownEnvelopeError, .invalidUTF8)
     }
     XCTAssertEqual(session.state, .saveFailed)
@@ -75,7 +78,7 @@ final class DocumentSessionTests: XCTestCase {
     let accessor = RecordingScopeAccessor(allowsAccess: true)
     let session = makeSession(fixture: fixture, accessor: accessor)
 
-    XCTAssertThrowsError(try session.open()) { error in
+    XCTAssertThrowsError(try openForEditing(session)) { error in
       XCTAssertEqual(
         error as? MarkdownEnvelopeError,
         .bodyTooLarge(
@@ -97,21 +100,20 @@ final class DocumentSessionTests: XCTestCase {
     let fixture = try TemporaryMarkdownFixture(data: original)
     let accessor = RecordingScopeAccessor(allowsAccess: true)
     let session = makeSession(fixture: fixture, accessor: accessor)
-    try session.open()
+    try openForEditing(session)
 
     let oversizedText = String(
       repeating: "a",
       count: MarkdownEnvelope.maximumByteCount + 1
     )
-    try session.recordEditorChange(text: oversizedText, revision: 1)
-
-    XCTAssertThrowsError(try session.save(text: oversizedText, revision: 1)) { error in
-      guard case .bodyTooLarge = error as? MarkdownEnvelopeError else {
-        return XCTFail("Expected bodyTooLarge, received \(error)")
-      }
+    XCTAssertThrowsError(try record(oversizedText, revision: 1, in: session)) { error in
+      XCTAssertEqual(
+        error as? DocumentSessionError,
+        .revisionDesynchronized(expected: 0, received: 0)
+      )
     }
-    XCTAssertEqual(session.state, .saveFailed)
-    XCTAssertTrue(session.isDirty)
+    XCTAssertEqual(session.state, .editing)
+    XCTAssertFalse(session.isDirty)
     XCTAssertEqual(session.acceptedRevision, 0)
     XCTAssertEqual(try Data(contentsOf: fixture.fileURL), original)
   }
@@ -121,12 +123,12 @@ final class DocumentSessionTests: XCTestCase {
     let fixture = try TemporaryMarkdownFixture(data: original)
     let accessor = RecordingScopeAccessor(allowsAccess: true)
     let session = makeSession(fixture: fixture, accessor: accessor)
-    try session.open()
+    try openForEditing(session)
 
     let originalText = session.text
-    try session.recordEditorChange(text: "changed\n", revision: 1)
-    try session.recordEditorChange(text: originalText, revision: 2)
-    try session.save(text: originalText, revision: 2)
+    try record("changed\n", revision: 1, in: session)
+    try record(originalText, revision: 2, in: session)
+    try save(originalText, revision: 2, in: session)
 
     XCTAssertFalse(session.isDirty)
     XCTAssertEqual(session.acceptedRevision, 2)
@@ -137,13 +139,13 @@ final class DocumentSessionTests: XCTestCase {
     let fixture = try TemporaryMarkdownFixture(data: Data("initial\n".utf8))
     let accessor = RecordingScopeAccessor(allowsAccess: true)
     let session = makeSession(fixture: fixture, accessor: accessor)
-    try session.open()
-    try session.recordEditorChange(text: "editor\n", revision: 1)
+    try openForEditing(session)
+    try record("editor\n", revision: 1, in: session)
 
     let externalData = Data("external\n".utf8)
     try externalData.write(to: fixture.fileURL)
 
-    XCTAssertThrowsError(try session.save(text: "editor\n", revision: 1)) { error in
+    XCTAssertThrowsError(try save("editor\n", revision: 1, in: session)) { error in
       XCTAssertEqual(error as? DocumentSessionError, .externalChange)
     }
     XCTAssertEqual(session.state, .conflict)
@@ -151,20 +153,36 @@ final class DocumentSessionTests: XCTestCase {
     XCTAssertEqual(try Data(contentsOf: fixture.fileURL), externalData)
   }
 
+  func testCleanPresenterChangeRequiresOwnerRebuildWithoutReloadingNativeText() async throws {
+    let fixture = try TemporaryMarkdownFixture(data: Data("initial\n".utf8))
+    let accessor = RecordingScopeAccessor(allowsAccess: true)
+    let monitor = LockedValue<ExternalChangeMonitor?>(nil)
+    let session = makeSession(fixture: fixture, accessor: accessor, monitor: monitor)
+    try openForEditing(session)
+
+    try Data("external\n".utf8).write(to: fixture.fileURL)
+    monitor.value?.presentedItemDidChange()
+    await Task.yield()
+
+    XCTAssertEqual(session.state, .conflict)
+    XCTAssertEqual(session.text, "initial\n")
+    XCTAssertEqual(session.acceptedRevision, 0)
+  }
+
   func testSuccessfulSaveAcceptsOnlyTheRequestedRevision() throws {
     let fixture = try TemporaryMarkdownFixture(data: Data("initial\n".utf8))
     let accessor = RecordingScopeAccessor(allowsAccess: true)
     let session = makeSession(fixture: fixture, accessor: accessor)
-    try session.open()
-    try session.recordEditorChange(text: "saved\n", revision: 4)
+    try openForEditing(session)
+    try record("saved\n", revision: 1, in: session)
 
-    XCTAssertThrowsError(try session.save(text: "stale\n", revision: 3))
+    XCTAssertThrowsError(try save("stale\n", revision: 1, in: session))
     XCTAssertTrue(session.isDirty)
 
-    try session.save(text: "saved\n", revision: 4)
+    try save("saved\n", revision: 1, in: session)
     XCTAssertEqual(session.state, .editing)
     XCTAssertFalse(session.isDirty)
-    XCTAssertEqual(session.acceptedRevision, 4)
+    XCTAssertEqual(session.acceptedRevision, 1)
     XCTAssertEqual(try Data(contentsOf: fixture.fileURL), Data("saved\n".utf8))
   }
 
@@ -183,10 +201,10 @@ final class DocumentSessionTests: XCTestCase {
       writer: writer,
       monitor: monitor
     )
-    try session.open()
-    try session.recordEditorChange(text: "editor\n", revision: 1)
+    try openForEditing(session)
+    try record("editor\n", revision: 1, in: session)
 
-    XCTAssertThrowsError(try session.save(text: "editor\n", revision: 1)) { error in
+    XCTAssertThrowsError(try save("editor\n", revision: 1, in: session)) { error in
       XCTAssertEqual(error as? DocumentSessionError, .externalChange)
     }
     XCTAssertEqual(session.state, .conflict)
@@ -212,10 +230,10 @@ final class DocumentSessionTests: XCTestCase {
       writer: writer,
       monitor: monitor
     )
-    try session.open()
-    try session.recordEditorChange(text: "saved\n", revision: 1)
+    try openForEditing(session)
+    try record("saved\n", revision: 1, in: session)
 
-    try session.save(text: "saved\n", revision: 1)
+    try save("saved\n", revision: 1, in: session)
 
     XCTAssertEqual(session.state, .editing)
     XCTAssertFalse(session.isDirty)
@@ -227,7 +245,7 @@ final class DocumentSessionTests: XCTestCase {
     let accessor = RecordingScopeAccessor(allowsAccess: true)
     let monitor = LockedValue<ExternalChangeMonitor?>(nil)
     let session = makeSession(fixture: fixture, accessor: accessor, monitor: monitor)
-    try session.open()
+    try openForEditing(session)
     let movedURL = fixture.directoryURL.appendingPathComponent("moved.md")
 
     monitor.value?.presentedItemDidMove(to: movedURL)
@@ -241,10 +259,10 @@ final class DocumentSessionTests: XCTestCase {
     let fixture = try TemporaryMarkdownFixture(data: Data("initial\n".utf8))
     let accessor = RecordingScopeAccessor(allowsAccess: true)
     let session = makeSession(fixture: fixture, accessor: accessor)
-    try session.open()
-    try session.recordEditorChange(text: "recorded\n", revision: 1)
+    try openForEditing(session)
+    try record("recorded\n", revision: 1, in: session)
 
-    XCTAssertThrowsError(try session.save(text: "different\n", revision: 1)) { error in
+    XCTAssertThrowsError(try save("different\n", revision: 1, in: session)) { error in
       XCTAssertEqual(
         error as? DocumentSessionError,
         .snapshotContentMismatch(revision: 1)
@@ -252,6 +270,26 @@ final class DocumentSessionTests: XCTestCase {
     }
     XCTAssertTrue(session.isDirty)
     XCTAssertEqual(try Data(contentsOf: fixture.fileURL), Data("initial\n".utf8))
+  }
+
+  func testSavingFrozenRevisionWhileNewerEditExistsRemainsDirty() throws {
+    let fixture = try TemporaryMarkdownFixture(data: Data("initial\n".utf8))
+    let accessor = RecordingScopeAccessor(allowsAccess: true)
+    let session = makeSession(fixture: fixture, accessor: accessor)
+    try openForEditing(session)
+    try record("revision one\n", revision: 1, in: session)
+    try record("revision two\n", revision: 2, in: session)
+
+    try save("revision one\n", revision: 1, in: session)
+
+    XCTAssertEqual(session.acceptedRevision, 1)
+    XCTAssertEqual(session.editorRevision, 2)
+    XCTAssertTrue(session.isDirty)
+    XCTAssertEqual(try Data(contentsOf: fixture.fileURL), Data("revision one\n".utf8))
+
+    try save("revision two\n", revision: 2, in: session)
+    XCTAssertFalse(session.isDirty)
+    XCTAssertEqual(session.acceptedRevision, 2)
   }
 
   func testExternalChangeMonitorInvalidationIsBalancedAndIdempotent() throws {
@@ -303,6 +341,33 @@ final class DocumentSessionTests: XCTestCase {
         monitor?.set(created)
         return created
       }
+    )
+  }
+
+  private func openForEditing(_ session: DocumentSession) throws {
+    try session.open()
+    try session.beginEditing()
+  }
+
+  private func record(_ text: String, revision: UInt64, in session: DocumentSession) throws {
+    let data = Data(text.utf8)
+    _ = try session.recordEditorDelta(
+      transactionID: UUID(),
+      fromRevision: revision - 1,
+      toRevision: revision,
+      utf8ByteLength: data.count,
+      sha256: ChunkHash.sha256(data)
+    )
+  }
+
+  private func save(_ text: String, revision: UInt64, in session: DocumentSession) throws {
+    let data = Data(text.utf8)
+    try session.save(
+      snapshot: VerifiedDocumentSnapshot(
+        revision: revision,
+        data: data,
+        sha256: ChunkHash.sha256(data)
+      )
     )
   }
 }

@@ -16,7 +16,29 @@ enum DocumentSessionError: Error, Equatable, Sendable {
   case invalidTransition(from: DocumentSessionState, to: DocumentSessionState)
   case externalChange
   case snapshotContentMismatch(revision: UInt64)
+  case revisionDesynchronized(expected: UInt64, received: UInt64)
   case closed
+}
+
+struct EditorRevisionMetadata: Equatable, Sendable {
+  let revision: UInt64
+  let utf8ByteLength: Int
+  let sha256: String
+}
+
+struct VerifiedDocumentSnapshot: Equatable, Sendable {
+  let revision: UInt64
+  let data: Data
+  let sha256: String
+
+  init(revision: UInt64, data: Data, sha256: String) throws {
+    guard data.count <= MarkdownEnvelope.maximumByteCount,
+      ChunkHash.sha256(data) == sha256
+    else { throw DocumentSessionError.snapshotContentMismatch(revision: revision) }
+    self.revision = revision
+    self.data = data
+    self.sha256 = sha256
+  }
 }
 
 @MainActor
@@ -31,6 +53,7 @@ final class DocumentSession {
   private(set) var editorRevision: UInt64 = 0
   private(set) var acceptedRevision: UInt64 = 0
   private(set) var isDirty = false
+  /// The last durable document text. Live editor text, selection, and undo remain in CodeMirror.
   private(set) var text = ""
 
   let fileURL: URL
@@ -44,6 +67,9 @@ final class DocumentSession {
   private var monitor: ExternalChangeMonitor?
   private var envelope: MarkdownEnvelope?
   private var acceptedFingerprint: FileFingerprint?
+  private var revisionMetadata: [UInt64: EditorRevisionMetadata] = [:]
+  private var transactionMetadata: [UUID: EditorRevisionMetadata] = [:]
+  private var authorityConflictHandler: (@MainActor () -> Void)?
 
   init(
     fileURL: URL,
@@ -71,11 +97,13 @@ final class DocumentSession {
       self.envelope = envelope
       acceptedFingerprint = snapshot.fingerprint
       text = envelope.text
+      revisionMetadata[0] = EditorRevisionMetadata(
+        revision: 0, utf8ByteLength: Data(envelope.text.utf8).count,
+        sha256: ChunkHash.sha256(Data(envelope.text.utf8)))
       monitor = monitorFactory(lease.url) { [weak self] event in
         Task { @MainActor [weak self] in self?.handlePresentedItemChange(event) }
       }
       try transition(to: .ready, allowedFrom: [.loading])
-      try transition(to: .editing, allowedFrom: [.ready])
     } catch {
       monitor?.invalidate()
       monitor = nil
@@ -86,32 +114,68 @@ final class DocumentSession {
     }
   }
 
-  func recordEditorChange(text: String, revision: UInt64) throws {
-    guard state == .editing || state == .conflict else {
-      throw DocumentSessionError.invalidTransition(from: state, to: .editing)
-    }
-    guard revision > editorRevision else { return }
-    self.text = text
-    editorRevision = revision
-    isDirty = true
+  func beginEditing() throws {
+    try transition(to: .editing, allowedFrom: [.ready])
   }
 
-  func save(text candidateText: String, revision: UInt64) throws {
-    guard state == .editing else {
+  func setAuthorityConflictHandler(_ handler: (@MainActor () -> Void)?) {
+    authorityConflictHandler = handler
+  }
+
+  @discardableResult
+  func recordEditorDelta(
+    transactionID: UUID,
+    fromRevision: UInt64,
+    toRevision: UInt64,
+    utf8ByteLength: Int,
+    sha256: String
+  ) throws -> Bool {
+    guard state == .editing || state == .snapshotting || state == .committing else {
+      throw DocumentSessionError.invalidTransition(from: state, to: .editing)
+    }
+    let metadata = EditorRevisionMetadata(
+      revision: toRevision, utf8ByteLength: utf8ByteLength, sha256: sha256)
+    if let prior = transactionMetadata[transactionID] {
+      guard prior == metadata, fromRevision + 1 == toRevision else {
+        throw DocumentSessionError.revisionDesynchronized(
+          expected: editorRevision, received: fromRevision)
+      }
+      return false
+    }
+    guard fromRevision == editorRevision, toRevision == fromRevision + 1,
+      utf8ByteLength >= 0, utf8ByteLength <= MarkdownEnvelope.maximumByteCount,
+      EditorProtocolCodec.isSHA256(sha256)
+    else {
+      throw DocumentSessionError.revisionDesynchronized(
+        expected: editorRevision, received: fromRevision)
+    }
+    transactionMetadata[transactionID] = metadata
+    revisionMetadata[toRevision] = metadata
+    editorRevision = toRevision
+    isDirty = true
+    return true
+  }
+
+  func save(snapshot: VerifiedDocumentSnapshot) throws {
+    guard state == .editing || state == .saveFailed else {
       if state == .conflict { throw DocumentSessionError.externalChange }
       if state == .closed { throw DocumentSessionError.closed }
       throw DocumentSessionError.invalidTransition(from: state, to: .snapshotting)
     }
     guard
-      revision == editorRevision,
+      snapshot.revision <= editorRevision,
+      let expectedMetadata = revisionMetadata[snapshot.revision],
       let envelope,
       let acceptedFingerprint,
       let destinationURL = lease?.url
     else {
       throw DocumentSessionError.invalidTransition(from: state, to: .snapshotting)
     }
-    guard candidateText == text else {
-      throw DocumentSessionError.snapshotContentMismatch(revision: revision)
+    guard expectedMetadata.utf8ByteLength == snapshot.data.count,
+      expectedMetadata.sha256 == snapshot.sha256,
+      let candidateText = String(data: snapshot.data, encoding: .utf8)
+    else {
+      throw DocumentSessionError.snapshotContentMismatch(revision: snapshot.revision)
     }
 
     guard let monitor else {
@@ -133,7 +197,7 @@ final class DocumentSession {
     monitor.acknowledge(through: pendingPresenterChanges.generation)
 
     let presenterGeneration = pendingPresenterChanges.generation
-    try transition(to: .snapshotting, allowedFrom: [.editing])
+    try transition(to: .snapshotting, allowedFrom: [.editing, .saveFailed])
     do {
       let data = try envelope.encodedData(for: candidateText)
       try transition(to: .committing, allowedFrom: [.snapshotting])
@@ -157,8 +221,8 @@ final class DocumentSession {
       self.envelope = try MarkdownEnvelope(data: committed.data)
       self.acceptedFingerprint = committed.fingerprint
       text = candidateText
-      acceptedRevision = revision
-      isDirty = false
+      acceptedRevision = snapshot.revision
+      isDirty = editorRevision != snapshot.revision
       monitor.acknowledge(through: presenterChanges.generation)
       try transition(to: .editing, allowedFrom: [.committing])
     } catch DocumentSessionError.externalChange {
@@ -185,12 +249,14 @@ final class DocumentSession {
     case .moved, .deleted:
       monitor?.invalidate()
       state = .conflict
+      authorityConflictHandler?()
       return
     case .changed:
       break
     }
     if isDirty || state == .snapshotting || state == .committing {
       state = .conflict
+      authorityConflictHandler?()
       return
     }
 
@@ -203,17 +269,11 @@ final class DocumentSession {
         acknowledgePresentedChanges()
         return
       }
-      let envelope = try MarkdownEnvelope(data: snapshot.data)
-      generation = UUID()
-      self.envelope = envelope
-      acceptedFingerprint = snapshot.fingerprint
-      text = envelope.text
-      editorRevision = 0
-      acceptedRevision = 0
-      state = .editing
-      acknowledgePresentedChanges()
+      state = .conflict
+      authorityConflictHandler?()
     } catch {
       state = .conflict
+      authorityConflictHandler?()
     }
   }
 
