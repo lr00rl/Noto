@@ -137,7 +137,7 @@ final class EditorBridge {
     sessionID: UUID = UUID(),
     sessionGeneration: UInt64 = 1,
     operationTimeoutMilliseconds: Int = 10_000,
-    openReplayLimit: Int = 64,
+    openReplayLimit: Int = 128,
     openReplayDelayMilliseconds: Int = 10,
     onFatal: (@MainActor () -> Void)? = nil
   ) {
