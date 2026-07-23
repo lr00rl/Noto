@@ -57,6 +57,21 @@ final class WebKitEditorJavaScriptTransport: EditorJavaScriptTransport {
 
   func bootstrap(sessionID: UUID, generation: UInt64) async throws -> EditorJavaScriptResult {
     guard let webView else { throw EditorBridgeError.transportUnavailable }
+    var bridgeAvailable = false
+    for _ in 0..<200 {
+      let raw = try await webView.callAsyncJavaScript(
+        "return {decision: typeof globalThis.notoBridge?.bootstrap === 'function' ? 'bridgeReady' : 'bridgeWaiting'}",
+        arguments: [:],
+        in: nil,
+        contentWorld: .page
+      )
+      if try EditorJavaScriptResult.decode(raw).decision == "bridgeReady" {
+        bridgeAvailable = true
+        break
+      }
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    guard bridgeAvailable else { throw EditorBridgeError.transportUnavailable }
     let raw = try await webView.callAsyncJavaScript(
       "return globalThis.notoBridge.bootstrap(command)",
       arguments: [
@@ -100,7 +115,6 @@ enum EditorBridgeError: Error, Equatable, Sendable {
 final class EditorBridge {
   enum State: Equatable, Sendable {
     case created
-    case bootstrapping
     case awaitingReady
     case opening
     case editing
@@ -153,12 +167,11 @@ final class EditorBridge {
 
   func bootstrap() async throws {
     guard state == .created else { throw EditorBridgeError.invalidState }
-    state = .bootstrapping
+    state = .awaitingReady
     do {
       let result = try await requireTransport().bootstrap(
         sessionID: sessionID, generation: sessionGeneration)
       try require(result, decisions: ["acceptBootstrap"])
-      state = .awaitingReady
     } catch {
       enterDesynchronized()
       throw error

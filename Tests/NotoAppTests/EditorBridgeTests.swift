@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import XCTest
 
@@ -47,6 +48,25 @@ final class EditorBridgeTests: XCTestCase {
     XCTAssertEqual(opens[0], opens[1])
     XCTAssertEqual(transport.messages.filter { $0.type == .chunkEnd }.count, 1)
     await assertThrowsErrorAsync(try await bridge.bootstrap())
+  }
+
+  func testBundledWebEditorCompletesRealWKWebViewOpenTransaction() async throws {
+    let fixture = try BridgeTemporaryFixture(data: Data("# Noto\n\n真实文件。\n".utf8))
+    let session = makeSession(fixture)
+    try session.open()
+
+    let viewController = EditorViewController(session: session)
+    let window = NSWindow(contentViewController: viewController)
+    window.setContentSize(NSSize(width: 800, height: 600))
+    window.orderFront(nil)
+    defer { window.close() }
+
+    for _ in 0..<200 where session.state != .editing && !viewController.hasUnresolvedAuthority {
+      try await Task.sleep(for: .milliseconds(25))
+    }
+
+    XCTAssertEqual(session.state, .editing)
+    XCTAssertFalse(viewController.hasUnresolvedAuthority)
   }
 
   func testRejectedBootstrapAndCachedOpenFailureAreFatal() async throws {

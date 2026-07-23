@@ -14,7 +14,7 @@ await build({
   bundle: true,
   entryNames: "editor",
   entryPoints: ["src/editor.ts"],
-  format: "esm",
+  format: "iife",
   legalComments: "none",
   minify: true,
   outdir: "dist",

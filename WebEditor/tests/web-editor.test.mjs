@@ -14,16 +14,19 @@ test("source HTML enforces a bundle-only restrictive CSP", async () => {
   assert.match(html, /default-src 'self'/);
   assert.match(html, /connect-src 'none'/);
   assert.match(html, /script-src 'self'/);
-  assert.match(html, /style-src 'self' 'nonce-noto-web-editor'/);
+  assert.match(html, /script-src 'self' noto-editor:/);
+  assert.match(html, /style-src 'self' noto-editor: 'nonce-noto-web-editor'/);
   assert.doesNotMatch(html, /https?:\/\//);
   assert.doesNotMatch(html, /unsafe-(?:inline|eval)/);
   assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)/i);
+  assert.match(html, /<script defer src="\.\/editor\.js"><\/script>/);
+  assert.doesNotMatch(html, /type="module"/);
   assert.doesNotMatch(html, /\sstyle=/i);
 });
 
 test("CodeMirror receives the same nonce allowed by the CSP", async () => {
   const [html, editor] = await Promise.all([read("src/index.html"), read("src/editor.ts")]);
-  const nonce = html.match(/style-src 'self' 'nonce-([^']+)'/)?.[1];
+  const nonce = html.match(/style-src 'self' noto-editor: 'nonce-([^']+)'/)?.[1];
 
   assert.ok(nonce);
   assert.match(editor, new RegExp(`CSP_NONCE = "${nonce}"`));

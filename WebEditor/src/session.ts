@@ -246,8 +246,8 @@ export class EditorSession {
     this.postMessage = options.postMessage;
     this.hashBytes = options.hashBytes ?? browserSha256;
     this.uuid = options.uuid ?? defaultUuid;
-    this.setTimer = options.setTimer ?? setTimeout;
-    this.clearTimer = options.clearTimer ?? clearTimeout;
+    this.setTimer = options.setTimer ?? ((callback, milliseconds) => globalThis.setTimeout(callback, milliseconds));
+    this.clearTimer = options.clearTimer ?? ((timer) => globalThis.clearTimeout(timer));
     this.editor.setEditable(false);
   }
 

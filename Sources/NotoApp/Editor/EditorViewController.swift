@@ -65,12 +65,15 @@ final class EditorViewController: NSViewController, WKNavigationDelegate, WKUIDe
 
     let entryURL = URL(string: "\(EditorResourceSchemeHandler.scheme)://bundle/index.html")!
     editorView.load(URLRequest(url: entryURL))
-  }
-
-  func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-    guard let bridge else { return }
-    Task { @MainActor in
-      do { try await bridge.bootstrap() } catch { retireAuthority() }
+    if let bridge {
+      Task { @MainActor in
+        do {
+          try await bridge.bootstrap()
+        } catch {
+          NSLog("Noto editor bootstrap failed: %@", String(describing: error))
+          retireAuthority()
+        }
+      }
     }
   }
 
