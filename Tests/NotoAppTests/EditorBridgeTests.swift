@@ -16,6 +16,20 @@ final class EditorBridgeTests: XCTestCase {
     XCTAssertThrowsError(try EditorJavaScriptResult.decode(["outcome": "completed"]))
   }
 
+  func testWebKitTransportUsesDirectCallAsyncJavaScriptArgumentNames() throws {
+    let sourceURL = URL(fileURLWithPath: #filePath)
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .appendingPathComponent("Sources/NotoApp/Editor/EditorBridge.swift")
+    let source = try String(
+      contentsOf: sourceURL, encoding: .utf8)
+    XCTAssertTrue(source.contains("globalThis.notoBridge.bootstrap(command)"))
+    XCTAssertTrue(source.contains("globalThis.notoBridge.receive(message)"))
+    XCTAssertFalse(source.contains("arguments.command"))
+    XCTAssertFalse(source.contains("arguments.message"))
+  }
+
   func testBootstrapRequiresAcceptAndOpenReplaysExactEnvelopeUntilCompleted() async throws {
     let fixture = try BridgeTemporaryFixture(data: Data("hello".utf8))
     let session = makeSession(fixture)
@@ -83,7 +97,31 @@ final class EditorBridgeTests: XCTestCase {
       }
       return RecordingEditorTransport.defaultResult(for: message, occurrence: occurrence)
     }
-    let bridge = EditorBridge(session: session, transport: transport, openReplayLimit: 2)
+    let bridge = EditorBridge(
+      session: session, transport: transport, operationTimeoutMilliseconds: 100,
+      openReplayLimit: 2, openReplayDelayMilliseconds: 1)
+    try await bridge.bootstrap()
+    await assertThrowsErrorAsync(
+      try await sendReadyAndAcknowledgeOpen(bridge, transport: transport))
+    XCTAssertEqual(bridge.state, .desynchronized)
+    XCTAssertEqual(session.state, .ready)
+  }
+
+  func testLateCompletedOpenCannotReviveTimedOutOperation() async throws {
+    let fixture = try BridgeTemporaryFixture(data: Data("hello".utf8))
+    let session = makeSession(fixture)
+    try session.open()
+    let transport = RecordingEditorTransport()
+    transport.handler = { message, occurrence in
+      if message.type == .documentOpen, occurrence == 2 {
+        try await Task.sleep(for: .milliseconds(60))
+        return .init(decision: "completed", outcome: .completed, response: nil)
+      }
+      return RecordingEditorTransport.defaultResult(for: message, occurrence: occurrence)
+    }
+    let bridge = EditorBridge(
+      session: session, transport: transport, operationTimeoutMilliseconds: 20,
+      openReplayDelayMilliseconds: 1)
     try await bridge.bootstrap()
     await assertThrowsErrorAsync(
       try await sendReadyAndAcknowledgeOpen(bridge, transport: transport))
@@ -233,7 +271,16 @@ final class EditorBridgeTests: XCTestCase {
     XCTAssertEqual(try Data(contentsOf: fixture.fileURL), external)
     XCTAssertEqual(session.state, .conflict)
     XCTAssertEqual(transport.messages.last?.type, .documentSaveFailed)
-    XCTAssertEqual(bridge.state, .editing)
+    XCTAssertEqual(bridge.state, .desynchronized)
+  }
+
+  func testControllerRetirementCallbackIsBlockingAndIdempotent() {
+    var retirements = 0
+    let controller = EditorViewController { retirements += 1 }
+    controller.retireAuthority()
+    controller.retireAuthority()
+    XCTAssertTrue(controller.hasUnresolvedAuthority)
+    XCTAssertEqual(retirements, 1)
   }
 
   func testUncorrelatedWebErrorDesynchronizesWithoutNativeErrorSend() async throws {
@@ -392,7 +439,7 @@ private final class RecordingEditorTransport: EditorJavaScriptTransport {
   private(set) var messages: [EditorMessage] = []
   var bootstrapResult = EditorJavaScriptResult(
     decision: "acceptBootstrap", outcome: nil, response: nil)
-  var handler: ((EditorMessage, Int) throws -> EditorJavaScriptResult)?
+  var handler: ((EditorMessage, Int) async throws -> EditorJavaScriptResult)?
   private var occurrences: [EditorMessageType: Int] = [:]
 
   func bootstrap(sessionID: UUID, generation: UInt64) async throws -> EditorJavaScriptResult {
@@ -404,7 +451,7 @@ private final class RecordingEditorTransport: EditorJavaScriptTransport {
     messages.append(message)
     occurrences[message.type, default: 0] += 1
     let occurrence = occurrences[message.type, default: 0]
-    return try handler?(message, occurrence)
+    return try await handler?(message, occurrence)
       ?? Self.defaultResult(for: message, occurrence: occurrence)
   }
 

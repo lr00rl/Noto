@@ -69,6 +69,7 @@ final class DocumentSession {
   private var acceptedFingerprint: FileFingerprint?
   private var revisionMetadata: [UInt64: EditorRevisionMetadata] = [:]
   private var transactionMetadata: [UUID: EditorRevisionMetadata] = [:]
+  private var authorityConflictHandler: (@MainActor () -> Void)?
 
   init(
     fileURL: URL,
@@ -115,6 +116,10 @@ final class DocumentSession {
 
   func beginEditing() throws {
     try transition(to: .editing, allowedFrom: [.ready])
+  }
+
+  func setAuthorityConflictHandler(_ handler: (@MainActor () -> Void)?) {
+    authorityConflictHandler = handler
   }
 
   @discardableResult
@@ -244,12 +249,14 @@ final class DocumentSession {
     case .moved, .deleted:
       monitor?.invalidate()
       state = .conflict
+      authorityConflictHandler?()
       return
     case .changed:
       break
     }
     if isDirty || state == .snapshotting || state == .committing {
       state = .conflict
+      authorityConflictHandler?()
       return
     }
 
@@ -263,8 +270,10 @@ final class DocumentSession {
         return
       }
       state = .conflict
+      authorityConflictHandler?()
     } catch {
       state = .conflict
+      authorityConflictHandler?()
     }
   }
 

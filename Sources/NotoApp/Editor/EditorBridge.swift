@@ -58,7 +58,7 @@ final class WebKitEditorJavaScriptTransport: EditorJavaScriptTransport {
   func bootstrap(sessionID: UUID, generation: UInt64) async throws -> EditorJavaScriptResult {
     guard let webView else { throw EditorBridgeError.transportUnavailable }
     let raw = try await webView.callAsyncJavaScript(
-      "return globalThis.notoBridge.bootstrap(arguments.command)",
+      "return globalThis.notoBridge.bootstrap(command)",
       arguments: [
         "command": [
           "command": "bootstrap",
@@ -75,7 +75,7 @@ final class WebKitEditorJavaScriptTransport: EditorJavaScriptTransport {
   func receive(_ message: EditorMessage) async throws -> EditorJavaScriptResult {
     guard let webView else { throw EditorBridgeError.transportUnavailable }
     let raw = try await webView.callAsyncJavaScript(
-      "return globalThis.notoBridge.receive(arguments.message)",
+      "return globalThis.notoBridge.receive(message)",
       arguments: ["message": message.foundationObject],
       in: nil,
       contentWorld: .page
@@ -116,9 +116,12 @@ final class EditorBridge {
   private weak var transport: (any EditorJavaScriptTransport)?
   private let operationTimeoutMilliseconds: Int
   private let openReplayLimit: Int
+  private let openReplayDelayMilliseconds: Int
+  private let onFatal: (@MainActor () -> Void)?
   private var openTransfer: OutboundChunkTransfer?
   private var openMessage: EditorMessage?
   private var openRequestID: UUID?
+  private var openOperationToken: UUID?
   private var incomingSnapshot: InboundChunkTransfer?
   private var pendingSnapshotReference: (transferID: UUID, byteCount: Int, sha256: String)?
   private var pendingSnapshotRequestID: UUID?
@@ -134,7 +137,9 @@ final class EditorBridge {
     sessionID: UUID = UUID(),
     sessionGeneration: UInt64 = 1,
     operationTimeoutMilliseconds: Int = 10_000,
-    openReplayLimit: Int = 64
+    openReplayLimit: Int = 64,
+    openReplayDelayMilliseconds: Int = 10,
+    onFatal: (@MainActor () -> Void)? = nil
   ) {
     self.session = session
     self.transport = transport
@@ -142,6 +147,8 @@ final class EditorBridge {
     self.sessionGeneration = sessionGeneration
     self.operationTimeoutMilliseconds = operationTimeoutMilliseconds
     self.openReplayLimit = openReplayLimit
+    self.openReplayDelayMilliseconds = openReplayDelayMilliseconds
+    self.onFatal = onFatal
   }
 
   func bootstrap() async throws {
@@ -249,6 +256,7 @@ final class EditorBridge {
     openTransfer = transfer
     openMessage = message
     openRequestID = identity.requestID
+    openOperationToken = UUID()
     startOpenTimeout(transfer)
     do {
       try require(try await requireTransport().receive(message), decisions: ["acceptReference"])
@@ -378,11 +386,24 @@ final class EditorBridge {
   }
 
   private func replayOpenUntilTerminal() async throws {
-    guard let message = openMessage else { throw EditorBridgeError.invalidState }
-    for _ in 0..<openReplayLimit {
-      guard state == .opening else { throw EditorBridgeError.desynchronized }
-      await Task.yield()
+    guard let message = openMessage, let operationToken = openOperationToken else {
+      throw EditorBridgeError.invalidState
+    }
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .milliseconds(operationTimeoutMilliseconds))
+    for attempt in 0..<openReplayLimit {
+      guard isCurrentOpen(message, operationToken: operationToken), clock.now < deadline else {
+        throw EditorBridgeError.desynchronized
+      }
+      let delay = min(openReplayDelayMilliseconds * (attempt + 1), 100)
+      try await Task.sleep(for: .milliseconds(delay))
+      guard isCurrentOpen(message, operationToken: operationToken), clock.now < deadline else {
+        throw EditorBridgeError.desynchronized
+      }
       let result = try await requireTransport().receive(message)
+      guard isCurrentOpen(message, operationToken: operationToken), clock.now < deadline else {
+        throw EditorBridgeError.desynchronized
+      }
       switch result.decision {
       case "acceptReference":
         try require(result, decisions: ["acceptReference"])
@@ -410,6 +431,7 @@ final class EditorBridge {
     openTimeoutTask = nil
     openTransfer = nil
     openMessage = nil
+    openOperationToken = nil
     try? session.beginEditing()
     state = session.state == .editing ? .editing : .desynchronized
   }
@@ -434,9 +456,10 @@ final class EditorBridge {
       revision: message.revision, data: body, sha256: sha256)
     do {
       try session.save(snapshot: snapshot)
-    } catch {
+    } catch let saveError {
       let requestID = message.requestID
       let revision = message.revision
+      let externalConflict = saveError as? DocumentSessionError == .externalChange
       let result = try await send(
         .documentSaveFailed, requestID: requestID, revision: revision,
         payload: [
@@ -445,6 +468,7 @@ final class EditorBridge {
         ])
       try require(result, decisions: ["acceptSaveFailure"])
       failPendingSnapshot()
+      if externalConflict { enterDesynchronized() }
       return
     }
 
@@ -566,6 +590,11 @@ final class EditorBridge {
     message.requestID == pendingSnapshotRequestID && message.revision == pendingSnapshotRevision
   }
 
+  private func isCurrentOpen(_ message: EditorMessage, operationToken: UUID) -> Bool {
+    state == .opening && openOperationToken == operationToken && openMessage == message
+      && openRequestID == message.requestID
+  }
+
   private func failPendingSnapshot() {
     incomingSnapshot?.cancel()
     snapshotTimeoutTask?.cancel()
@@ -584,6 +613,7 @@ final class EditorBridge {
     openTransfer = nil
     openMessage = nil
     openRequestID = nil
+    openOperationToken = nil
     incomingSnapshot = nil
     pendingSnapshotRequestID = nil
     pendingSnapshotRevision = nil
@@ -594,7 +624,9 @@ final class EditorBridge {
 
   private func enterDesynchronized() {
     guard state != .invalidated else { return }
+    let wasFatal = state == .desynchronized
     cancelPendingOperations()
     state = .desynchronized
+    if !wasFatal { onFatal?() }
   }
 }

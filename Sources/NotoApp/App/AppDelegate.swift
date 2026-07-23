@@ -31,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-    guard documentSession?.isDirty == true else { return .terminateNow }
+    guard hasUnresolvedDocumentAuthority else { return .terminateNow }
     let alert = NSAlert()
     alert.messageText = "Discard unsaved changes?"
     alert.informativeText = "The current document has changes that have not been saved."
@@ -45,7 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   @objc private func openDocument(_ sender: Any?) {
-    guard documentSession?.isDirty != true else {
+    guard !hasUnresolvedDocumentAuthority else {
       NSSound.beep()
       return
     }
@@ -67,6 +67,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     } catch {
       NSSound.beep()
     }
+  }
+
+  private var hasUnresolvedDocumentAuthority: Bool {
+    guard let documentSession else { return false }
+    return documentSession.isDirty || documentSession.state == .conflict
+      || editorViewController?.hasUnresolvedAuthority == true
   }
 
   @objc private func saveDocument(_ sender: Any?) {

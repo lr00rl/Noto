@@ -10,9 +10,15 @@ final class EditorViewController: NSViewController, WKNavigationDelegate, WKUIDe
   private var webView: WKWebView?
   private var transport: WebKitEditorJavaScriptTransport?
   private var bridge: EditorBridge?
+  private let authorityRetirementHandler: (@MainActor () -> Void)?
+  private(set) var hasUnresolvedAuthority = false
 
-  init(session: DocumentSession? = nil) {
+  init(
+    session: DocumentSession? = nil,
+    authorityRetirementHandler: (@MainActor () -> Void)? = nil
+  ) {
     self.session = session
+    self.authorityRetirementHandler = authorityRetirementHandler
     super.init(nibName: nil, bundle: nil)
   }
 
@@ -22,6 +28,7 @@ final class EditorViewController: NSViewController, WKNavigationDelegate, WKUIDe
 
   override func loadView() {
     view = NSView()
+    session?.setAuthorityConflictHandler { [weak self] in self?.retireAuthority() }
 
     guard
       Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "Editor") != nil
@@ -51,7 +58,9 @@ final class EditorViewController: NSViewController, WKNavigationDelegate, WKUIDe
     if let session {
       let transport = WebKitEditorJavaScriptTransport(webView: editorView)
       self.transport = transport
-      bridge = EditorBridge(session: session, transport: transport)
+      bridge = EditorBridge(session: session, transport: transport) { [weak self] in
+        self?.retireAuthority()
+      }
     }
 
     let entryURL = URL(string: "\(EditorResourceSchemeHandler.scheme)://bundle/index.html")!
@@ -61,7 +70,7 @@ final class EditorViewController: NSViewController, WKNavigationDelegate, WKUIDe
   func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
     guard let bridge else { return }
     Task { @MainActor in
-      do { try await bridge.bootstrap() } catch { bridge.invalidate() }
+      do { try await bridge.bootstrap() } catch { retireAuthority() }
     }
   }
 
@@ -73,7 +82,7 @@ final class EditorViewController: NSViewController, WKNavigationDelegate, WKUIDe
       do {
         try await bridge.receive(message.body)
       } catch {
-        // Diagnostics intentionally omit content.
+        if bridge.state == .desynchronized { retireAuthority() }
       }
     }
   }
@@ -89,9 +98,26 @@ final class EditorViewController: NSViewController, WKNavigationDelegate, WKUIDe
   }
 
   override func viewDidDisappear() {
+    session?.setAuthorityConflictHandler(nil)
     bridge?.invalidate()
     webView?.configuration.userContentController.removeScriptMessageHandler(forName: "notoBridge")
     super.viewDidDisappear()
+  }
+
+  func retireAuthority() {
+    guard !hasUnresolvedAuthority else { return }
+    hasUnresolvedAuthority = true
+    webView?.configuration.userContentController.removeScriptMessageHandler(forName: "notoBridge")
+    webView?.stopLoading()
+    webView?.navigationDelegate = nil
+    webView?.uiDelegate = nil
+    webView?.removeFromSuperview()
+    webView = nil
+    transport = nil
+    bridge?.invalidate()
+    bridge = nil
+    showAuthorityErrorPlaceholder()
+    authorityRetirementHandler?()
   }
 
   func webView(
@@ -122,6 +148,18 @@ final class EditorViewController: NSViewController, WKNavigationDelegate, WKUIDe
   private func showMissingBundlePlaceholder() {
     let label = NSTextField(labelWithString: "Build WebEditor to load the bundled editor surface.")
     label.textColor = .secondaryLabelColor
+    label.alignment = .center
+    label.translatesAutoresizingMaskIntoConstraints = false
+    view.addSubview(label)
+    NSLayoutConstraint.activate([
+      label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+      label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+    ])
+  }
+
+  private func showAuthorityErrorPlaceholder() {
+    let label = NSTextField(labelWithString: "Editing stopped because document authority was lost.")
+    label.textColor = .systemRed
     label.alignment = .center
     label.translatesAutoresizingMaskIntoConstraints = false
     view.addSubview(label)
