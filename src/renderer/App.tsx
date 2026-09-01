@@ -170,12 +170,21 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
 
   const pluginSnapshot = pluginSnapshots.find((snapshot) => snapshot.id === rendererProofManifest.id);
   const filename = useMemo(() => opened?.path.split(/[\\/]/).at(-1) ?? 'No document', [opened]);
+  // The containing folder, shortened to a leading tilde inside the home
+  // directory, which is where documents nearly always are and where the
+  // absolute prefix is pure noise.
+  const containingFolder = useMemo(() => {
+    if (!opened) return '';
+    // Cut at the last separator rather than splitting and rejoining. Rejoining
+    // on '/' would rewrite a Windows path into a shape the platform does not
+    // use, and would leave it unable to match a home directory spelled with
+    // backslashes, so the shortening below would never fire there.
+    const cut = Math.max(opened.path.lastIndexOf('/'), opened.path.lastIndexOf('\\'));
+    const directory = cut > 0 ? opened.path.slice(0, cut) : opened.path;
+    const home = window.notoPlatform?.home;
+    return home && directory.startsWith(home) ? `~${directory.slice(home.length)}` : directory;
+  }, [opened]);
 
-  const updateEditorDirty = (value: boolean) => {
-    editorDirtyRef.current = value;
-    const id = activeIdRef.current;
-    if (id) patchDoc(id, { dirty: value });
-  };
   const updateRecoveryBarrier = (value: boolean) => {
     recoveryBarrierRef.current = value;
     setRecoveryBarrier(value);
@@ -724,7 +733,11 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const nextTheme = theme === 'light' ? 'dark' : 'light';
 
   return (
-    <div className={`app-shell file-truth-shell ${pluginsOpen ? 'plugins-open' : ''}`}
+    <div className={`app-shell ${pluginsOpen ? 'plugins-open' : ''}`}
+      // Only macOS puts window controls over the page, so only macOS needs the
+      // title bar to leave room for them. The value is the one bootstrap
+      // validated, which the shell already has.
+      data-platform={platform}
       data-testid="noto-app" data-file-state={state}
       data-plugin-lifecycle={pluginSnapshot?.lifecycle ?? 'disabled'}
       data-plugin-registrations={pluginSnapshot?.rendererRegistrations ?? 0}>
@@ -733,6 +746,12 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       <header className="titlebar">
         <div className="document-identity">
           <strong title={opened?.path} aria-label={opened ? `${filename}. ${opened.path}` : filename}>{filename}</strong>
+          {/* The unsaved marker every editor has, next to the name rather than
+              only in the state of the Save button. Whether there is work to
+              lose is the one thing worth being able to see without reading. */}
+          {opened && editorDirty && (
+            <span className="unsaved-dot" data-testid="unsaved-dot" role="img" aria-label="Unsaved changes" />
+          )}
         </div>
         {/* Shown only when it has something to say. "Opened" and "Saved" are
             the resting states and repeat what the window already implies, and
@@ -744,20 +763,36 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
           data-testid="file-state" aria-live="polite">{state}</span>
         <div className="title-actions">
           <button type="button" data-testid="open-button" onClick={() => void openWithDialog()}>Open…</button>
+          {/* The workspace tree had no control at all: it could only be reached
+              from the View menu, so nothing on screen said it existed. Every
+              other panel in this bar has a toggle, and this is the one users
+              look for first. */}
+          <button type="button" data-testid="sidebar-toggle" aria-pressed={sidebarOpen}
+            onClick={() => setSidebarOpen((current) => !current)}>Files</button>
           <button type="button" data-testid="outline-toggle" aria-pressed={outlineOpen}
             disabled={outline.length === 0}
             onClick={() => setOutlineOpen((current) => !current)}>Outline</button>
           <button ref={pluginsButtonRef} type="button" data-testid="plugin-toggle"
             aria-expanded={pluginsOpen} aria-controls="plugin-drawer"
             onClick={() => (pluginsOpen ? closePlugins() : setPluginsOpen(true))}>Plugins</button>
+          {/* Writes the setting rather than the resolved value. `theme` is
+              derived from `settings.theme` by the effect above, so assigning to
+              it directly changed this button's own icon and nothing else: no
+              attribute reached the document and the next settings update put it
+              back. Going through the setting also means the choice survives a
+              restart, which is the only useful behaviour for a theme. */}
           <button type="button" className="icon-button" data-testid="theme-button"
             aria-label={`Use ${nextTheme} theme`} title={`Use ${nextTheme} theme`}
-            onClick={() => setTheme(nextTheme)}>
+            onClick={() => changeSettings({ theme: nextTheme })}>
             {theme === 'light'
               ? <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11.8 10.7A5.2 5.2 0 0 1 5.3 4.2 5.2 5.2 0 1 0 11.8 10.7Z" /></svg>
               : <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.5" /><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M13 3l-1.4 1.4M4.4 11.6 3 13" /></svg>}
           </button>
+          {/* Filled only while it is the thing to do. A permanently filled Save
+              is loud in a window that is usually already saved, and a Save that
+              never changes gives no signal at all. */}
           <button type="button" data-testid="save-button"
+            className={editorDirty && !pending && !saveBlocked ? 'primary' : ''}
             disabled={!editorDirty || pending || saveBlocked}
             onClick={() => void save()}>{state === 'Save failed' ? 'Retry save' : 'Save'}</button>
         </div>
@@ -922,17 +957,24 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         </section>
       )}
 
-      <footer className="operational-status">
-        {/* The name, with the full path on hover. A long absolute path never
-            fits the bar and pushes out everything worth reading. */}
-        <span className="status-path" title={opened?.path}
-          aria-label={opened?.path ?? 'No accepted file identity'}>
-          {opened ? filename : 'No accepted file identity'}
-        </span>
-        <span className="status-message">
-          {state === 'Opened' ? 'Exact source preserved' : state === 'Saved' ? 'Exact source saved' : state}
-        </span>
-      </footer>
+      {/* Where the file lives, and what state it is in.
+          Deliberately not the file name: the title bar already shows that, and
+          repeating it in the corner spends the only other line the window has
+          on something the reader has already read. The containing folder is
+          what the title bar cannot tell them, and the full path is on hover. */}
+      {opened && (
+        <footer className="operational-status">
+          <span className="status-path" title={opened.path}>{containingFolder}</span>
+          {/* Only the resting states. Every other state is already on the title
+              bar, and an unsaved document was announcing itself three times at
+              once: the dot on the name, the word beside the actions, and this.
+              What this line adds is the fidelity promise, which nothing else
+              says. */}
+          <span className="status-message">
+            {state === 'Opened' ? 'Exact source preserved' : state === 'Saved' ? 'Exact source saved' : ''}
+          </span>
+        </footer>
+      )}
     </div>
   );
 }

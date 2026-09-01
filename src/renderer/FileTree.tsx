@@ -92,7 +92,7 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
               onClick={() => toggle(entry.path)}
             >
               <span className={isOpen ? 'tree-twisty tree-twisty-open' : 'tree-twisty'} aria-hidden="true" />
-              {entry.name}
+              <span className="tree-name">{entry.name}</span>
             </button>
             {isOpen && renderLevel(entry.path, depth + 1)}
           </div>
@@ -111,7 +111,7 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
           aria-current={isActive ? 'true' : undefined}
           onClick={() => onOpenFile(entry.path)}
         >
-          {entry.name}
+          <span className="tree-name">{entry.name}</span>
         </button>
       );
     });

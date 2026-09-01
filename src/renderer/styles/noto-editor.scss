@@ -562,9 +562,10 @@
 @media (max-width: 900px) {
   .outline-panel { display: none; }
 
-  /* The panel cannot open at this width, so the control that opens it should
-     not be sitting there looking live. */
-  [data-testid='outline-toggle'] { display: none; }
+  /* Neither panel can open at this width, so the controls that open them
+     should not be sitting there looking live. */
+  [data-testid='outline-toggle'],
+  [data-testid='sidebar-toggle'] { display: none; }
 }
 
 /* Find and replace
@@ -867,6 +868,16 @@
 }
 
 .tree-twisty-open { rotate: 90deg; }
+
+/* The name is its own element because the row is a flex container, and
+   `text-overflow` does not reach a bare text node inside one: a long filename
+   was cut off mid-word with no ellipsis to say it had been. */
+.tree-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .tree-file-active {
   color: var(--ink);

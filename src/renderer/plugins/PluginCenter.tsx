@@ -293,6 +293,19 @@ export function PluginCenter({ api, snapshots, availability, open, onClose, evid
         </section>
       ))}
 
+      {/* The two below are bundled examples, not product features. They exist
+          so a plugin author can read a working plugin of each runtime kind, and
+          so the capability broker has something that exercises it: one decorates
+          the document, the other asks for a filesystem grant and can be made to
+          prove a denied path. Saying so here keeps a reader from wondering what
+          a "Fixture Reader" is doing in their editor. */}
+      <div className="plugin-group-heading">
+        <span className="aside-heading">Examples</span>
+        <p>Two working plugins, one per runtime kind, kept in the build so the
+          plugin API has something to read and the capability broker has
+          something to test.</p>
+      </div>
+
       <section className={`plugin-section plugin-tone-${rendererPresentation.tone}`}
         data-testid="renderer-plugin-state" aria-busy={pendingAction.renderer !== null}>
         <div className="plugin-name-row"><strong>{rendererProofManifest.name}</strong></div>

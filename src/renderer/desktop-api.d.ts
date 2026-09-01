@@ -9,6 +9,7 @@ declare global {
     notoFileTruth: NotoFileTruthApiV1;
     notoWorkspace: NotoWorkspaceApiV1;
     notoSettings: NotoSettingsApiV1;
+    notoPlatform: { readonly home: string };
   }
 }
 

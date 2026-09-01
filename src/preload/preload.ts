@@ -308,3 +308,16 @@ const settingsApi: NotoSettingsApiV1 = Object.freeze({
 
 contextBridge.exposeInMainWorld('notoWorkspace', workspaceApi);
 contextBridge.exposeInMainWorld('notoSettings', settingsApi);
+
+/**
+ * The user's home directory, used only to shorten a displayed path to a leading
+ * tilde in the status bar.
+ *
+ * It is a string the window already effectively knows from any file it has
+ * open, so showing it reveals nothing, and it never reaches the document. The
+ * platform itself is not exposed here: bootstrap already reports it, validated,
+ * and one source for it is enough.
+ */
+contextBridge.exposeInMainWorld('notoPlatform', Object.freeze({
+  home: process.env.HOME ?? process.env.USERPROFILE ?? '',
+}));
