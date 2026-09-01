@@ -79,6 +79,15 @@ exactly the cases the Save button refuses. A custom stylesheet can be pointed at
 any absolute path and wins over the built-in theme, so `:root { --accent: … }`
 is enough to retheme the app without editing it.
 
+`Cmd+P` is quick open: type part of a note's name or its path and it ranks the
+whole folder by how well it matches and by how often and how recently you open
+it, so an empty box already shows the few notes you probably want. `Enter`
+opens the note; `Alt+Enter` writes a `[[wiki link]]` to it at the caret instead.
+Wiki links render inline wherever they appear, and `Cmd+click` follows one.
+
+The links are decorations rather than a node type, so they cannot reach the
+saved bytes: `[[a note]]` is ordinary text in the file, exactly as you typed it.
+
 `Cmd+/` toggles source mode for the block the caret is in, which is the escape
 hatch when you want to see or hand-edit the Markdown behind one paragraph, one
 table or one code fence without leaving the rest of the document rendered.

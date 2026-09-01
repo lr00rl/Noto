@@ -15,7 +15,13 @@ import type {
   FileTruthSaveTokenV1,
   NotoPlatform,
 } from '../shared/file-truth/v1/contracts';
-import type { RecentFileV1, WorkspaceTabV1 } from '../shared/workspace/v1/contracts';
+import type {
+  RecentFileV1, WorkspaceIndexEntryV1, WorkspaceTabV1,
+} from '../shared/workspace/v1/contracts';
+import { QuickOpen } from './QuickOpen';
+import {
+  pruneStore, recordOpen, searchBoost, type FrecencyStoreV1,
+} from '../shared/search/v1/frecency';
 import type { NotoDocumentWire } from '../shared/markdown/v3/contracts';
 import { outlineOf } from './outline';
 import { PLUGIN_LIFECYCLE_VERSION, type PluginLifecycleSnapshot } from '../shared/plugins/lifecycle';
@@ -163,6 +169,18 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const [pluginAvailability, setPluginAvailability] = useState<PluginSnapshotAvailability>('loading');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [recent, setRecent] = useState<readonly RecentFileV1[]>([]);
+  useEffect(() => {
+    setFrecency((current) => {
+      let next = current;
+      // Recent entries carry their own timestamp, so a fresh window starts with
+      // real history rather than with everything looking equally cold.
+      for (const file of recent) {
+        if (next[file.path]) continue;
+        next = { ...next, [file.path]: { path: file.path, count: 1, lastOpenedAt: file.openedAt } };
+      }
+      return next;
+    });
+  }, [recent]);
   const [openError, setOpenError] = useState<string | null>(null);
   /**
    * The navigation rail: one region, two views.
@@ -179,6 +197,25 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   settingsRef.current = settings;
 
   const [folder, setFolder] = useState<{ root: string | null; name: string | null }>({ root: null, name: null });
+  const [quickOpen, setQuickOpen] = useState(false);
+  /* The editor is constructed once per document and keeps the callbacks it was
+     given, so a handler that closes over state has to be reached through a ref
+     or it answers with whatever that state was at construction. Following a
+     link resolved against an empty index for exactly this reason. */
+  const followWikiLinkRef = useRef<(target: string) => void>(() => {});
+  const ensureFileIndexRef = useRef<() => Promise<void>>(async () => {});
+  const [fileIndex, setFileIndex] = useState<{
+    entries: readonly WorkspaceIndexEntryV1[]; truncated: boolean;
+  }>({ entries: [], truncated: false });
+  /**
+   * How often and how recently each file is opened.
+   *
+   * Kept in the renderer and seeded from the recent list main already persists,
+   * rather than given a store of its own. A second persisted file would be a
+   * second thing to migrate and to keep in step with the first, for a ranking
+   * signal that is allowed to be approximate.
+   */
+  const [frecency, setFrecency] = useState<FrecencyStoreV1>({});
 
   const editorsRef = useRef<Map<string, NotoEditor>>(new Map());
   /** Always the editor of the document in front, so call sites stay unchanged. */
@@ -475,6 +512,10 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       if (!active) return;
       setFolder({ root: event.root, name: event.name });
       if (event.root) setRail({ open: true, view: 'files' });
+      // Not awaited: the walk is a background job and the window stays live
+      // through it. Following a wiki link needs the same index quick open does,
+      // and it has no moment of its own to ask for it.
+      void ensureFileIndexRef.current();
     });
     const unsubscribeClosed = window.notoWorkspace.onDocumentClosed(() => {
       if (!active) return;
@@ -748,11 +789,78 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     setOpenError(null);
     try {
       const result = await window.notoWorkspace.openPath({ version: 1, requestId: rid('open-path'), path: filePath });
-      if (!result.ok) setOpenError(actionableFileTruthMessage(result.error.message, 'That file could not be opened.'));
+      if (!result.ok) {
+        setOpenError(actionableFileTruthMessage(result.error.message, 'That file could not be opened.'));
+        return;
+      }
+      // Counted only on a successful open, so a path that does not resolve does
+      // not teach the ranking to offer it again.
+      setFrecency((current) => pruneStore(recordOpen(current, filePath, Date.now()), Date.now()));
     } catch (error) {
       setOpenError(actionableFileTruthMessage(error, 'That file could not be opened.'));
     }
   }, [confirmDiscard]);
+
+  /**
+   * The file index, fetched once per folder.
+   *
+   * On opening quick open rather than on opening the folder: someone who never
+   * searches never pays for the walk, and someone who does waits once.
+   */
+  const ensureFileIndex = useCallback(async () => {
+    try {
+      const result = await window.notoWorkspace.fileIndex({ version: 1, requestId: rid('file-index') });
+      if (result.ok) setFileIndex({ entries: result.value.entries, truncated: result.value.truncated });
+    } catch {
+      // A failed index leaves quick open searching nothing, which its own empty
+      // state already explains. It is not worth an alert over the document.
+      setFileIndex({ entries: [], truncated: false });
+    }
+  }, []);
+  ensureFileIndexRef.current = ensureFileIndex;
+
+  /**
+   * Resolve a `[[wiki link]]` against the index.
+   *
+   * Exact relative path first, then basename with and without the extension,
+   * which is the order that makes `[[00_索引]]` find the one in this folder
+   * rather than the eleven others with that name. Ambiguity falls back to
+   * frecency, on the grounds that the note you keep opening is the one you
+   * meant.
+   */
+  const followWikiLink = useCallback((target: string) => {
+    const wanted = target.replace(/\.md$/i, '').toLowerCase();
+    const matches = fileIndex.entries.filter((entry) => {
+      const relative = entry.relativePath.replace(/\.md$/i, '').toLowerCase();
+      const name = entry.name.replace(/\.md$/i, '').toLowerCase();
+      return relative === wanted || name === wanted;
+    });
+    if (matches.length === 0) {
+      setLocalMessage(`No note in this folder is called “${target}”.`);
+      return;
+    }
+    const now = Date.now();
+    const best = matches.reduce((chosen, entry) => (
+      searchBoost(frecency, entry.path, now) > searchBoost(frecency, chosen.path, now) ? entry : chosen
+    ));
+    void openPath(best.path);
+  }, [fileIndex.entries, frecency, openPath]);
+  followWikiLinkRef.current = followWikiLink;
+
+  /** The link text for a note, relative to the one being edited. */
+  const insertWikiLink = useCallback((entry: WorkspaceIndexEntryV1) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    // The bare name when it is unambiguous in the folder, the relative path
+    // when it is not, so the common case stays short and the ambiguous one
+    // still resolves.
+    const base = entry.name.replace(/\.md$/i, '');
+    const sameName = fileIndex.entries.filter(
+      (candidate) => candidate.name.replace(/\.md$/i, '') === base,
+    );
+    const target = sameName.length > 1 ? entry.relativePath.replace(/\.md$/i, '') : base;
+    editor.insertText(`[[${target}]]`);
+  }, [fileIndex.entries]);
 
   /**
    * A document reported that its unsaved state changed.
@@ -799,6 +907,13 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         break;
       case 'save-as':
         void saveCopy();
+        break;
+      case 'quick-open':
+        // Preferences is modal and would sit over it, for the same reason the
+        // command palette dismisses it.
+        setPrefs((current) => ({ ...current, open: false }));
+        void ensureFileIndex();
+        setQuickOpen((current) => !current);
         break;
       case 'command-palette':
         // Preferences is modal, so leaving it open would put its scrim over the
@@ -1040,6 +1155,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                 onDocumentChanged={() => {
                   if (doc.document.documentId === activeIdRef.current) bumpTyping();
                 }}
+                onFollowWikiLink={(target) => followWikiLinkRef.current(target)}
                 onReady={(editor) => {
                   editorsRef.current.set(doc.document.documentId, editor);
                   if (doc.document.documentId === activeIdRef.current) {
@@ -1087,6 +1203,17 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                 </section>}
         </main>
       </div>
+
+      <QuickOpen
+        open={quickOpen}
+        entries={fileIndex.entries}
+        frecency={frecency}
+        truncated={fileIndex.truncated}
+        canInsertLink={document !== null}
+        onOpenFile={(filePath) => void openPath(filePath)}
+        onInsertLink={insertWikiLink}
+        onClose={() => { setQuickOpen(false); editorRef.current?.focus(); }}
+      />
 
       {paletteOpen && (
         <div className="command-palette" role="dialog" aria-modal="true" aria-label="Commands"

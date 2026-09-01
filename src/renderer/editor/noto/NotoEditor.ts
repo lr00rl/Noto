@@ -46,6 +46,7 @@ import {
   setSearch,
 } from './search-plugin';
 import { syntaxHighlightPlugin } from './highlight';
+import { wikiLinkPlugin } from './wiki-link-plugin';
 
 export interface NotoEditorOptions extends InputRuleOptions {
   readonly mac: boolean;
@@ -55,6 +56,8 @@ export interface NotoEditorOptions extends InputRuleOptions {
   /** Fired for every transaction that changed the document. */
   readonly onDocumentChanged?: () => void;
   readonly onError?: (message: string) => void;
+  /** Cmd or Ctrl clicking a `[[wiki link]]`. Absent means links stay inert. */
+  readonly onFollowWikiLink?: (target: string) => void;
 }
 
 export class NotoEditor implements NotoEditorPort {
@@ -98,6 +101,7 @@ export class NotoEditor implements NotoEditorPort {
       columnResizing(),
       tableEditing(),
       activeNodePlugin(),
+      wikiLinkPlugin({ onFollow: (target) => this.options.onFollowWikiLink?.(target) }),
       mathEditingPlugin(),
       searchPlugin(),
       syntaxHighlightPlugin(),
@@ -161,6 +165,27 @@ export class NotoEditor implements NotoEditorPort {
 
   get acceptedDocument(): NotoDocumentWire {
     return this.document;
+  }
+
+  /**
+   * Insert text at the caret, as one undoable step.
+   *
+   * Used by quick open to write a wiki link. It goes through a transaction like
+   * any edit, so it is undoable, it marks the document dirty, and the saved
+   * bytes come from the same serializer as anything typed by hand.
+   *
+   * Deliberately not on `NotoEditorPort`. The port is the plugin API, and
+   * inserting arbitrary text at the caret is a capability no plugin has asked
+   * for; the shell holds the editor itself and does not need the port to reach
+   * it.
+   */
+  insertText(text: string): boolean {
+    const view = this.view;
+    if (!view || text.length === 0) return false;
+    const { from, to } = view.state.selection;
+    view.dispatch(view.state.tr.insertText(text, from, to).scrollIntoView());
+    view.focus();
+    return true;
   }
 
   focus(): void {

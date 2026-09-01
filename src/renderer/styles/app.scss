@@ -1132,6 +1132,131 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 .palette-result span { color: var(--muted); font-size: 12px; }
 .palette-empty { color: var(--muted); font-size: 12px; }
 
+/* Quick open
+   -------------------------------------------------------------------------
+   Near the top rather than centred: the list grows downward as you type, and a
+   centred box would move its own first result every keystroke. Anchored, it
+   stays still and only the rows beneath it change. */
+
+.quick-scrim {
+  position: fixed;
+  z-index: 70;
+  inset: 0;
+  background: var(--scrim);
+}
+
+.quick-open {
+  position: absolute;
+  top: 12vh;
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  width: min(620px, calc(100vw - 48px));
+  max-height: 62vh;
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow: 0 24px 64px -16px color-mix(in srgb, var(--ink) 42%, transparent);
+}
+
+.quick-input {
+  flex: 0 0 auto;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 0;
+  background: transparent;
+  padding: 14px 16px;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.quick-input:focus-visible { outline: none; }
+.quick-input::placeholder { color: var(--muted); }
+
+.quick-results {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+}
+
+.quick-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 6px 10px;
+  text-align: left;
+}
+
+/* One selected row, moved by the keyboard and by the pointer alike. There is no
+   separate hover state: two different highlights on one list is two answers to
+   "which one does Enter take". */
+.quick-result.is-selected { background: var(--raised); }
+.quick-result:hover { background: var(--raised); }
+
+.quick-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-path {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-family: tokens.$mono;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The characters the query actually matched. Weight and colour rather than a
+   highlighter block, which at this size turns a filename into a barcode. */
+.quick-hit {
+  background: none;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.quick-empty {
+  margin: 0;
+  padding: 18px 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.quick-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  flex: 0 0 auto;
+  border-top: 1px solid var(--hairline);
+  padding: 8px 14px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.quick-hints kbd {
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-family: tokens.$mono;
+  font-size: 10px;
+}
+
+.quick-truncated { margin-left: auto; color: var(--warning); }
+
 /* Narrow windows
    -------------------------------------------------------------------------
    The rail and the outline are hidden below 900 by the editor stylesheet,

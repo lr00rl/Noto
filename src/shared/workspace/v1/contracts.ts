@@ -29,6 +29,9 @@ export const WORKSPACE_CHANNELS = {
   listFolder: 'noto:v1:workspace:list-folder',
   folderChanged: 'noto:v1:workspace:folder-changed',
   menuCommand: 'noto:v1:workspace:menu-command',
+  /** The whole openable file list for the current folder, sent once per
+   *  folder so ranking can happen in the renderer without a round trip. */
+  fileIndex: 'noto:v1:workspace:file-index',
 } as const;
 
 /** One entry in the workspace tree. */
@@ -142,9 +145,26 @@ export const WORKSPACE_MENU_COMMANDS = [
   'toggle-sidebar',
   'widen',
   'narrow',
+  'quick-open',
 ] as const;
 
 export type WorkspaceMenuCommandV1 = typeof WORKSPACE_MENU_COMMANDS[number];
+
+/** One openable file, as the search index carries it. */
+export interface WorkspaceIndexEntryV1 {
+  readonly path: string;
+  readonly name: string;
+  /** Relative to the workspace root, always with forward slashes. */
+  readonly relativePath: string;
+}
+
+export interface WorkspaceIndexReplyV1 {
+  readonly version: 1;
+  readonly root: string | null;
+  readonly entries: readonly WorkspaceIndexEntryV1[];
+  /** A ceiling stopped the walk, so the index is partial and says so. */
+  readonly truncated: boolean;
+}
 
 export interface WorkspaceMenuEventV1 {
   readonly version: typeof NOTO_WORKSPACE_VERSION;
@@ -178,4 +198,5 @@ export interface NotoWorkspaceApiV1 {
   onDocumentClosed(listener: (event: WorkspaceClosedEventV1) => void): () => void;
   onTabsChanged(listener: (event: WorkspaceTabsEventV1) => void): () => void;
   onMenuCommand(listener: (event: WorkspaceMenuEventV1) => void): () => void;
+  fileIndex(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceIndexReplyV1>>;
 }

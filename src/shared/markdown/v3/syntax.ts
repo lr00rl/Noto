@@ -36,6 +36,68 @@ const mdastExtensions = [
  * the wild already use, so that re-serializing a block the user edited produces
  * the smallest possible diff against the rest of their document.
  */
+/**
+ * `[[wiki links]]` survive a re-serialize.
+ *
+ * The serializer escapes `[` in text, because a bare `[` can open a link
+ * reference and it cannot know whether a matching definition exists elsewhere.
+ * That is right in general and wrong here: it turns `[[note]]` into
+ * `\[\[note]]`, so editing any paragraph containing a wiki link rewrites it,
+ * and the link stops being one. The bug predates wiki links being rendered; it
+ * was simply invisible while nothing looked for them.
+ *
+ * The exemption is narrow on purpose. Only a complete `[[...]]` with no
+ * brackets, pipes or newlines inside is emitted verbatim; every other character
+ * of the text still goes through the serializer's own escaping. A document
+ * that also defines `[note]: …` would have its meaning changed by this, which
+ * is the case the blanket escape defends. That collision needs a definition
+ * whose label is exactly a wiki link's target, in a vault where `[[note]]` is
+ * already being written as a link; between breaking that and breaking every
+ * wiki link in the vault, this is the better trade, and it is recorded here so
+ * the trade is visible rather than discovered.
+ */
+const WIKI_LINK_RUN = /\[\[[^[\]\n|]+(?:\|[^[\]\n]*)?\]\]/g;
+
+const wikiLinkSafeText: ToMarkdownOptions = {
+  handlers: {
+    text(node, _parent, state, info) {
+      const value = node.value;
+      WIKI_LINK_RUN.lastIndex = 0;
+      if (!WIKI_LINK_RUN.test(value)) return state.safe(value, info);
+
+      /*
+       * Each ordinary segment is escaped with its real neighbours.
+       *
+       * `safe` decides from `before` and `after` whether a character sits at a
+       * boundary that needs escaping, so a segment escaped as though it were
+       * the whole string gets its leading and trailing spaces turned into
+       * `&#x20;`. The neighbours here are known exactly: a segment before a
+       * link is followed by `[`, one after a link is preceded by `]`.
+       */
+      WIKI_LINK_RUN.lastIndex = 0;
+      let out = '';
+      let last = 0;
+      for (;;) {
+        const match = WIKI_LINK_RUN.exec(value);
+        if (match === null) break;
+        if (match.index > last) {
+          out += state.safe(value.slice(last, match.index), {
+            ...info,
+            before: last === 0 ? info.before : ']',
+            after: '[',
+          });
+        }
+        out += match[0];
+        last = match.index + match[0].length;
+      }
+      if (last < value.length) {
+        out += state.safe(value.slice(last), { ...info, before: ']' });
+      }
+      return out;
+    },
+  },
+};
+
 const serializerOptions: ToMarkdownOptions = {
   bullet: '-',
   emphasis: '_',
@@ -46,7 +108,7 @@ const serializerOptions: ToMarkdownOptions = {
   rule: '-',
   ruleSpaces: false,
   tightDefinitions: true,
-  extensions: [gfmToMarkdown(), mathToMarkdown(), frontmatterToMarkdown()],
+  extensions: [gfmToMarkdown(), mathToMarkdown(), frontmatterToMarkdown(), wikiLinkSafeText],
 };
 
 /**

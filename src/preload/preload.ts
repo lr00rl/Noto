@@ -79,6 +79,7 @@ import type {
   WorkspaceRecentReplyV1,
   WorkspaceRequestV1,
   WorkspaceResultV1,
+  WorkspaceIndexReplyV1,
   WorkspaceSaveAsReplyV1,
 } from '../shared/workspace/v1/contracts';
 import { WORKSPACE_CHANNELS } from '../shared/workspace/v1/contracts';
@@ -97,6 +98,7 @@ import {
   isWorkspaceOpenResultV1,
   isWorkspaceRecentResultV1,
   isWorkspaceRequestV1,
+  isWorkspaceIndexResultV1,
   isWorkspaceSaveAsResultV1,
 } from '../shared/workspace/v1/validate';
 
@@ -292,6 +294,9 @@ const workspaceApi: NotoWorkspaceApiV1 = Object.freeze({
     subscribe(WORKSPACE_CHANNELS.documentClosed, isWorkspaceClosedEventV1, listener),
   onTabsChanged: (listener: (event: WorkspaceTabsEventV1) => void) =>
     subscribe(WORKSPACE_CHANNELS.tabsChanged, isWorkspaceTabsEventV1, listener),
+  fileIndex: (request: WorkspaceRequestV1) => isWorkspaceRequestV1(request)
+    ? invokeWorkspace<WorkspaceIndexReplyV1>(WORKSPACE_CHANNELS.fileIndex, request, request.requestId, isWorkspaceIndexResultV1)
+    : Promise.resolve(rejectedWorkspace<WorkspaceIndexReplyV1>('invalid', 'Invalid file index request')),
   onMenuCommand: (listener: (event: WorkspaceMenuEventV1) => void) =>
     subscribe(WORKSPACE_CHANNELS.menuCommand, isWorkspaceMenuEventV1, listener),
 });

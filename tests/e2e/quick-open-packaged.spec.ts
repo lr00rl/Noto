@@ -1,0 +1,147 @@
+/**
+ * Quick open, against the packaged app.
+ *
+ * The unit tests cover the ranking arithmetic. What only the packaged app can
+ * show is that the index actually reaches the renderer, that a chosen file
+ * opens through the same path a tree click takes, and that Alt+Enter writes a
+ * link into the real document.
+ */
+
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { expect, test, _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
+import { packagedExecutable } from './packaged-app';
+
+const resultRoot = path.join(process.cwd(), 'test-results', 'quick-open');
+
+async function invokeMenu(app: ElectronApplication, id: string): Promise<void> {
+  await app.evaluate(({ Menu }, itemId) => {
+    const find = (items: Electron.MenuItem[]): Electron.MenuItem | null => {
+      for (const item of items) {
+        if (item.id === itemId) return item;
+        const nested = item.submenu ? find(item.submenu.items) : null;
+        if (nested) return nested;
+      }
+      return null;
+    };
+    const menu = Menu.getApplicationMenu();
+    const target = menu ? find(menu.items) : null;
+    if (!target) throw new Error(`No menu item with id ${itemId}`);
+    target.click();
+  }, id);
+}
+
+interface Workspace { app: ElectronApplication; page: Page; folder: string }
+
+async function launch(name: string): Promise<Workspace> {
+  const workspace = path.join(resultRoot, name);
+  await rm(workspace, { recursive: true, force: true });
+  const folder = path.join(workspace, 'vault');
+  await mkdir(path.join(folder, 'chapters'), { recursive: true });
+  await writeFile(path.join(folder, 'index.md'), '# Index\n\nThe start.\n', 'utf8');
+  await writeFile(path.join(folder, 'release-notes.md'), '# Release notes\n\nWhat changed.\n', 'utf8');
+  await writeFile(path.join(folder, 'chapters', 'deep-dive.md'), '# Deep dive\n\nDetail.\n', 'utf8');
+  await writeFile(path.join(folder, '发展规划.md'), '# 发展规划\n\n计划。\n', 'utf8');
+
+  const app = await electron.launch({
+    executablePath: packagedExecutable(),
+    args: [`--user-data-dir=${path.join(workspace, 'user-data')}`, `--open=${path.join(folder, 'index.md')}`],
+  });
+  const page = await app.firstWindow();
+  await page.waitForSelector('[data-testid="noto-editor"]', { state: 'visible', timeout: 30_000 });
+  await page.setViewportSize({ width: 1280, height: 900 });
+
+  await app.evaluate(({ dialog }, target) => {
+    (dialog as unknown as { showOpenDialog: unknown }).showOpenDialog =
+      async () => ({ canceled: false, filePaths: [target] });
+  }, folder);
+  await invokeMenu(app, 'open-folder');
+  await expect(page.getByTestId('file-tree')).toBeVisible();
+  return { app, page, folder };
+}
+
+test.describe('quick open', () => {
+  test('finds a note by name and opens it', async () => {
+    const { app, page } = await launch('open');
+    try {
+      await invokeMenu(app, 'quick-open');
+      await expect(page.getByTestId('quick-open')).toBeVisible();
+      // The index reached the renderer, so the box knows how much it searches.
+      await expect(page.getByTestId('quick-input')).toHaveAttribute('placeholder', /4 notes/);
+
+      await page.getByTestId('quick-input').fill('release');
+      await expect(page.getByTestId('quick-result').first()).toContainText('release-notes.md');
+      await page.keyboard.press('Enter');
+
+      await expect(page.getByTestId('quick-open')).toBeHidden();
+      await expect(page.locator('.canvas-slot:not([hidden]) .ProseMirror h1')).toHaveText('Release notes');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('finds a CJK name, which is most of this vault', async () => {
+    const { app, page } = await launch('cjk');
+    try {
+      await invokeMenu(app, 'quick-open');
+      await page.getByTestId('quick-input').fill('发展');
+      await expect(page.getByTestId('quick-result').first()).toContainText('发展规划.md');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('narrows by path when the query names a folder', async () => {
+    const { app, page } = await launch('path');
+    try {
+      await invokeMenu(app, 'quick-open');
+      await page.getByTestId('quick-input').fill('chapters/deep');
+      await expect(page.getByTestId('quick-result').first()).toContainText('deep-dive.md');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('writes a wiki link into the document with the modifier, and follows it back', async () => {
+    const { app, page, folder } = await launch('link');
+    try {
+      // Put the caret at the end of the body before linking.
+      await page.locator('.canvas-slot:not([hidden]) .ProseMirror p').first().click();
+      await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End');
+
+      await invokeMenu(app, 'quick-open');
+      await page.getByTestId('quick-input').fill('deep');
+      await page.keyboard.press('Alt+Enter');
+
+      await expect(page.getByTestId('quick-open')).toBeHidden();
+      const link = page.locator('.canvas-slot:not([hidden]) .noto-wiki-link');
+      await expect(link).toHaveText('deep-dive');
+
+      // It is ordinary text in the file, which is the point of rendering it as
+      // a decoration rather than as a node.
+      await page.getByTestId('save-button').click();
+      await expect(page.getByTestId('file-state')).toHaveText('Saved', { timeout: 15_000 });
+      const saved = await readFile(path.join(folder, 'index.md'), 'utf8');
+      expect(saved).toContain('[[deep-dive]]');
+
+      // Following it opens the note it names.
+      await link.click({ modifiers: [process.platform === 'darwin' ? 'Meta' : 'Control'] });
+      await expect(page.locator('.canvas-slot:not([hidden]) .ProseMirror h1')).toHaveText('Deep dive');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('closes on Escape without opening anything', async () => {
+    const { app, page } = await launch('escape');
+    try {
+      await invokeMenu(app, 'quick-open');
+      await page.getByTestId('quick-input').fill('release');
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('quick-open')).toBeHidden();
+      await expect(page.locator('.canvas-slot:not([hidden]) .ProseMirror h1')).toHaveText('Index');
+    } finally {
+      await app.close();
+    }
+  });
+});
