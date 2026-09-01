@@ -13,7 +13,7 @@
 
 import path from 'node:path';
 import { stat } from 'node:fs/promises';
-import { BrowserWindow, dialog } from 'electron';
+import { BrowserWindow, dialog, shell } from 'electron';
 import type { FileTruthOpenReplyV1 } from '../../shared/file-truth/v1/contracts';
 import {
   NOTO_WORKSPACE_VERSION,
@@ -21,7 +21,9 @@ import {
   type WorkspaceTabV1,
   type WorkspaceFolderEventV1,
 } from '../../shared/workspace/v1/contracts';
-import type { WorkspaceIndexReplyV1 } from '../../shared/workspace/v1/contracts';
+import type {
+  WorkspaceIndexReplyV1, WorkspaceRevealReplyV1, WorkspaceRevealTargetV1,
+} from '../../shared/workspace/v1/contracts';
 import type { StructuredLogger } from '../logger';
 import type { FileTruthStoreV1 } from '../file-truth/v1/file-truth-store';
 import type { RecentFiles } from './recent-files';
@@ -245,6 +247,22 @@ export class WorkspaceSession {
     const event = this.folderEvent();
     this.send(WORKSPACE_CHANNELS.folderChanged, event);
     return event;
+  }
+
+  /**
+   * Show the folder, or the document in front, in the system file manager.
+   *
+   * The path is taken from this session rather than from the request, so the
+   * caller chooses between two things it can already see and cannot name a
+   * third. `showItemInFolder` reveals a path by selecting it inside its parent,
+   * which is what "reveal" means on every platform that has the idea.
+   */
+  reveal(target: WorkspaceRevealTargetV1): WorkspaceRevealReplyV1 {
+    const path = target === 'folder' ? this.folderRoot : this.activePath;
+    if (!path) return { version: NOTO_WORKSPACE_VERSION, revealed: false };
+    shell.showItemInFolder(path);
+    this.logger.log('workspace_revealed', { target });
+    return { version: NOTO_WORKSPACE_VERSION, revealed: true };
   }
 
   /** Entries inside a directory of the chosen folder. */

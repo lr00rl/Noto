@@ -935,6 +935,11 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       case 'save-as':
         void saveCopy();
         break;
+      case 'reveal-document':
+        void window.notoWorkspace.reveal({
+          version: 1, requestId: rid('reveal'), target: 'document',
+        });
+        break;
       case 'quick-open':
         // Preferences is modal and would sit over it, for the same reason the
         // command palette dismisses it.
@@ -1019,6 +1024,10 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const saveBlocked = recoveryBarrier || state === 'External conflict' || state === 'Stale editor revision';
   const alert = exceptionalAlertPresentation(recoveryBarrier, outcome, localMessage);
   const nextTheme = theme === 'light' ? 'dark' : 'light';
+  /* Every platform has the idea and none of them share a name for it, so the
+     label says the one the reader will recognise on their own machine. */
+  const fileManagerName = platform === 'darwin' ? 'Finder'
+    : platform === 'win32' ? 'File Explorer' : 'the file manager';
 
   return (
     <div className="app-shell"
@@ -1132,6 +1141,10 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                 onChooseFolder={chooseFolder}
                 onOpenRecentFolder={openRecentFolder}
                 onRefresh={() => { void ensureFileIndex(); setFolder((current) => ({ ...current })); }}
+                fileManagerName={fileManagerName}
+                onReveal={() => { void window.notoWorkspace.reveal({
+                  version: 1, requestId: rid('reveal'), target: 'folder',
+                }); }}
               />
             )}
             view={rail.view}

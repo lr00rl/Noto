@@ -11,6 +11,9 @@ import type {
   RecentFileV1,
   WorkspaceIndexEntryV1,
   WorkspaceIndexReplyV1,
+  WorkspaceRevealReplyV1,
+  WorkspaceRevealRequestV1,
+  WorkspaceRevealTargetV1,
   WorkspaceDocumentEventV1,
   WorkspaceMenuCommandV1,
   WorkspaceMenuEventV1,
@@ -183,3 +186,21 @@ export function isWorkspaceIndexResultV1(
   return value.ok === false && record(value.error)
     && typeof value.error.code === 'string' && typeof value.error.message === 'string';
 }
+
+const revealTargets: readonly WorkspaceRevealTargetV1[] = ['folder', 'document'];
+
+export function isWorkspaceRevealRequestV1(value: unknown): value is WorkspaceRevealRequestV1 {
+  return record(value) && exact(value, ['version', 'requestId', 'target'])
+    && value.version === 1
+    && typeof value.requestId === 'string' && requestId.test(value.requestId)
+    && revealTargets.includes(value.target as WorkspaceRevealTargetV1);
+}
+
+export function isWorkspaceRevealReplyV1(value: unknown): value is WorkspaceRevealReplyV1 {
+  return record(value) && exact(value, ['version', 'revealed'])
+    && value.version === 1 && typeof value.revealed === 'boolean';
+}
+
+export const isWorkspaceRevealResultV1 = (
+  value: unknown, id: string,
+): value is WorkspaceResultV1<WorkspaceRevealReplyV1> => isResult(value, id, isWorkspaceRevealReplyV1);
