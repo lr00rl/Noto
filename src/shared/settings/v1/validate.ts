@@ -65,6 +65,7 @@ export function coerceSettings(value: unknown): NotoSettingsV1 {
     sidebarOnLaunch: typeof value.sidebarOnLaunch === 'boolean'
       ? value.sidebarOnLaunch
       : DEFAULT_SETTINGS.sidebarOnLaunch,
+    railWidth: numeric(value, 'railWidth'),
     autoSave: typeof value.autoSave === 'boolean' ? value.autoSave : DEFAULT_SETTINGS.autoSave,
     autoSaveDelayMs: numeric(value, 'autoSaveDelayMs'),
     customCssPath: isCssPath(value.customCssPath)

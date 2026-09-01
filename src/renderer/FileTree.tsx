@@ -96,6 +96,7 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
                   type="button"
                   className="tree-row tree-directory"
                   data-testid="tree-directory"
+                  title={entry.name}
                   aria-expanded={isOpen}
                   onClick={() => toggle(entry.path)}
                 >
@@ -115,6 +116,7 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
                 className={isActive ? 'tree-row tree-file tree-file-active' : 'tree-row tree-file'}
                 data-testid="tree-file"
                 data-path={entry.path}
+                title={entry.name}
                 aria-current={isActive ? 'true' : undefined}
                 onClick={() => onOpenFile(entry.path)}
               >

@@ -689,7 +689,7 @@
    read as a tree rather than as a grid of ticks. */
 
 .tree-level {
-  --tree-indent: 15px;
+  --tree-indent: 13px;
   padding-left: var(--tree-indent);
   margin-left: 8px;
   background-image: linear-gradient(var(--tree-line), var(--tree-line));

@@ -89,6 +89,23 @@ is measured after paint and the first frame is never in the wrong place.
 The rail toggle in the title bar opens and closes the region; the menu items
 open it on the view they name.
 
+Its width is dragged from the right edge and remembered. Not a fixed width and
+not a fraction of the window: a rail that follows the window rewraps filenames
+while you type in the document beside it, and a fixed one cannot serve both a
+flat folder and a vault six levels deep. That vault is the case that settles it.
+At six levels the indent alone spends seventy pixels before the first character
+of a name, and at the old fixed 248 five sibling folders all read
+`Done_TaskGro...`, which is a tree that has stopped answering the only question
+it exists to answer. The drag target is 7px wide because a 1px border is not
+something anyone can hit, and arrow keys move it too, because a control that
+only takes a pointer is a control some people do not have.
+
+The width follows the pointer through a custom property written straight to the
+element, and the setting is written once on release. Routing every pointer move
+through React state and a settings round trip puts that whole path between the
+pointer and the edge it is dragging, which is the lag that makes a resize feel
+broken.
+
 Tree rows are 26px, which is the density a four-level tree needs. No background
 at rest, `--raised` on hover, and the current file gets a tint plus the spine.
 The previous build drew a filled rounded rectangle in accent tint around the
@@ -110,6 +127,9 @@ reads as a grid of ticks; a corner that closes the branch reads as a tree. The
 technique is the one in the author's own Typora theme, which draws the same
 three parts with inline SVG; here the markup is ours, so borders and a
 `border-bottom-left-radius` do it without the data URIs.
+
+Indent is 13px per level, and every row carries its full name as a tooltip,
+because past four levels some names truncate at any rail width worth having.
 
 The line colour is `--tree-line`, an ink or paper wash at 14 to 18 percent. Low
 enough that a deep tree reads as texture rather than as a diagram, which is the

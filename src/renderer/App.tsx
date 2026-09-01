@@ -971,6 +971,8 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
           <WorkspaceRail
             view={rail.view}
             onView={(view) => setRail({ open: true, view })}
+            width={settings.railWidth}
+            onResize={(railWidth) => changeSettings({ railWidth })}
             outline={outline}
             onGoToBlock={(blockIndex) => editorRef.current?.focusBlock(blockIndex)}
             tree={{

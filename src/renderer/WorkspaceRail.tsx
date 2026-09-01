@@ -10,15 +10,23 @@
  * their bodies.
  */
 
-import type { CSSProperties, ReactNode } from 'react';
+import { useCallback, useRef, type CSSProperties, type ReactNode } from 'react';
 import { FileTree, type FileTreeProps } from './FileTree';
 import { nestOutline, type OutlineEntry, type OutlineNode } from './outline';
+import { SETTING_RANGES } from '../shared/settings/v1/contracts';
 
 export type RailView = 'files' | 'outline';
+
+const RAIL_MIN = SETTING_RANGES.railWidth.min;
+const RAIL_MAX = SETTING_RANGES.railWidth.max;
 
 export interface WorkspaceRailProps {
   readonly view: RailView;
   readonly onView: (view: RailView) => void;
+  readonly width: number;
+  /** Called once when the drag ends, not per pointer move: the width follows
+   *  the pointer through a CSS variable, and only the result is persisted. */
+  readonly onResize: (width: number) => void;
   readonly outline: readonly OutlineEntry[];
   readonly onGoToBlock: (blockIndex: number) => void;
   readonly tree: FileTreeProps;
@@ -68,6 +76,7 @@ function OutlineLevel({ nodes, root, onGoToBlock }: {
           <button
             type="button"
             className={`tree-row outline-entry depth-${node.depth}`}
+            title={node.text}
             onClick={() => onGoToBlock(node.blockIndex)}
           >
             <span className="tree-name">{node.text}</span>
@@ -94,9 +103,57 @@ const INDICATOR: Record<RailView, { left: string; width: string }> = {
   outline: { left: '44px', width: '46px' },
 };
 
-export function WorkspaceRail({ view, onView, outline, onGoToBlock, tree }: WorkspaceRailProps) {
+export function WorkspaceRail({
+  view, onView, width, onResize, outline, onGoToBlock, tree,
+}: WorkspaceRailProps) {
+  const railRef = useRef<HTMLElement>(null);
+
+  /**
+   * Drag the rail wider.
+   *
+   * The width is written straight to the element as a custom property while the
+   * pointer moves, and the setting is written once on release. Routing every
+   * move through React state and IPC would put a settings round trip between
+   * the pointer and the edge it is dragging, which is exactly the lag that
+   * makes a resize feel broken.
+   */
+  const startResize = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const rail = railRef.current;
+    if (!rail) return;
+    const handle = event.currentTarget;
+    const startX = event.clientX;
+    const startWidth = rail.getBoundingClientRect().width;
+    let latest = startWidth;
+    handle.setPointerCapture(event.pointerId);
+
+    const move = (moveEvent: PointerEvent) => {
+      latest = Math.min(RAIL_MAX, Math.max(RAIL_MIN, startWidth + moveEvent.clientX - startX));
+      rail.style.setProperty('--rail-width', `${Math.round(latest)}px`);
+    };
+    const finish = () => {
+      handle.releasePointerCapture(event.pointerId);
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', finish);
+      handle.removeEventListener('pointercancel', finish);
+      onResize(Math.round(latest));
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', finish);
+    handle.addEventListener('pointercancel', finish);
+  }, [onResize]);
+
+  /** The keyboard path, because a drag handle that only takes a pointer is
+   *  a control some people simply do not have. */
+  const nudge = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = event.shiftKey ? 32 : 8;
+    if (event.key === 'ArrowLeft') { event.preventDefault(); onResize(Math.max(RAIL_MIN, width - step)); }
+    if (event.key === 'ArrowRight') { event.preventDefault(); onResize(Math.min(RAIL_MAX, width + step)); }
+  }, [onResize, width]);
+
   return (
-    <aside className="workspace-rail" aria-label="Navigation">
+    <aside ref={railRef} className="workspace-rail" aria-label="Navigation"
+      style={{ '--rail-width': `${width}px` } as CSSProperties}>
       <div
         className="rail-tabs"
         role="tablist"
@@ -128,6 +185,20 @@ export function WorkspaceRail({ view, onView, outline, onGoToBlock, tree }: Work
               )}
           </div>
         )}
+
+      <div
+        className="rail-resize"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Rail width"
+        aria-valuenow={width}
+        aria-valuemin={RAIL_MIN}
+        aria-valuemax={RAIL_MAX}
+        tabIndex={0}
+        data-testid="rail-resize"
+        onPointerDown={startResize}
+        onKeyDown={nudge}
+      />
     </aside>
   );
 }

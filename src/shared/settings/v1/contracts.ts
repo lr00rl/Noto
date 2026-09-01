@@ -41,6 +41,11 @@ export const SETTING_RANGES = Object.freeze({
   lineHeight: { min: 1.3, max: 2.2, step: 0.02 },
   measureCh: { min: 46, max: 110, step: 1 },
   autoSaveDelayMs: { min: 400, max: 10_000, step: 100 },
+  /* A vault six levels deep spends 90px of the rail on indentation before the
+     first character of a filename. 248px was chosen against a shallow fixture
+     and leaves five siblings all reading "Done_TaskGro…" in a real one, so the
+     width has to be the reader's to set. */
+  railWidth: { min: 190, max: 520, step: 1 },
 } as const);
 
 export type NotoNumericSetting = keyof typeof SETTING_RANGES;
@@ -58,6 +63,8 @@ export interface NotoSettingsV1 {
   readonly spellCheck: boolean;
   /** Show the workspace tree when the app starts. */
   readonly sidebarOnLaunch: boolean;
+  /** Width of the navigation rail, in CSS pixels. Dragged, not typed. */
+  readonly railWidth: number;
   /**
    * Save on a timer after typing stops.
    *
@@ -87,6 +94,7 @@ export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   smartTypography: true,
   spellCheck: true,
   sidebarOnLaunch: false,
+  railWidth: 248,
   autoSave: false,
   autoSaveDelayMs: 1_200,
   customCssPath: '',

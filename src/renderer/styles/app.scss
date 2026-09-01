@@ -236,9 +236,14 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 }
 
 .workspace-rail {
-  /* Fixed width: a rail that resizes with the window makes filenames rewrap
-     while you type in the document beside it. */
-  flex: 0 0 248px;
+  /* Set by the reader and held: it does not follow the window, because a rail
+     that resizes with the window rewraps filenames while you type in the
+     document beside it. A vault six levels deep spends 70 pixels on indent
+     before the first character of a name, so this is not a preference so much
+     as the difference between a readable tree and five rows that all say
+     "Done_TaskGro…". */
+  position: relative;
+  flex: 0 0 var(--rail-width, 248px);
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -306,6 +311,34 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   overscroll-behavior: contain;
   padding: 2px 6px 12px;
 }
+
+/* The drag target is wider than the line it moves, because a 1px border is not
+   something anyone can hit. It shows only under the pointer, so the rail's edge
+   stays a hairline until you go looking for it. */
+.rail-resize {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  width: 7px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.rail-resize::after {
+  content: '';
+  position: absolute;
+  inset: 0 3px;
+  background: var(--accent);
+  opacity: 0;
+  transition-property: opacity;
+  transition-duration: 120ms;
+}
+
+.rail-resize:hover::after,
+.rail-resize:focus-visible::after { opacity: 0.55; }
+.rail-resize:focus-visible { outline: none; }
 
 .rail-empty {
   margin: 10px 8px;
