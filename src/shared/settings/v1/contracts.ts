@@ -50,6 +50,27 @@ export const SETTING_RANGES = Object.freeze({
 
 export type NotoNumericSetting = keyof typeof SETTING_RANGES;
 
+/**
+ * The three widths `Cmd+[` and `Cmd+]` step between.
+ *
+ * Three stops, not a fine step through the whole range. The chord exists to
+ * change the shape of the page in one press while reading something that does
+ * not fit; nudging four characters at a time turns that into six presses and a
+ * squint. The slider in preferences still sets any value in the range, because
+ * that is where someone tunes a measure once and forgets it.
+ *
+ * Named after what they are for rather than by number: comfortable prose, a
+ * width that holds a wide table, and as much as the window will give.
+ */
+export const WIDTH_STOPS = [66, 84, 106] as const;
+
+/** The next stop in `direction`, from wherever the measure currently is. */
+export function stepWidth(current: number, direction: 1 | -1): number {
+  const stops = WIDTH_STOPS;
+  if (direction === 1) return stops.find((stop) => stop > current + 0.5) ?? stops[stops.length - 1];
+  return [...stops].reverse().find((stop) => stop < current - 0.5) ?? stops[0];
+}
+
 export interface NotoSettingsV1 {
   readonly theme: NotoTheme;
   /** Document text size in CSS pixels. */

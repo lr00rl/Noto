@@ -32,6 +32,8 @@ export const WORKSPACE_CHANNELS = {
   /** The whole openable file list for the current folder, sent once per
    *  folder so ranking can happen in the renderer without a round trip. */
   fileIndex: 'noto:v1:workspace:file-index',
+  recentFolders: 'noto:v1:workspace:recent-folders',
+  openRecentFolder: 'noto:v1:workspace:open-recent-folder',
 } as const;
 
 /** One entry in the workspace tree. */
@@ -199,4 +201,6 @@ export interface NotoWorkspaceApiV1 {
   onTabsChanged(listener: (event: WorkspaceTabsEventV1) => void): () => void;
   onMenuCommand(listener: (event: WorkspaceMenuEventV1) => void): () => void;
   fileIndex(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceIndexReplyV1>>;
+  recentFolders(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceRecentReplyV1>>;
+  openRecentFolder(request: WorkspaceOpenPathRequestV1): Promise<WorkspaceResultV1<WorkspaceFolderEventV1>>;
 }

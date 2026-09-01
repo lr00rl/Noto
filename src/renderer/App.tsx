@@ -34,10 +34,11 @@ import {
 import { declaredHotkeys, matchHotkey } from './plugins/hotkeys';
 import { NotoCanvas } from './editor/noto/NotoCanvas';
 import { FindBar } from './FindBar';
-import { TabBar } from './TabBar';
+import { RecentStrip } from './RecentStrip';
 import { WorkspaceRail, type RailView } from './WorkspaceRail';
+import { RailFooter } from './RailFooter';
 import { Preferences, type PreferencesSection } from './Preferences';
-import { DEFAULT_SETTINGS, SETTING_RANGES, type NotoSettingsV1 } from '../shared/settings/v1/contracts';
+import { DEFAULT_SETTINGS, stepWidth, type NotoSettingsV1 } from '../shared/settings/v1/contracts';
 import type { NotoEditor } from './editor/noto/NotoEditor';
 import {
   acceptedSaveOutcome,
@@ -198,12 +199,15 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
 
   const [folder, setFolder] = useState<{ root: string | null; name: string | null }>({ root: null, name: null });
   const [quickOpen, setQuickOpen] = useState(false);
+  const [recentFolders, setRecentFolders] = useState<readonly RecentFileV1[]>([]);
+  const [folderMenu, setFolderMenu] = useState(false);
   /* The editor is constructed once per document and keeps the callbacks it was
      given, so a handler that closes over state has to be reached through a ref
      or it answers with whatever that state was at construction. Following a
      link resolved against an empty index for exactly this reason. */
   const followWikiLinkRef = useRef<(target: string) => void>(() => {});
   const ensureFileIndexRef = useRef<() => Promise<void>>(async () => {});
+  const refreshRecentFoldersRef = useRef<() => void>(() => {});
   const [fileIndex, setFileIndex] = useState<{
     entries: readonly WorkspaceIndexEntryV1[]; truncated: boolean;
   }>({ entries: [], truncated: false });
@@ -512,6 +516,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       if (!active) return;
       setFolder({ root: event.root, name: event.name });
       if (event.root) setRail({ open: true, view: 'files' });
+      // Every route into a folder ends here, including the menu item, which
+      // does not go through the renderer's own handler at all.
+      refreshRecentFoldersRef.current();
       // Not awaited: the walk is a background job and the window stays live
       // through it. Following a wiki link needs the same index quick open does,
       // and it has no moment of its own to ask for it.
@@ -566,12 +573,32 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     void window.notoWorkspace.activateTab({ version: 1, requestId: rid('tab-activate'), path: filePath });
   }, []);
 
+  /** The folders opened before, refreshed whenever one is. */
+  const refreshRecentFolders = useCallback(() => {
+    void window.notoWorkspace.recentFolders({ version: 1, requestId: rid('recent-folders') })
+      .then((result) => { if (result.ok) setRecentFolders(result.value.files); });
+  }, []);
+
+  refreshRecentFoldersRef.current = refreshRecentFolders;
+  useEffect(refreshRecentFolders, [refreshRecentFolders]);
+
   const chooseFolder = useCallback(() => {
     void window.notoWorkspace.openFolder({ version: 1, requestId: rid('folder-open') })
       .then((result) => {
         if (result.ok) setFolder({ root: result.value.root, name: result.value.name });
+        refreshRecentFolders();
       });
-  }, []);
+  }, [refreshRecentFolders]);
+
+  const openRecentFolder = useCallback((target: string) => {
+    void window.notoWorkspace.openRecentFolder({
+      version: 1, requestId: rid('folder-recent'), path: target,
+    }).then((result) => {
+      if (result.ok) setFolder({ root: result.value.root, name: result.value.name });
+      // Whether it opened or had vanished, the list has moved on either way.
+      refreshRecentFolders();
+    });
+  }, [refreshRecentFolders]);
 
   const listFolder = useCallback(async (directory: string) => {
     const result = await window.notoWorkspace.listFolder({
@@ -944,17 +971,13 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       case 'toggle-sidebar':
         toggleRail('files');
         break;
-      // Stepped rather than set, and clamped by the same range the slider uses,
-      // so holding the chord walks to the edge and stops instead of wrapping.
+      // Three stops rather than a fine nudge: the chord is for changing the
+      // shape of the page in one press, and it stops at the ends.
       case 'widen':
-        changeSettings({
-          measureCh: Math.min(SETTING_RANGES.measureCh.max, settingsRef.current.measureCh + 4),
-        });
+        changeSettings({ measureCh: stepWidth(settingsRef.current.measureCh, 1) });
         break;
       case 'narrow':
-        changeSettings({
-          measureCh: Math.max(SETTING_RANGES.measureCh.min, settingsRef.current.measureCh - 4),
-        });
+        changeSettings({ measureCh: stepWidth(settingsRef.current.measureCh, -1) });
         break;
       case 'find':
         setPrefs((current) => ({ ...current, open: false }));
@@ -1095,11 +1118,22 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         )}
       />
 
-      <TabBar tabs={tabs} dirty={dirtyDocumentIds} onActivate={activateTab} onClose={closeTab} />
-
       <div className={`workspace-layout ${rail.open ? 'has-rail' : ''}`}>
         {rail.open && (
           <WorkspaceRail
+            footer={(
+              <RailFooter
+                folderName={folder.name}
+                folderPath={folder.root}
+                recentFolders={recentFolders}
+                open={folderMenu}
+                onToggle={() => setFolderMenu((current) => !current)}
+                onClose={() => setFolderMenu(false)}
+                onChooseFolder={chooseFolder}
+                onOpenRecentFolder={openRecentFolder}
+                onRefresh={() => { void ensureFileIndex(); setFolder((current) => ({ ...current })); }}
+              />
+            )}
             view={rail.view}
             onView={(view) => setRail({ open: true, view })}
             width={settings.railWidth}
@@ -1261,6 +1295,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
           what the title bar cannot tell them, and the full path is on hover. */}
       {opened && (
         <footer className="operational-status">
+          <RecentStrip tabs={tabs} dirty={dirtyDocumentIds} onActivate={activateTab} />
           <span className="status-path" title={opened.path}>{containingFolder}</span>
           {/* Only the resting states. Every other state is already on the title
               bar, and an unsaved document was announcing itself three times at

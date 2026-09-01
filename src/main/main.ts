@@ -181,9 +181,13 @@ async function run(): Promise<void> {
 
   const recent = new RecentFiles(path.join(userData, 'recent-files.json'));
   await recent.load();
+  // The same store, a second time: a recent folder is a path with a name and a
+  // timestamp, exactly like a recent document, so it does not need its own class.
+  const recentFolders = new RecentFiles(path.join(userData, 'recent-folders.json'));
+  await recentFolders.load();
   const settings = new SettingsStore(path.join(userData, 'settings.json'));
   await settings.load();
-  session = new WorkspaceSession(createStore, recent, () => editorWindow, logger);
+  session = new WorkspaceSession(createStore, recent, () => editorWindow, logger, recentFolders);
   app.once('before-quit', () => session?.closeAll());
 
   const refreshMenu = () => installApplicationMenu(() => editorWindow, recent.list(), {
@@ -228,6 +232,7 @@ async function run(): Promise<void> {
     getWindow: () => editorWindow,
     logger,
     onRecentChanged: refreshMenu,
+    recentFolders: async () => { await recentFolders.load(); return recentFolders.list(); },
   });
 
   const preloadPath = path.join(__dirname, 'preload.js');

@@ -353,101 +353,143 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   gap: 1px;
 }
 
-/* Tabs
+/* Recent documents, in the status bar
    -------------------------------------------------------------------------
-   Text on the page, not a row of slabs above it. They were 32px filled
-   rectangles with a vertical rule between each pair and a fill swap marking the
-   active one, which is three separate ways of drawing a boundary for something
-   that is really just a list of names. The strip takes the canvas colour so it
-   reads as the top of the document, and the only difference between the tab you
-   are in and the others is that its name is set in ink. */
+   What was a tab bar. Tabs were a row of chrome across the top of every screen
+   and the loudest thing in the window, doing a job nobody asked for: managing a
+   set of open documents. What is wanted is a way back to the note you were just
+   in, so this keeps four, has no close buttons and no order to maintain, and
+   lives where a hint belongs. `Cmd+W` still closes; this is a signpost. */
 
-.tab-bar {
+.recent-strip {
   display: flex;
   align-items: center;
   gap: 2px;
   min-width: 0;
-  padding: 0 8px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  background: var(--paper);
-  scrollbar-width: none;
+  overflow: hidden;
 }
 
-.tab-bar::-webkit-scrollbar { display: none; }
-
-.tab {
+.recent-chip {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   flex: 0 1 auto;
   min-width: 0;
-  max-width: 15rem;
-  height: 28px;
+  max-width: 11rem;
+  min-height: 18px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  padding: 1px 6px;
+  color: var(--muted);
+  font-size: 11px;
+  transition-property: color, background-color;
+  transition-duration: 100ms;
+}
+
+.recent-chip:hover { background: var(--raised); color: var(--ink); }
+
+/* The one you are in is stated, not boxed: at eleven pixels a filled chip is a
+   smudge, and weight reads at any size. */
+.recent-chip.is-current { color: var(--ink); font-weight: 600; }
+
+.recent-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-dot {
+  flex: 0 0 auto;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Rail footer
+   -------------------------------------------------------------------------
+   The folder, and the things that operate on the folder rather than on a file.
+   At the bottom because it answers "which folder", which is asked far less
+   often than "which note" and should sit further from the hand. */
+
+.rail-footer {
+  position: relative;
+  flex: 0 0 auto;
+  border-top: 1px solid var(--hairline);
+}
+
+.rail-footer-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
   min-height: 28px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 4px 10px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.rail-footer-button:hover { background: var(--raised); color: var(--ink); }
+
+.rail-footer-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail-footer-dots { flex: 0 0 auto; letter-spacing: 0.06em; }
+
+/* Opens upward, because it is anchored to the bottom of the window and a menu
+   that opened downward would have nowhere to go. */
+.rail-menu {
+  position: absolute;
+  z-index: 40;
+  right: 6px;
+  bottom: calc(100% + 4px);
+  left: 6px;
+  display: flex;
+  flex-direction: column;
+  max-height: 60vh;
+  overflow-y: auto;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--paper);
+  padding: 4px;
+  box-shadow: 0 14px 36px -12px color-mix(in srgb, var(--ink) 40%, transparent);
+}
+
+.rail-menu-item {
   border: 0;
   border-radius: 5px;
   background: transparent;
-  padding: 0 3px 0 8px;
-}
-
-.tab:hover { background: var(--raised); }
-
-.tab-label {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  border: 0;
-  border-radius: 0;
-  background: none;
-  padding: 0;
-  color: var(--muted);
+  padding: 5px 8px;
+  color: var(--ink);
   font-size: 12px;
   text-align: left;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition-property: color;
-  transition-duration: 120ms;
 }
 
-.tab-label:hover { background: none; color: var(--ink); }
-.tab-active .tab-label { color: var(--ink); font-weight: 600; }
+.rail-menu-item:hover:not(:disabled) { background: var(--raised); }
+.rail-menu-item:disabled { color: var(--muted); }
+.rail-menu-item.is-folder { color: var(--muted); }
+.rail-menu-item.is-folder:hover { color: var(--ink); }
 
-.tab-close {
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  width: 16px;
-  min-width: 16px;
-  height: 16px;
-  min-height: 16px;
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  padding: 0;
-}
-
-.tab-close:hover { background: var(--hairline); }
-
-/* A dot for unsaved work, which becomes a cross on hover, so one target does
-   both jobs without adding a second control to every tab. */
-.tab-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: transparent;
-}
-
-.tab-dot-dirty { background: var(--accent); }
-
-.tab-close:hover .tab-dot {
-  width: 8px;
-  height: 8px;
-  background:
-    linear-gradient(currentcolor, currentcolor) center / 100% 1.5px no-repeat,
-    linear-gradient(currentcolor, currentcolor) center / 1.5px 100% no-repeat;
-  border-radius: 0;
-  color: var(--ink);
+.rail-menu-heading {
+  padding: 10px 8px 4px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
 }
 
 /* Canvas and its states
@@ -618,8 +660,7 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 
 .pref-note {
   margin: 0;
-  border-top: 1px solid var(--hairline);
-  padding: 9px 18px;
+  padding: 4px 18px 14px;
   color: var(--muted);
   font-size: 11px;
 }
@@ -627,17 +668,19 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 /* One row per setting: what it is on the left, the control on the right at its
    natural width. The old sheet stacked a legend, a label and a full-width
    control for each one, so three settings filled a screen. */
+/* No rule between rows.
+   A line under every setting draws a table where there is only a list, and the
+   last one in a section always ended up floating above the footer's own rule
+   with nothing between them. Space does the separating; the label and its
+   control are already a pair by being on one line. */
 .pref-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  min-height: 44px;
-  border-bottom: 1px solid var(--hairline);
-  padding: 8px 0;
+  min-height: 40px;
+  padding: 9px 0;
 }
-
-.pref-content > .pref-row:last-child { border-bottom: 0; }
 
 .pref-label {
   display: grid;
@@ -855,8 +898,7 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   align-items: baseline;
   gap: 4px 18px;
   min-width: 0;
-  border-bottom: 1px solid var(--hairline);
-  padding: 14px 0;
+  padding: 13px 0;
   overflow-wrap: anywhere;
 }
 
@@ -933,9 +975,8 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 .plugin-tone-danger { border-left: 2px solid var(--danger); }
 
 .plugin-group-heading {
-  margin-top: 22px;
-  border-top: 1px solid var(--hairline);
-  padding-top: 14px;
+  margin-top: 26px;
+  padding-top: 4px;
 }
 
 .plugin-group-heading p {
@@ -997,7 +1038,7 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 .diagnostic-actions button,
 .evidence-controls button { background: var(--raised); min-height: 26px; font-size: 12px; }
 .evidence-controls span { display: block; width: 100%; overflow-wrap: anywhere; }
-.plugin-evidence { padding: 16px 0; border-top: 1px solid var(--hairline); }
+.plugin-evidence { padding: 16px 0; }
 
 .search-field {
   display: grid;
@@ -1049,7 +1090,7 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 
 .operational-status {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
+  grid-template-columns: auto minmax(0, 1fr) minmax(140px, auto);
   align-items: center;
   gap: 12px;
   min-width: 0;
@@ -1276,7 +1317,7 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 
   .app-shell { grid-template-rows: 38px auto minmax(0, 1fr) auto 24px; }
   .operational-status { height: 24px; grid-template-columns: minmax(0, 1fr); }
-  .status-message { display: none; }
+  .status-message, .recent-strip { display: none; }
   .pref-scrim { padding: 0; }
   .pref-dialog {
     grid-template-columns: minmax(0, 1fr);

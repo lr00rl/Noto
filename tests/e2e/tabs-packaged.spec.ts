@@ -67,7 +67,7 @@ test.describe('tabs', () => {
   test('shows no tab bar for a single document', async () => {
     const { app, page } = await launch('single');
     try {
-      await expect(page.getByTestId('tab-bar')).toBeHidden();
+      await expect(page.getByTestId('recent-strip')).toBeHidden();
     } finally {
       await app.close();
     }
@@ -77,16 +77,16 @@ test.describe('tabs', () => {
     const { app, page, second } = await launch('switch');
     try {
       await openInTab(page, second);
-      await expect(page.getByTestId('tab-bar')).toBeVisible();
-      await expect(page.getByTestId('tab')).toHaveCount(2);
+      await expect(page.getByTestId('recent-strip')).toBeVisible();
+      await expect(page.getByTestId('recent-chip')).toHaveCount(2);
 
       // The newly opened document is in front.
       await expect(page.locator('.ProseMirror:visible')).toContainText('Beta body.');
 
-      await page.locator('.tab', { hasText: 'alpha.md' }).getByRole('tab').click();
+      await page.getByTestId('recent-chip').filter({ hasText: 'alpha' }).click();
       await expect(page.locator('.ProseMirror:visible')).toContainText('Alpha body.');
 
-      await page.locator('.tab', { hasText: 'beta.md' }).getByRole('tab').click();
+      await page.getByTestId('recent-chip').filter({ hasText: 'beta' }).click();
       await expect(page.locator('.ProseMirror:visible')).toContainText('Beta body.');
     } finally {
       await app.close();
@@ -105,7 +105,7 @@ test.describe('tabs', () => {
       await openInTab(page, second);
       await expect(page.locator('.ProseMirror:visible')).toContainText('Beta body.');
 
-      await page.locator('.tab', { hasText: 'alpha.md' }).getByRole('tab').click();
+      await page.getByTestId('recent-chip').filter({ hasText: 'alpha' }).click();
       await expect(page.locator('.ProseMirror:visible')).toContainText('EDITED Alpha body.');
 
       // The edit is still undoable, which is only true if the editor was never
@@ -125,10 +125,11 @@ test.describe('tabs', () => {
       await page.locator('.ProseMirror:visible p').first().click();
       await page.keyboard.type('X');
 
-      const betaTab = page.locator('.tab', { hasText: 'beta.md' });
-      await expect(betaTab.locator('.tab-dot-dirty')).toBeVisible();
+      const betaChip = page.getByTestId('recent-chip').filter({ hasText: 'beta' });
+      await expect(betaChip.locator('.recent-dot')).toBeVisible();
       // The untouched document is not marked.
-      await expect(page.locator('.tab', { hasText: 'alpha.md' }).locator('.tab-dot-dirty')).toHaveCount(0);
+      await expect(page.getByTestId('recent-chip').filter({ hasText: 'alpha' })
+        .locator('.recent-dot')).toHaveCount(0);
     } finally {
       await app.close();
     }
@@ -156,9 +157,9 @@ test.describe('tabs', () => {
     const { app, page, second } = await launch('reuse');
     try {
       await openInTab(page, second);
-      await expect(page.getByTestId('tab')).toHaveCount(2);
+      await expect(page.getByTestId('recent-chip')).toHaveCount(2);
       await openInTab(page, second);
-      await expect(page.getByTestId('tab')).toHaveCount(2);
+      await expect(page.getByTestId('recent-chip')).toHaveCount(2);
     } finally {
       await app.close();
     }
@@ -168,10 +169,12 @@ test.describe('tabs', () => {
     const { app, page, second } = await launch('close');
     try {
       await openInTab(page, second);
-      await expect(page.getByTestId('tab')).toHaveCount(2);
+      await expect(page.getByTestId('recent-chip')).toHaveCount(2);
 
-      await page.locator('.tab', { hasText: 'beta.md' }).getByTestId('tab-close').click();
-      await expect(page.getByTestId('tab-bar')).toBeHidden();
+      // The strip has no close control by design; closing is the menu item and
+      // its shortcut, which is what the tab's cross used to stand in for.
+      await invokeMenu(app, 'close-tab');
+      await expect(page.getByTestId('recent-strip')).toBeHidden();
       await expect(page.locator('.ProseMirror:visible')).toContainText('Alpha body.');
     } finally {
       await app.close();

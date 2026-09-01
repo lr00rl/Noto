@@ -14,6 +14,7 @@ import {
   type WorkspaceResultV1,
   type WorkspaceTabRequestV1,
   type WorkspaceFolderRequestV1,
+  type RecentFileV1,
 } from '../../shared/workspace/v1/contracts';
 import {
   isWorkspaceOpenPathRequestV1,
@@ -32,6 +33,8 @@ export function registerWorkspaceHandlers(deps: {
   getWindow: () => BrowserWindow | null;
   logger: StructuredLogger;
   onRecentChanged: () => void;
+  /** The folders opened before, read at call time so the list is current. */
+  recentFolders: () => Promise<readonly RecentFileV1[]>;
 }): void {
   const register = <TRequest extends { requestId: string }, TReply>(
     channel: string,
@@ -70,6 +73,12 @@ export function registerWorkspaceHandlers(deps: {
 
   register(WORKSPACE_CHANNELS.fileIndex, isWorkspaceRequestV1,
     () => deps.session.fileIndex());
+
+  register(WORKSPACE_CHANNELS.recentFolders, isWorkspaceRequestV1,
+    async () => ({ version: NOTO_WORKSPACE_VERSION, files: await deps.recentFolders() } as const));
+
+  register(WORKSPACE_CHANNELS.openRecentFolder, isWorkspaceOpenPathRequestV1,
+    (request: WorkspaceOpenPathRequestV1) => deps.session.openFolderPath(request.path));
 
   register(WORKSPACE_CHANNELS.activateTab, isWorkspaceTabRequestV1,
     (request: WorkspaceTabRequestV1) => {
