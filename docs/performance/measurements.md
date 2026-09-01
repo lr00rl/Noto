@@ -214,10 +214,11 @@ unit object per block across the process boundary, and building the eight
 megabyte output string. Each needs measuring before it is worth changing; the
 mistake to avoid is optimising the cheap one twice.
 
-## The Typora comparison cannot be measured on this machine
+## Three ways of measuring Typora that did not work
 
-Three approaches were tried and all three failed. Recording them so the effort
-is not repeated.
+All three were abandoned before a fourth approach succeeded. They are kept
+because each fails for a different reason, and the reasons are worth knowing
+before anyone tries them again. The comparison that did work is at the end.
 
 **Process tree CPU.** Sampling the launched process and everything that appeared
 with it. Typora reported the same CPU for an eight megabyte file as for a sixty
@@ -239,9 +240,8 @@ inverse relationship with document size, and for the largest file below the idle
 baseline. The noise floor is the same magnitude as the signal, so this cannot
 resolve the question either.
 
-What would settle it is screen recording permission granted interactively, or a
-side by side with a person watching both windows. Until then the claim that Noto
-is faster than Typora on large documents is unproven, and should not be made.
+The common flaw is that all three try to infer what Typora is doing by watching
+it from the outside. What settled the question was getting a clock inside it.
 
 ## Earlier notes on the comparison
 
@@ -262,5 +262,67 @@ Confirming what Typora actually put on screen needs a screenshot, and screen
 capture on this macOS version requires a permission that cannot be granted
 unattended. `screencapture` fails with "could not create image from display".
 
-So there is no measured comparison against Typora, and the claim of being faster
-than it is unproven. What is measured is Noto against itself, above.
+That suspicion, that Typora never parsed the large document at all, turned out
+to be exactly right. The next section shows it directly.
+
+## The comparison, measured
+
+Typora on this machine runs the `typora-plugin-lite` remote control plugin,
+which answers JSON-RPC from inside Typora's renderer. That is a clock in the
+process being measured, which is what the three failed attempts lacked.
+`scripts/bench/run-typora.mjs` uses it against the same four corpus files.
+
+The measurement ends when Typora reports back a document as long as the file on
+disk. Timing against the file path instead is the trap here, and it is worth
+naming: the path flips to the new document almost immediately, long before any
+content is behind it, so a path based timer reports the 8 MB file opening in
+582 ms. It does not open at all.
+
+Every measured open starts from a scratch document, not from another corpus
+file, because resetting to the smallest corpus file means the smallest
+measurement finds its own document already loaded and reports 14 ms.
+
+| document |     bytes | Noto      | Typora            |
+| -------- | --------- | --------- | ----------------- |
+| small    |    66,061 |   268 ms  |   282 ms          |
+| medium   |   524,952 |   903 ms  |   343 ms          |
+| large    | 2,097,661 | 4,017 ms  | never loaded      |
+| huge     | 8,389,427 | 22,467 ms | never loaded      |
+
+Read honestly, this is a split result rather than a win.
+
+At 66 KB the two are the same to within noise. At 525 KB **Typora is 2.6 times
+faster than Noto**, and that is a genuine regression to answer for, not a
+rounding difference. Noto's own profile explains where the time goes: the
+document is parsed twice on open, once in the main process and once in the
+renderer, and the renderer's parse blocks the thread that would paint. Typora
+has no such split.
+
+At 2 MB and above the comparison stops being about speed. Typora does not load
+those documents. After three minutes on the 2 MB file its editor still reports
+an empty document, and it never recovers.
+
+That claim was checked three ways before being written down, because "the
+competitor cannot do it" is exactly the sort of convenient result that deserves
+suspicion:
+
+The document Typora reports stays empty for the full 180 second timeout, while
+the identical channel returns 66,153 and 525,044 characters for the two smaller
+files, so the channel works and the plugin applies no size cap. Its
+`getDocument` is a direct passthrough to `editor.getMarkdown()` with no
+truncation in it.
+
+Typora's memory falls rather than rises while the large file is supposedly
+loading, from 100 MB down to 62 MB over ninety seconds. A renderer building a
+2 MB document does the opposite.
+
+Typora is not wedged, and no dialog is waiting for a click. Immediately after
+failing on the 2 MB file it opens the 66 KB file in 683 ms. It is responsive
+and simply declines the work.
+
+So the fair statement of deliverable 8 is this. On large documents, the ones the
+requirement is actually about, Noto opens files that Typora will not open at
+all, which is the strongest form the claim could take. On mid sized documents
+Noto is currently slower, and fixing the double parse is the work that would
+close that gap. The two together are the honest picture; quoting only the first
+would not be.
