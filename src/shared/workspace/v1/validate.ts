@@ -9,6 +9,8 @@
 import { WORKSPACE_MENU_COMMANDS } from './contracts';
 import type {
   RecentFileV1,
+  WorkspaceIndexEntryV1,
+  WorkspaceIndexReplyV1,
   WorkspaceDocumentEventV1,
   WorkspaceMenuCommandV1,
   WorkspaceMenuEventV1,
@@ -155,4 +157,29 @@ export function isWorkspaceDocumentEventV1(value: unknown): value is WorkspaceDo
 export function isWorkspaceMenuEventV1(value: unknown): value is WorkspaceMenuEventV1 {
   return record(value) && exact(value, ['version', 'command']) && value.version === 1
     && menuCommands.includes(value.command as WorkspaceMenuCommandV1);
+}
+
+function isIndexEntryV1(value: unknown): value is WorkspaceIndexEntryV1 {
+  return record(value) && exact(value, ['path', 'name', 'relativePath'])
+    && typeof value.path === 'string' && value.path.length > 0
+    && typeof value.name === 'string'
+    && typeof value.relativePath === 'string';
+}
+
+export function isWorkspaceIndexReplyV1(value: unknown): value is WorkspaceIndexReplyV1 {
+  return record(value) && exact(value, ['version', 'root', 'entries', 'truncated'])
+    && value.version === 1
+    && (value.root === null || typeof value.root === 'string')
+    && typeof value.truncated === 'boolean'
+    && Array.isArray(value.entries) && value.entries.every(isIndexEntryV1);
+}
+
+export function isWorkspaceIndexResultV1(
+  value: unknown,
+  expectedRequestId: string,
+): value is WorkspaceResultV1<WorkspaceIndexReplyV1> {
+  if (!record(value) || value.requestId !== expectedRequestId) return false;
+  if (value.ok === true) return isWorkspaceIndexReplyV1(value.value);
+  return value.ok === false && record(value.error)
+    && typeof value.error.code === 'string' && typeof value.error.message === 'string';
 }

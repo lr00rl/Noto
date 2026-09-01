@@ -68,6 +68,9 @@ export function registerWorkspaceHandlers(deps: {
   register(WORKSPACE_CHANNELS.listFolder, isWorkspaceFolderRequestV1,
     (request: WorkspaceFolderRequestV1) => deps.session.listFolder(request.path));
 
+  register(WORKSPACE_CHANNELS.fileIndex, isWorkspaceRequestV1,
+    () => deps.session.fileIndex());
+
   register(WORKSPACE_CHANNELS.activateTab, isWorkspaceTabRequestV1,
     (request: WorkspaceTabRequestV1) => {
       const opened = deps.session.activate(request.path);

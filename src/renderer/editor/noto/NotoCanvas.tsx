@@ -17,6 +17,7 @@ export interface NotoCanvasProps {
   readonly spellCheck?: boolean;
   readonly onDirtyChange: (dirty: boolean) => void;
   readonly onDocumentChanged?: () => void;
+  readonly onFollowWikiLink?: (target: string) => void;
   readonly onReady: (editor: NotoEditor) => void;
   readonly onTeardown: (editor: NotoEditor) => void;
   readonly onError: (message: string) => void;
@@ -29,6 +30,7 @@ export function NotoCanvas({
   spellCheck,
   onDirtyChange,
   onDocumentChanged,
+  onFollowWikiLink,
   onReady,
   onTeardown,
   onError,
@@ -42,7 +44,7 @@ export function NotoCanvas({
 
     let editor: NotoEditor;
     try {
-      editor = new NotoEditor(host, document, { mac, smartTypography, spellCheck, onDirtyChange, onDocumentChanged, onError });
+      editor = new NotoEditor(host, document, { mac, smartTypography, spellCheck, onDirtyChange, onDocumentChanged, onFollowWikiLink, onError });
     } catch (error) {
       onError(error instanceof Error ? error.message : 'The editor failed to start.');
       return;

@@ -20,10 +20,12 @@ import {
   type WorkspaceTabV1,
   type WorkspaceFolderEventV1,
 } from '../../shared/workspace/v1/contracts';
+import type { WorkspaceIndexReplyV1 } from '../../shared/workspace/v1/contracts';
 import type { StructuredLogger } from '../logger';
 import type { FileTruthStoreV1 } from '../file-truth/v1/file-truth-store';
 import type { RecentFiles } from './recent-files';
 import { listDirectory, type FileTreeEntryV1 } from './file-tree';
+import { buildFileIndex } from './file-index';
 
 const MARKDOWN_FILTERS = [
   { name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd', 'txt'] },
@@ -44,6 +46,7 @@ export class WorkspaceSession {
   private activePath: string | null = null;
   /** The folder shown in the sidebar, and the boundary for every listing. */
   private folderRoot: string | null = null;
+  private indexCache: { root: string; reply: WorkspaceIndexReplyV1 } | null = null;
 
   constructor(
     private readonly createStore: () => FileTruthStoreV1,
@@ -207,6 +210,8 @@ export class WorkspaceSession {
     if (result.canceled || result.filePaths.length === 0) return this.folderEvent();
 
     this.folderRoot = path.resolve(result.filePaths[0]);
+    // A new folder invalidates the old index rather than serving it stale.
+    this.indexCache = null;
     this.logger.log('workspace_folder_opened', {});
     const event = this.folderEvent();
     this.send(WORKSPACE_CHANNELS.folderChanged, event);
@@ -214,6 +219,26 @@ export class WorkspaceSession {
   }
 
   /** Entries inside a directory of the chosen folder. */
+  /**
+   * The whole openable file list for the current folder.
+   *
+   * Cached against the root, because the walk is the expensive part and the
+   * renderer asks for it whenever quick open is first used. It is dropped when
+   * the folder changes rather than kept warm for a folder nobody is in.
+   */
+  async fileIndex(): Promise<WorkspaceIndexReplyV1> {
+    if (!this.folderRoot) {
+      return { version: NOTO_WORKSPACE_VERSION, root: null, entries: [], truncated: false };
+    }
+    if (this.indexCache?.root === this.folderRoot) return this.indexCache.reply;
+    const { entries, truncated } = await buildFileIndex(this.folderRoot);
+    const reply: WorkspaceIndexReplyV1 = {
+      version: NOTO_WORKSPACE_VERSION, root: this.folderRoot, entries, truncated,
+    };
+    this.indexCache = { root: this.folderRoot, reply };
+    return reply;
+  }
+
   async listFolder(target: string): Promise<{ version: typeof NOTO_WORKSPACE_VERSION; entries: FileTreeEntryV1[] }> {
     if (!this.folderRoot) throw new Error('NO_FOLDER_OPEN: choose a folder first');
     return {

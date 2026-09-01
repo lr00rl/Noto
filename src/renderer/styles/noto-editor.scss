@@ -675,6 +675,32 @@
   .find-row [data-testid='replace-all'] { font-size: 0.74rem; }
 }
 
+/* Wiki links
+   -------------------------------------------------------------------------
+   The brackets stay in the text, because they are in the file and removing them
+   from view makes the caret jump two characters through text that is still
+   there. They are dimmed instead, so the eye reads the name and the fingers
+   still find the syntax. */
+
+.ProseMirror .noto-wiki-bracket {
+  color: var(--muted);
+  opacity: 0.35;
+}
+
+.ProseMirror .noto-wiki-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  text-underline-offset: 2px;
+  cursor: text;
+}
+
+/* Only under the modifier that follows it, so the pointer says which click
+   places a caret and which one leaves the document. */
+.ProseMirror .noto-wiki-link:hover {
+  text-decoration-color: var(--accent);
+}
+
 /* Workspace file tree and outline
    -------------------------------------------------------------------------
    Both trees in the rail share this. The connectors are the point: a deep tree

@@ -76,6 +76,9 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
     submenu: [
       { id: 'open-dialog', label: 'Open…', accelerator: 'CmdOrCtrl+O', click: () => actions.openDialog() },
       { id: 'open-folder', label: 'Open Folder…', accelerator: 'CmdOrCtrl+Alt+O', click: () => actions.openFolder() },
+      // The fastest way into a vault of a few thousand notes, so it sits with
+      // the other ways of opening one rather than under a search menu.
+      command('Quick Open…', 'CmdOrCtrl+P', 'quick-open'),
       // Closed in main rather than sent to the renderer: main owns which
       // documents are open, so asking the renderer which one is in front would
       // race against the tab list arriving there.
