@@ -326,3 +326,37 @@ all, which is the strongest form the claim could take. On mid sized documents
 Noto is currently slower, and fixing the double parse is the work that would
 close that gap. The two together are the honest picture; quoting only the first
 would not be.
+
+### What the mid sized loss would actually take to fix
+
+"The double parse" was the standing explanation, so it was profiled rather than
+assumed. `PROFILE_OPEN=1 pnpm vitest run tests/unit/open-profile.test.ts`
+separates the phases:
+
+| phase                  |  66 KB |  525 KB | 2.1 MB  |
+| ---------------------- | ------ | ------- | ------- |
+| main: parseDocument    |  78 ms |  349 ms | 1453 ms |
+| renderer: splitBlocks  |  45 ms |  330 ms | 1426 ms |
+| renderer: docFromSpans |   1 ms |    4 ms |   11 ms |
+
+Two things fall out of this, and the second is the uncomfortable one.
+
+Building the ProseMirror document is free. At 4 ms for 2,742 blocks it is not
+worth a moment's attention, and any effort aimed at the editor's node
+construction would be aimed at nothing. The entire cost is one full mdast parse,
+which `splitBlocks` performs and `docFromSpans` then consumes; there is no
+redundant work inside either.
+
+But removing the duplicate parse does not win the comparison. It would take
+roughly 330 ms off the 903 ms, landing near 570 ms against Typora's 343 ms.
+Still behind. The remaining distance is the single remaining parse plus IPC and
+first paint, so matching Typora at this size needs the parse itself to get
+faster or to stop being on the critical path, not merely to happen once.
+
+That points at three candidates, none of them attempted here: parse
+incrementally and show the document before it is finished, move the parse off
+the thread that paints so the window is live while it works, or reduce what the
+micromark extension set costs per byte. Deferring the main process parse until
+the first save is the cheapest of the four ideas and the most dangerous, because
+the file truth store's guarantees are built on having parsed the file it is
+holding, so it is not something to change casually for 330 ms.
