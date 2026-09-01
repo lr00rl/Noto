@@ -19,6 +19,7 @@
     "package:e2e": "node scripts/package-variant.mjs e2e",
     "package:release": "node scripts/package-variant.mjs release",
     "make:release": "node scripts/make-installers.mjs release",
+    "verify:package": "node scripts/verify-package.mjs",
     "license:inventory": "node scripts/generate-license-inventory.mjs",
     "test:e2e": "playwright test",
     "verify": "pnpm typecheck && pnpm test"

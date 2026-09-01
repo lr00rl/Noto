@@ -16,7 +16,7 @@ export function packageDirectoryName(platform, arch) {
 export function assertPackagingRuntime(version = process.versions.node) {
   const major = Number(version.split('.', 1)[0]);
   if (major !== 22) {
-    throw new Error(`G001 packaging requires the installed Node 22 runtime; received Node ${version}`);
+    throw new Error(`Packaging requires the installed Node 22 runtime; received Node ${version}`);
   }
 }
 
@@ -47,8 +47,8 @@ export function executableRelativePath(platform = process.platform) {
  * Confirm the directory really holds a Noto package before deleting or moving
  * anything, so a wrong path cannot turn a relocation into data loss.
  */
-async function assertExpectedPackage(packageDirectory) {
-  if (process.platform === 'darwin') {
+async function assertExpectedPackage(packageDirectory, platform = process.platform) {
+  if (platform === 'darwin') {
     const plist = path.join(packageDirectory, 'Noto.app', 'Contents', 'Info.plist');
     const content = await readFile(plist, 'utf8');
     if (!content.includes(`<string>${expectedBundleId}</string>`)
@@ -60,31 +60,41 @@ async function assertExpectedPackage(packageDirectory) {
   }
   // Windows and Linux produce a plain directory, so identity is the executable
   // plus the asar Electron actually loads.
-  const executable = path.join(packageDirectory, executableRelativePath());
+  const executable = path.join(packageDirectory, executableRelativePath(platform));
   const archive = path.join(packageDirectory, 'resources', 'app.asar');
   if (!await exists(executable) || !await exists(archive)) {
     throw new Error(`Refusing package relocation for unexpected app identity at ${packageDirectory}`);
   }
 }
 
-async function runForge(variant, arch, stagingRoot) {
+async function runForge(variant, arch, stagingRoot, platform) {
   process.env.NTO_PACKAGE_VARIANT = variant;
   const { api } = require('@electron-forge/core');
   return api.package({
     dir: root,
     arch,
-    platform: process.platform,
+    platform,
     outDir: stagingRoot,
     // Never prompt. This runs in CI as often as it runs on a laptop.
     interactive: false,
   });
 }
 
-export async function packageVariant(variant) {
+/**
+ * Package the app, by default for the machine doing the packaging.
+ *
+ * The target is overridable because otherwise a platform can only ever be
+ * packaged from itself, and a configuration mistake for a platform nobody has a
+ * machine for stays invisible until someone with that machine tries. Packaging
+ * a Windows tree from a laptop does not prove Noto runs on Windows, and is not
+ * claimed to; it proves the Forge configuration produces the tree it should.
+ */
+export async function packageVariant(variant, target = {}) {
   assertPackagingRuntime();
   if (variant !== 'e2e' && variant !== 'release') throw new Error('Expected explicit e2e or release package variant');
-  const arch = process.arch;
-  const directoryName = packageDirectoryName(process.platform, arch);
+  const platform = target.platform ?? process.platform;
+  const arch = target.arch ?? process.arch;
+  const directoryName = packageDirectoryName(platform, arch);
   const stagingRoot = path.join(outRoot, '.package-staging', variant);
   const destinationRoot = path.join(outRoot, variant);
   const destination = path.join(destinationRoot, directoryName);
@@ -95,13 +105,13 @@ export async function packageVariant(variant) {
   }
 
   await rm(stagingRoot, { recursive: true, force: true });
-  await runForge(variant, arch, stagingRoot);
+  await runForge(variant, arch, stagingRoot, platform);
   const source = path.join(stagingRoot, directoryName);
   if (!isContainedPath(stagingRoot, source) || path.basename(source) !== directoryName) {
     throw new Error('Forge package output escaped the expected staging directory');
   }
-  await assertExpectedPackage(source);
-  if (await exists(destination)) await assertExpectedPackage(destination);
+  await assertExpectedPackage(source, platform);
+  if (await exists(destination)) await assertExpectedPackage(destination, platform);
   await mkdir(destinationRoot, { recursive: true });
   await rm(destination, { recursive: true, force: true });
   await rename(source, destination);
@@ -110,5 +120,9 @@ export async function packageVariant(variant) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
-  await packageVariant(process.argv[2]);
+  const flag = (name) => {
+    const match = process.argv.find((argument) => argument.startsWith(`--${name}=`));
+    return match ? match.slice(name.length + 3) : undefined;
+  };
+  await packageVariant(process.argv[2], { platform: flag('platform'), arch: flag('arch') });
 }

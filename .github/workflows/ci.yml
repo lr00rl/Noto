@@ -84,6 +84,18 @@ jobs:
           pnpm package:e2e
           pnpm exec playwright test
 
+      # Checks what was decided at package time rather than at run time: the
+      # fuses, what went into the asar, and the platform's own metadata. The
+      # e2e suite cannot cover these on a platform it is not running on, and
+      # this is also the only check that runs against a cross packaged tree.
+      - name: Verify the packaged tree
+        shell: bash
+        run: |
+          for directory in out/e2e/Noto-*; do
+            node scripts/verify-package.mjs "$directory"
+          done
+        working-directory: ElectronApp
+
       - name: Upload failure traces
         if: failure()
         uses: actions/upload-artifact@v4
