@@ -24,15 +24,45 @@ import { executableRelativePath } from './package-variant.mjs';
 const require = createRequire(import.meta.url);
 const run = promisify(execFile);
 
-/** Every fuse the release build depends on, and the state it must be in. */
-const REQUIRED_FUSES = {
-  RunAsNode: 'Disabled',
-  EnableNodeOptionsEnvironmentVariable: 'Disabled',
-  EnableNodeCliInspectArguments: 'Disabled',
-  EnableEmbeddedAsarIntegrityValidation: 'Enabled',
-  OnlyLoadAppFromAsar: 'Enabled',
-  EnableCookieEncryption: 'Enabled',
-};
+/**
+ * Every fuse the build depends on, and the state it must be in.
+ *
+ * One fuse differs by variant on purpose. The e2e package opens
+ * `EnableNodeCliInspectArguments` because Playwright attaches with those
+ * arguments, and release must never allow them. Checking a tree against the
+ * wrong variant's expectations reports a failure that is really the packager
+ * doing exactly what it was told, which is what this script did when it was
+ * pointed at an e2e tree.
+ */
+function requiredFuses(variant) {
+  return {
+    RunAsNode: 'Disabled',
+    EnableNodeOptionsEnvironmentVariable: 'Disabled',
+    EnableNodeCliInspectArguments: variant === 'e2e' ? 'Enabled' : 'Disabled',
+    EnableEmbeddedAsarIntegrityValidation: 'Enabled',
+    OnlyLoadAppFromAsar: 'Enabled',
+    EnableCookieEncryption: 'Enabled',
+  };
+}
+
+/**
+ * Which variant a packaged tree is.
+ *
+ * `packageVariant` always writes to `out/<variant>/<name>`, so the containing
+ * directory is the answer for anything this repository produced. `--variant=`
+ * covers a tree that has been moved somewhere else, and the assumed variant is
+ * printed either way so a wrong guess is visible rather than silent.
+ */
+function variantOf(packageDirectory) {
+  const flag = process.argv.find((argument) => argument.startsWith('--variant='));
+  if (flag) {
+    const value = flag.slice('--variant='.length);
+    if (value !== 'e2e' && value !== 'release') throw new Error(`Unknown variant ${value}`);
+    return value;
+  }
+  const parent = path.basename(path.dirname(packageDirectory));
+  return parent === 'e2e' ? 'e2e' : 'release';
+}
 
 /** Anything matching these in the asar means retired scaffolding shipped. */
 const FORBIDDEN_IN_ASAR = /testControl|experimental-runtime-smoke|g001/i;
@@ -84,7 +114,7 @@ async function verifyAsar(packageDirectory, platform) {
   check('no retired scaffolding in the asar', shipped.length === 0, shipped.join(', '));
 }
 
-async function verifyFuses(executable) {
+async function verifyFuses(executable, variant) {
   let output;
   try {
     const result = await run('npx', ['--yes', '@electron/fuses', 'read', '--app', executable]);
@@ -95,7 +125,7 @@ async function verifyFuses(executable) {
   }
   // The tool colourises, which otherwise breaks every match below.
   const plain = output.replace(/\u001b\[[0-9;]*m/g, '');
-  for (const [fuse, state] of Object.entries(REQUIRED_FUSES)) {
+  for (const [fuse, state] of Object.entries(requiredFuses(variant))) {
     check(`fuse ${fuse} is ${state}`, new RegExp(`${fuse} is ${state}`).test(plain));
   }
 }
@@ -128,15 +158,16 @@ async function main() {
   if (!target) throw new Error('Usage: node scripts/verify-package.mjs <package directory>');
   const packageDirectory = path.resolve(target);
   const platform = platformOf(packageDirectory);
+  const variant = variantOf(packageDirectory);
 
   const executable = path.join(packageDirectory, executableRelativePath(platform));
   check('executable is present', await exists(executable), executable);
 
   await verifyAsar(packageDirectory, platform);
   await verifyPlatformIdentity(packageDirectory, platform);
-  if (await exists(executable)) await verifyFuses(executable);
+  if (await exists(executable)) await verifyFuses(executable, variant);
 
-  console.log(`${platform}: ${checks.length - failures.length}/${checks.length} checks passed`);
+  console.log(`${platform} ${variant}: ${checks.length - failures.length}/${checks.length} checks passed`);
   if (failures.length > 0) {
     for (const failure of failures) console.error(`  FAIL ${failure}`);
     process.exit(1);

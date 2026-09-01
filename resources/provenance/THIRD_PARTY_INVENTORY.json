@@ -1,5 +1,5 @@
 {
-  "lockfileSha256": "ef33ff4a798880ed5d788ca5be7766c796c899da282096ee83cbce7ca0602200",
+  "lockfileSha256": "5c46dae85df503e2d52479894a0c38feb3b8c30f7459121ad6ff040c9529535c",
   "packages": [
     {
       "name": "@electron-forge/cli",
@@ -30,6 +30,42 @@
     },
     {
       "name": "@electron-forge/maker-base",
+      "version": "7.11.2",
+      "license": "MIT",
+      "repository": "https://github.com/electron/forge",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@electron-forge/maker-deb",
+      "version": "7.11.2",
+      "license": "MIT",
+      "repository": "https://github.com/electron/forge",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@electron-forge/maker-rpm",
+      "version": "7.11.2",
+      "license": "MIT",
+      "repository": "https://github.com/electron/forge",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@electron-forge/maker-squirrel",
+      "version": "7.11.2",
+      "license": "MIT",
+      "repository": "https://github.com/electron/forge",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@electron-forge/maker-zip",
       "version": "7.11.2",
       "license": "MIT",
       "repository": "https://github.com/electron/forge",
@@ -440,7 +476,7 @@
     },
     {
       "name": "@malept/cross-spawn-promise",
-      "version": "2.0.0",
+      "version": "1.1.1",
       "license": "Apache-2.0",
       "repository": "https://github.com/malept/cross-spawn-promise",
       "noticeFiles": [
@@ -448,82 +484,10 @@
       ]
     },
     {
-      "name": "@milkdown/core",
-      "version": "7.22.1",
-      "license": "MIT",
-      "repository": "git+https://github.com/Milkdown/milkdown.git",
-      "noticeFiles": [
-        "LICENSE"
-      ]
-    },
-    {
-      "name": "@milkdown/ctx",
-      "version": "7.22.1",
-      "license": "MIT",
-      "repository": "git+https://github.com/Milkdown/milkdown.git",
-      "noticeFiles": [
-        "LICENSE"
-      ]
-    },
-    {
-      "name": "@milkdown/exception",
-      "version": "7.22.1",
-      "license": "MIT",
-      "repository": "git+https://github.com/Milkdown/milkdown.git",
-      "noticeFiles": [
-        "LICENSE"
-      ]
-    },
-    {
-      "name": "@milkdown/plugin-history",
-      "version": "7.22.1",
-      "license": "MIT",
-      "repository": "git+https://github.com/Milkdown/milkdown.git",
-      "noticeFiles": [
-        "LICENSE"
-      ]
-    },
-    {
-      "name": "@milkdown/plugin-listener",
-      "version": "7.22.1",
-      "license": "MIT",
-      "repository": "git+https://github.com/Milkdown/milkdown.git",
-      "noticeFiles": [
-        "LICENSE"
-      ]
-    },
-    {
-      "name": "@milkdown/preset-commonmark",
-      "version": "7.22.1",
-      "license": "MIT",
-      "repository": "git+https://github.com/Milkdown/milkdown.git",
-      "noticeFiles": [
-        "LICENSE"
-      ]
-    },
-    {
-      "name": "@milkdown/prose",
-      "version": "7.22.1",
-      "license": "MIT",
-      "repository": "git+https://github.com/Milkdown/milkdown.git",
-      "noticeFiles": [
-        "LICENSE"
-      ]
-    },
-    {
-      "name": "@milkdown/transformer",
-      "version": "7.22.1",
-      "license": "MIT",
-      "repository": "git+https://github.com/Milkdown/milkdown.git",
-      "noticeFiles": [
-        "LICENSE"
-      ]
-    },
-    {
-      "name": "@milkdown/utils",
-      "version": "7.22.1",
-      "license": "MIT",
-      "repository": "git+https://github.com/Milkdown/milkdown.git",
+      "name": "@malept/cross-spawn-promise",
+      "version": "2.0.0",
+      "license": "Apache-2.0",
+      "repository": "https://github.com/malept/cross-spawn-promise",
       "noticeFiles": [
         "LICENSE"
       ]
@@ -708,6 +672,24 @@
       ]
     },
     {
+      "name": "@types/fs-extra",
+      "version": "9.0.13",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/hast",
+      "version": "3.0.5",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "@types/http-cache-semantics",
       "version": "4.2.0",
       "license": "MIT",
@@ -726,26 +708,17 @@
       ]
     },
     {
+      "name": "@types/katex",
+      "version": "0.16.8",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "@types/keyv",
       "version": "3.1.4",
-      "license": "MIT",
-      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
-      "noticeFiles": [
-        "LICENSE"
-      ]
-    },
-    {
-      "name": "@types/lodash-es",
-      "version": "4.17.12",
-      "license": "MIT",
-      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
-      "noticeFiles": [
-        "LICENSE"
-      ]
-    },
-    {
-      "name": "@types/lodash",
-      "version": "4.17.25",
       "license": "MIT",
       "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
       "noticeFiles": [
@@ -798,6 +771,15 @@
       ]
     },
     {
+      "name": "@types/prismjs",
+      "version": "1.26.6",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "@types/react-dom",
       "version": "19.2.5",
       "license": "MIT",
@@ -818,15 +800,6 @@
     {
       "name": "@types/responselike",
       "version": "1.0.3",
-      "license": "MIT",
-      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
-      "noticeFiles": [
-        "LICENSE"
-      ]
-    },
-    {
-      "name": "@types/unist",
-      "version": "2.0.11",
       "license": "MIT",
       "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
       "noticeFiles": [
@@ -1265,15 +1238,6 @@
       ]
     },
     {
-      "name": "bail",
-      "version": "2.0.2",
-      "license": "MIT",
-      "repository": "wooorm/bail",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
       "name": "balanced-match",
       "version": "1.0.2",
       "license": "MIT",
@@ -1454,37 +1418,10 @@
       ]
     },
     {
-      "name": "character-entities-html4",
-      "version": "2.1.0",
-      "license": "MIT",
-      "repository": "wooorm/character-entities-html4",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
-      "name": "character-entities-legacy",
-      "version": "3.0.0",
-      "license": "MIT",
-      "repository": "wooorm/character-entities-legacy",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
       "name": "character-entities",
       "version": "2.0.2",
       "license": "MIT",
       "repository": "wooorm/character-entities",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
-      "name": "character-reference-invalid",
-      "version": "2.0.1",
-      "license": "MIT",
-      "repository": "wooorm/character-reference-invalid",
       "noticeFiles": [
         "license"
       ]
@@ -1581,6 +1518,15 @@
     },
     {
       "name": "cliui",
+      "version": "7.0.4",
+      "license": "ISC",
+      "repository": "yargs/cliui",
+      "noticeFiles": [
+        "LICENSE.txt"
+      ]
+    },
+    {
+      "name": "cliui",
       "version": "8.0.1",
       "license": "ISC",
       "repository": "yargs/cliui",
@@ -1662,6 +1608,15 @@
     },
     {
       "name": "commander",
+      "version": "8.3.0",
+      "license": "MIT",
+      "repository": "https://github.com/tj/commander.js.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "commander",
       "version": "9.5.0",
       "license": "MIT",
       "repository": "https://github.com/tj/commander.js.git",
@@ -1715,6 +1670,15 @@
       "version": "7.0.6",
       "license": "MIT",
       "repository": "git@github.com:moxystudio/node-cross-spawn.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "cross-zip",
+      "version": "4.0.1",
+      "license": "MIT",
+      "repository": "git://github.com/feross/cross-zip.git",
       "noticeFiles": [
         "LICENSE"
       ]
@@ -1853,10 +1817,46 @@
       "noticeFiles": []
     },
     {
+      "name": "electron-installer-common",
+      "version": "0.10.4",
+      "license": "Apache-2.0",
+      "repository": "electron-userland/electron-installer-common",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "electron-installer-debian",
+      "version": "3.2.0",
+      "license": "MIT",
+      "repository": "git://github.com/electron-userland/electron-installer-debian.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "electron-installer-redhat",
+      "version": "3.4.0",
+      "license": "MIT",
+      "repository": "git://github.com/electron-userland/electron-installer-redhat.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "electron-to-chromium",
       "version": "1.5.415",
       "license": "ISC",
       "repository": "git+https://github.com/Kilian/electron-to-chromium.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "electron-winstaller",
+      "version": "5.4.4",
+      "license": "MIT",
+      "repository": "git+https://github.com/electron/windows-installer.git",
       "noticeFiles": [
         "LICENSE"
       ]
@@ -2009,6 +2009,15 @@
       ]
     },
     {
+      "name": "escape-string-regexp",
+      "version": "5.0.0",
+      "license": "MIT",
+      "repository": "sindresorhus/escape-string-regexp",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
       "name": "estree-walker",
       "version": "3.0.3",
       "license": "MIT",
@@ -2072,15 +2081,6 @@
       ]
     },
     {
-      "name": "extend",
-      "version": "3.0.2",
-      "license": "MIT",
-      "repository": "https://github.com/justmoon/node-extend.git",
-      "noticeFiles": [
-        "LICENSE"
-      ]
-    },
-    {
       "name": "external-editor",
       "version": "3.1.0",
       "license": "MIT",
@@ -2132,6 +2132,15 @@
       "repository": "git+https://github.com/mcollina/fastq.git",
       "noticeFiles": [
         "LICENSE"
+      ]
+    },
+    {
+      "name": "fault",
+      "version": "2.0.1",
+      "license": "MIT",
+      "repository": "wooorm/fault",
+      "noticeFiles": [
+        "license"
       ]
     },
     {
@@ -2205,6 +2214,18 @@
       "noticeFiles": []
     },
     {
+      "name": "format",
+      "version": "0.2.2",
+      "license": [
+        {
+          "type": "MIT",
+          "url": "http://sjs.mit-license.org"
+        }
+      ],
+      "repository": "git://github.com/samsonjs/format.git",
+      "noticeFiles": []
+    },
+    {
       "name": "fs-extra",
       "version": "10.1.0",
       "license": "MIT",
@@ -2218,6 +2239,15 @@
       "version": "11.4.0",
       "license": "MIT",
       "repository": "git+https://github.com/jprichardson/node-fs-extra.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "fs-extra",
+      "version": "7.0.1",
+      "license": "MIT",
+      "repository": "https://github.com/jprichardson/node-fs-extra",
       "noticeFiles": [
         "LICENSE"
       ]
@@ -2295,6 +2325,15 @@
       ]
     },
     {
+      "name": "gar",
+      "version": "1.0.4",
+      "license": "MIT",
+      "repository": "git+https://github.com/ethanent/gar.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "get-caller-file",
       "version": "2.0.5",
       "license": "ISC",
@@ -2302,6 +2341,13 @@
       "noticeFiles": [
         "LICENSE.md"
       ]
+    },
+    {
+      "name": "get-folder-size",
+      "version": "2.0.1",
+      "license": "MIT",
+      "repository": "https://github.com/alessioalex/get-folder-size.git",
+      "noticeFiles": []
     },
     {
       "name": "get-package-info",
@@ -2595,24 +2641,6 @@
       ]
     },
     {
-      "name": "is-alphabetical",
-      "version": "2.0.1",
-      "license": "MIT",
-      "repository": "wooorm/is-alphabetical",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
-      "name": "is-alphanumerical",
-      "version": "2.0.1",
-      "license": "MIT",
-      "repository": "wooorm/is-alphanumerical",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
       "name": "is-arrayish",
       "version": "0.2.1",
       "license": "MIT",
@@ -2628,15 +2656,6 @@
       "repository": "git+https://github.com/inspect-js/is-core-module.git",
       "noticeFiles": [
         "LICENSE"
-      ]
-    },
-    {
-      "name": "is-decimal",
-      "version": "2.0.1",
-      "license": "MIT",
-      "repository": "wooorm/is-decimal",
-      "noticeFiles": [
-        "license"
       ]
     },
     {
@@ -2676,15 +2695,6 @@
       ]
     },
     {
-      "name": "is-hexadecimal",
-      "version": "2.0.1",
-      "license": "MIT",
-      "repository": "wooorm/is-hexadecimal",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
       "name": "is-interactive",
       "version": "1.0.0",
       "license": "MIT",
@@ -2709,15 +2719,6 @@
       "repository": "jonschlinkert/is-number",
       "noticeFiles": [
         "LICENSE"
-      ]
-    },
-    {
-      "name": "is-plain-obj",
-      "version": "4.1.0",
-      "license": "MIT",
-      "repository": "sindresorhus/is-plain-obj",
-      "noticeFiles": [
-        "license"
       ]
     },
     {
@@ -2829,6 +2830,15 @@
       ]
     },
     {
+      "name": "katex",
+      "version": "0.16.47",
+      "license": "MIT",
+      "repository": "https://github.com/KaTeX/KaTeX.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "keyv",
       "version": "4.5.4",
       "license": "MIT",
@@ -2890,8 +2900,8 @@
       ]
     },
     {
-      "name": "lodash-es",
-      "version": "4.18.1",
+      "name": "lodash.get",
+      "version": "4.4.2",
       "license": "MIT",
       "repository": "lodash/lodash",
       "noticeFiles": [
@@ -2899,8 +2909,8 @@
       ]
     },
     {
-      "name": "lodash.get",
-      "version": "4.4.2",
+      "name": "lodash",
+      "version": "4.18.1",
       "license": "MIT",
       "repository": "lodash/lodash",
       "noticeFiles": [
@@ -2980,6 +2990,15 @@
       ]
     },
     {
+      "name": "markdown-table",
+      "version": "3.0.4",
+      "license": "MIT",
+      "repository": "wooorm/markdown-table",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
       "name": "matcher",
       "version": "3.0.0",
       "license": "MIT",
@@ -2989,19 +3008,10 @@
       ]
     },
     {
-      "name": "mdast-util-definitions",
-      "version": "6.0.0",
+      "name": "mdast-util-find-and-replace",
+      "version": "3.0.2",
       "license": "MIT",
-      "repository": "syntax-tree/mdast-util-definitions",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
-      "name": "mdast-util-directive",
-      "version": "3.1.0",
-      "license": "MIT",
-      "repository": "syntax-tree/mdast-util-directive",
+      "repository": "syntax-tree/mdast-util-find-and-replace",
       "noticeFiles": [
         "license"
       ]
@@ -3011,6 +3021,78 @@
       "version": "2.0.3",
       "license": "MIT",
       "repository": "syntax-tree/mdast-util-from-markdown",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "mdast-util-frontmatter",
+      "version": "2.0.1",
+      "license": "MIT",
+      "repository": "syntax-tree/mdast-util-frontmatter",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "mdast-util-gfm-autolink-literal",
+      "version": "2.0.1",
+      "license": "MIT",
+      "repository": "syntax-tree/mdast-util-gfm-autolink-literal",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "mdast-util-gfm-footnote",
+      "version": "2.1.0",
+      "license": "MIT",
+      "repository": "syntax-tree/mdast-util-gfm-footnote",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "mdast-util-gfm-strikethrough",
+      "version": "2.0.0",
+      "license": "MIT",
+      "repository": "syntax-tree/mdast-util-gfm-strikethrough",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "mdast-util-gfm-table",
+      "version": "2.0.0",
+      "license": "MIT",
+      "repository": "syntax-tree/mdast-util-gfm-table",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "mdast-util-gfm-task-list-item",
+      "version": "2.0.0",
+      "license": "MIT",
+      "repository": "syntax-tree/mdast-util-gfm-task-list-item",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "mdast-util-gfm",
+      "version": "3.1.0",
+      "license": "MIT",
+      "repository": "syntax-tree/mdast-util-gfm",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "mdast-util-math",
+      "version": "3.0.0",
+      "license": "MIT",
+      "repository": "syntax-tree/mdast-util-math",
       "noticeFiles": [
         "license"
       ]
@@ -3079,10 +3161,82 @@
       ]
     },
     {
-      "name": "micromark-extension-directive",
-      "version": "4.0.0",
+      "name": "micromark-extension-frontmatter",
+      "version": "2.0.0",
       "license": "MIT",
-      "repository": "micromark/micromark-extension-directive",
+      "repository": "micromark/micromark-extension-frontmatter",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "micromark-extension-gfm-autolink-literal",
+      "version": "2.1.0",
+      "license": "MIT",
+      "repository": "micromark/micromark-extension-gfm-autolink-literal",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "micromark-extension-gfm-footnote",
+      "version": "2.1.0",
+      "license": "MIT",
+      "repository": "micromark/micromark-extension-gfm-footnote",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "micromark-extension-gfm-strikethrough",
+      "version": "2.1.0",
+      "license": "MIT",
+      "repository": "micromark/micromark-extension-gfm-strikethrough",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "micromark-extension-gfm-table",
+      "version": "2.1.1",
+      "license": "MIT",
+      "repository": "micromark/micromark-extension-gfm-table",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "micromark-extension-gfm-tagfilter",
+      "version": "2.0.0",
+      "license": "MIT",
+      "repository": "micromark/micromark-extension-gfm-tagfilter",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "micromark-extension-gfm-task-list-item",
+      "version": "2.1.0",
+      "license": "MIT",
+      "repository": "micromark/micromark-extension-gfm-task-list-item",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "micromark-extension-gfm",
+      "version": "3.0.0",
+      "license": "MIT",
+      "repository": "micromark/micromark-extension-gfm",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "micromark-extension-math",
+      "version": "3.1.0",
+      "license": "MIT",
+      "repository": "micromark/micromark-extension-math",
       "noticeFiles": [
         "license"
       ]
@@ -3431,6 +3585,15 @@
     },
     {
       "name": "mkdirp",
+      "version": "0.5.6",
+      "license": "MIT",
+      "repository": "https://github.com/substack/node-mkdirp.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "mkdirp",
       "version": "1.0.4",
       "license": "MIT",
       "repository": "https://github.com/isaacs/node-mkdirp.git",
@@ -3468,15 +3631,6 @@
     {
       "name": "nanoid",
       "version": "3.3.18",
-      "license": "MIT",
-      "repository": "ai/nanoid",
-      "noticeFiles": [
-        "LICENSE"
-      ]
-    },
-    {
-      "name": "nanoid",
-      "version": "6.0.1",
       "license": "MIT",
       "repository": "ai/nanoid",
       "noticeFiles": [
@@ -3752,15 +3906,6 @@
       ]
     },
     {
-      "name": "parse-entities",
-      "version": "4.0.2",
-      "license": "MIT",
-      "repository": "wooorm/parse-entities",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
       "name": "parse-json",
       "version": "2.2.0",
       "license": "MIT",
@@ -3952,6 +4097,15 @@
       ]
     },
     {
+      "name": "prismjs",
+      "version": "1.30.0",
+      "license": "MIT",
+      "repository": "git+https://github.com/PrismJS/prism.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "proc-log",
       "version": "2.0.1",
       "license": "ISC",
@@ -3983,15 +4137,6 @@
       "version": "2.0.1",
       "license": "MIT",
       "repository": "git://github.com/IndigoUnited/node-promise-retry.git",
-      "noticeFiles": [
-        "LICENSE"
-      ]
-    },
-    {
-      "name": "prosemirror-changeset",
-      "version": "2.4.2",
-      "license": "MIT",
-      "repository": "git+https://code.haverbeke.berlin/prosemirror/prosemirror-changeset.git",
       "noticeFiles": [
         "LICENSE"
       ]
@@ -4202,51 +4347,6 @@
       ]
     },
     {
-      "name": "remark-directive",
-      "version": "4.0.0",
-      "license": "MIT",
-      "repository": "remarkjs/remark-directive",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
-      "name": "remark-inline-links",
-      "version": "7.0.0",
-      "license": "MIT",
-      "repository": "remarkjs/remark-inline-links",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
-      "name": "remark-parse",
-      "version": "11.0.0",
-      "license": "MIT",
-      "repository": "https://github.com/remarkjs/remark/tree/main/packages/remark-parse",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
-      "name": "remark-stringify",
-      "version": "11.0.0",
-      "license": "MIT",
-      "repository": "https://github.com/remarkjs/remark/tree/main/packages/remark-stringify",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
-      "name": "remark",
-      "version": "15.0.1",
-      "license": "MIT",
-      "repository": "https://github.com/remarkjs/remark/tree/main/packages/remark",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
       "name": "require-directory",
       "version": "2.1.1",
       "license": "MIT",
@@ -4341,6 +4441,15 @@
       "version": "1.4.1",
       "license": "MIT",
       "repository": "git+https://github.com/davidmarkclements/rfdc.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "rimraf",
+      "version": "2.6.3",
+      "license": "ISC",
+      "repository": "git://github.com/isaacs/rimraf.git",
       "noticeFiles": [
         "LICENSE"
       ]
@@ -4698,15 +4807,6 @@
       ]
     },
     {
-      "name": "stringify-entities",
-      "version": "4.0.4",
-      "license": "MIT",
-      "repository": "wooorm/stringify-entities",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
       "name": "strip-ansi",
       "version": "6.0.1",
       "license": "MIT",
@@ -4806,6 +4906,15 @@
       ]
     },
     {
+      "name": "temp",
+      "version": "0.9.4",
+      "license": "MIT",
+      "repository": "git://github.com/bruce/node-temp.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "terser",
       "version": "5.51.2",
       "license": "BSD-2-Clause",
@@ -4813,6 +4922,13 @@
       "noticeFiles": [
         "LICENSE"
       ]
+    },
+    {
+      "name": "tiny-each-async",
+      "version": "2.0.3",
+      "license": "MIT",
+      "repository": "alessioalex/tiny-each-async",
+      "noticeFiles": []
     },
     {
       "name": "tinybench",
@@ -4851,10 +4967,26 @@
       ]
     },
     {
+      "name": "tmp-promise",
+      "version": "3.0.3",
+      "license": "MIT",
+      "repository": "git://github.com/benjamingr/tmp-promise.git",
+      "noticeFiles": []
+    },
+    {
       "name": "tmp",
       "version": "0.0.33",
       "license": "MIT",
       "repository": "raszi/node-tmp",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "tmp",
+      "version": "0.2.7",
+      "license": "MIT",
+      "repository": "https://github.com/raszi/node-tmp.git",
       "noticeFiles": [
         "LICENSE"
       ]
@@ -4880,15 +5012,6 @@
       "version": "1.0.0",
       "license": "MIT",
       "repository": "sindresorhus/trim-repeated",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
-      "name": "trough",
-      "version": "2.2.0",
-      "license": "MIT",
-      "repository": "wooorm/trough",
       "noticeFiles": [
         "license"
       ]
@@ -4967,15 +5090,6 @@
       ]
     },
     {
-      "name": "unified",
-      "version": "11.0.5",
-      "license": "MIT",
-      "repository": "unifiedjs/unified",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
       "name": "unique-filename",
       "version": "2.0.1",
       "license": "ISC",
@@ -4998,6 +5112,15 @@
       "version": "6.0.1",
       "license": "MIT",
       "repository": "syntax-tree/unist-util-is",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "unist-util-remove-position",
+      "version": "5.0.0",
+      "license": "MIT",
+      "repository": "syntax-tree/unist-util-remove-position",
       "noticeFiles": [
         "license"
       ]
@@ -5081,24 +5204,6 @@
       "repository": "kemitchell/validate-npm-package-license.js",
       "noticeFiles": [
         "LICENSE"
-      ]
-    },
-    {
-      "name": "vfile-message",
-      "version": "4.0.3",
-      "license": "MIT",
-      "repository": "vfile/vfile-message",
-      "noticeFiles": [
-        "license"
-      ]
-    },
-    {
-      "name": "vfile",
-      "version": "6.0.3",
-      "license": "MIT",
-      "repository": "vfile/vfile",
-      "noticeFiles": [
-        "license"
       ]
     },
     {
@@ -5210,6 +5315,15 @@
       ]
     },
     {
+      "name": "word-wrap",
+      "version": "1.2.5",
+      "license": "MIT",
+      "repository": "jonschlinkert/word-wrap",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "wrap-ansi",
       "version": "6.2.0",
       "license": "MIT",
@@ -5274,11 +5388,29 @@
     },
     {
       "name": "yargs-parser",
+      "version": "20.2.9",
+      "license": "ISC",
+      "repository": "https://github.com/yargs/yargs-parser.git",
+      "noticeFiles": [
+        "LICENSE.txt"
+      ]
+    },
+    {
+      "name": "yargs-parser",
       "version": "21.1.1",
       "license": "ISC",
       "repository": "https://github.com/yargs/yargs-parser.git",
       "noticeFiles": [
         "LICENSE.txt"
+      ]
+    },
+    {
+      "name": "yargs",
+      "version": "16.2.2",
+      "license": "MIT",
+      "repository": "https://github.com/yargs/yargs.git",
+      "noticeFiles": [
+        "LICENSE"
       ]
     },
     {

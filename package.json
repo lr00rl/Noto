@@ -2,15 +2,25 @@
   "name": "noto",
   "productName": "Noto",
   "version": "0.1.0",
-  "license": "UNLICENSED",
+  "license": "AGPL-3.0-only",
   "private": true,
   "description": "Noto, a Markdown editor that keeps your file byte for byte",
+  "author": "lr00rl",
+  "homepage": "https://github.com/lr00rl/Noto",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lr00rl/Noto.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lr00rl/Noto/issues"
+  },
   "main": ".vite/build/main.js",
   "packageManager": "pnpm@11.18.0",
   "engines": {
     "node": ">=22.12.0 <23"
   },
   "scripts": {
+    "start": "node scripts/start.mjs",
     "compat:node22": "tsc --ignoreConfig --noEmit --strict --target ES2024 --module NodeNext --moduleResolution NodeNext --types node tests/compatibility-probe.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -21,6 +31,7 @@
     "make:release": "node scripts/make-installers.mjs release",
     "verify:package": "node scripts/verify-package.mjs",
     "license:inventory": "node scripts/generate-license-inventory.mjs",
+    "license:check": "node scripts/generate-license-inventory.mjs --check",
     "test:e2e": "playwright test",
     "verify": "pnpm typecheck && pnpm test"
   },

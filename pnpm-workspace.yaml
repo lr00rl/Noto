@@ -4,7 +4,6 @@ packages:
 # Forge 7.11.2 resolves its reviewed Electron node-gyp fork by immutable Git
 # commit. pnpm 11 blocks that transitive source unless this is explicit.
 blockExoticSubdeps: false
-storeDir: .pnpm-store
 nodeLinker: hoisted
 # Forge 7.11.2 still declares @electron/fuses ^1, while the approved API map
 # pins 2.1.3. Packaging and fuse inspection are the executable compatibility

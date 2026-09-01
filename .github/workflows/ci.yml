@@ -31,6 +31,10 @@ jobs:
       - run: pnpm compat:node22
       - run: pnpm typecheck
       - run: pnpm test
+      # The shipped third-party notices are generated from the lockfile. This
+      # fails when the two have drifted, which is the only way that file goes
+      # quietly wrong.
+      - run: pnpm license:check
 
   # The packaged suite is the only thing that proves the app actually runs, and
   # it has to prove it on every platform Noto ships to.
@@ -144,9 +148,18 @@ jobs:
           NTO_PACKAGE_VARIANT: release
         run: pnpm make:release
 
-      - name: Verify release fuses
-        if: runner.os == 'macOS'
-        run: pnpm exec electron-fuses read --app out/release/Noto-darwin-${{ runner.arch == 'ARM64' && 'arm64' || 'x64' }}/Noto.app
+      # `make` packages into `out/` directly rather than into `out/release/`,
+      # which is where `package:release` puts its tree. This step used to read
+      # the fuses from the latter, a path this job never creates, and it only
+      # printed them rather than asserting anything. The same static check the
+      # e2e job runs is better on both counts, and there is no reason to run it
+      # on one platform only: this is the tree that becomes the installer.
+      - name: Verify the packaged release tree
+        shell: bash
+        run: |
+          for directory in out/Noto-*; do
+            node scripts/verify-package.mjs "$directory"
+          done
 
       - uses: actions/upload-artifact@v4
         with:
