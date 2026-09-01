@@ -10,9 +10,9 @@
  * their bodies.
  */
 
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { FileTree, type FileTreeProps } from './FileTree';
-import type { OutlineEntry } from './outline';
+import { nestOutline, type OutlineEntry, type OutlineNode } from './outline';
 
 export type RailView = 'files' | 'outline';
 
@@ -48,10 +48,64 @@ function Tab({ id, current, onSelect, children, testId }: {
   );
 }
 
+/**
+ * One level of the outline.
+ *
+ * Same structure as the file tree, for the same reason: the connector lines are
+ * drawn from the nesting, and `:last-child` is what turns a tee into a rounded
+ * corner. Sharing the `tree-level` and `tree-node` classes is deliberate, so the
+ * two trees in the rail cannot drift into looking like different products.
+ */
+function OutlineLevel({ nodes, root, onGoToBlock }: {
+  nodes: readonly OutlineNode[];
+  root?: boolean;
+  onGoToBlock: (blockIndex: number) => void;
+}) {
+  return (
+    <div className={root ? 'tree-level is-root' : 'tree-level'}>
+      {nodes.map((node) => (
+        <div className="tree-node" key={node.blockIndex}>
+          <button
+            type="button"
+            className={`tree-row outline-entry depth-${node.depth}`}
+            onClick={() => onGoToBlock(node.blockIndex)}
+          >
+            <span className="tree-name">{node.text}</span>
+          </button>
+          {node.children.length > 0 && (
+            <OutlineLevel nodes={node.children} onGoToBlock={onGoToBlock} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Where the sliding rule sits, as a custom property rather than a measurement.
+ *
+ * The two labels are a known width apart, so their positions are arithmetic on
+ * the text length rather than something to read back from the DOM after paint.
+ * Measuring would mean a layout read on every switch and a frame at the wrong
+ * position on the first one.
+ */
+const INDICATOR: Record<RailView, { left: string; width: string }> = {
+  files: { left: '0px', width: '30px' },
+  outline: { left: '44px', width: '46px' },
+};
+
 export function WorkspaceRail({ view, onView, outline, onGoToBlock, tree }: WorkspaceRailProps) {
   return (
     <aside className="workspace-rail" aria-label="Navigation">
-      <div className="rail-tabs" role="tablist" aria-label="Rail view">
+      <div
+        className="rail-tabs"
+        role="tablist"
+        aria-label="Rail view"
+        style={{
+          '--rail-indicator-left': INDICATOR[view].left,
+          '--rail-indicator-width': INDICATOR[view].width,
+        } as CSSProperties}
+      >
         <Tab id="files" current={view} onSelect={onView} testId="rail-files">Files</Tab>
         <Tab id="outline" current={view} onSelect={onView} testId="outline-toggle">Outline</Tab>
       </div>
@@ -69,16 +123,7 @@ export function WorkspaceRail({ view, onView, outline, onGoToBlock, tree }: Work
               ? <p className="rail-empty">This document has no headings.</p>
               : (
                 <nav className="outline-body">
-                  {outline.map((entry) => (
-                    <button
-                      key={entry.blockIndex}
-                      type="button"
-                      className={`outline-entry depth-${entry.depth}`}
-                      onClick={() => onGoToBlock(entry.blockIndex)}
-                    >
-                      {entry.text}
-                    </button>
-                  ))}
+                  <OutlineLevel nodes={nestOutline(outline)} root onGoToBlock={onGoToBlock} />
                 </nav>
               )}
           </div>

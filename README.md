@@ -71,6 +71,14 @@ can take right now: Save appears when there is something to save and is absent
 when there is not. What the chrome is for, and why it is this quiet, is written
 down in [`docs/design/chrome.md`](docs/design/chrome.md).
 
+Preferences carries the document's typography, so text size, line height and
+line width are yours to set rather than fixed: the width is a character count,
+not a pixel width, so it holds as the size changes. Saving automatically is
+there too, off by default and debounced against typing, and it refuses in
+exactly the cases the Save button refuses. A custom stylesheet can be pointed at
+any absolute path and wins over the built-in theme, so `:root { --accent: … }`
+is enough to retheme the app without editing it.
+
 `Cmd+/` toggles source mode for the block the caret is in, which is the escape
 hatch when you want to see or hand-edit the Markdown behind one paragraph, one
 table or one code fence without leaving the rest of the document rendered.

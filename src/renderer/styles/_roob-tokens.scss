@@ -7,6 +7,18 @@
  * License: owner-authored source, public license not specified.
  */
 
+/*
+ * The palette lives in a cascade layer.
+ *
+ * A custom stylesheet's whole point is overriding these, and it cannot: the
+ * theme selector `:root[data-theme='light']` outranks the plain `:root` anyone
+ * would reasonably write, so a user setting --accent would silently lose. Any
+ * unlayered rule beats any layered one whatever its specificity, so putting the
+ * palette in a layer means a custom stylesheet needs no selector tricks and no
+ * `!important` to retheme the app.
+ */
+@layer noto-tokens {
+
 :root,
 :root[data-theme='light'] {
   color-scheme: light;
@@ -25,6 +37,9 @@
      the dark theme ink is nearly white and a wash of it lifts the background
      instead of dimming it. */
   --scrim: rgb(32 30 28 / 0.30);
+  /* Tree connectors. Low enough that a deep tree reads as texture rather than
+     as a diagram, which is the difference between a guide and a grid. */
+  --tree-line: rgb(52 49 46 / 0.18);
 }
 
 :root[data-theme='dark'] {
@@ -44,6 +59,9 @@
   --danger: #D88780;
   --focus: #F1EEE8;
   --scrim: rgb(0 0 0 / 0.52);
+  --tree-line: rgb(241 238 232 / 0.14);
+}
+
 }
 
 $prose: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", serif;

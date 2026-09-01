@@ -13,8 +13,13 @@
  * which is the whole reason these are visible settings and not a config file.
  */
 
-import { useEffect, useRef, type ReactNode } from 'react';
-import type { NotoMeasure, NotoSettingsV1, NotoTheme } from '../shared/settings/v1/contracts';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  SETTING_RANGES,
+  type NotoNumericSetting,
+  type NotoSettingsV1,
+  type NotoTheme,
+} from '../shared/settings/v1/contracts';
 
 export type PreferencesSection = 'appearance' | 'editor' | 'plugins';
 
@@ -28,6 +33,11 @@ export interface PreferencesProps {
   /** The plugin section's contents, supplied by the shell so this file stays
    *  free of plugin lifecycle concerns. */
   readonly plugins: ReactNode;
+  /** Why the custom stylesheet is not showing, if it is not. */
+  readonly themeProblem: string;
+  /** Re-read the stylesheet from disk, for when its contents changed but its
+   *  path did not. */
+  readonly onReloadCss: () => void;
 }
 
 const SECTIONS: readonly { value: PreferencesSection; label: string }[] = [
@@ -42,11 +52,92 @@ const THEMES: readonly { value: NotoTheme; label: string }[] = [
   { value: 'dark', label: 'Dark' },
 ];
 
-const MEASURES: readonly { value: NotoMeasure; label: string; hint: string }[] = [
-  { value: 'narrow', label: 'Narrow', hint: 'About 60 characters' },
-  { value: 'medium', label: 'Medium', hint: 'About 75 characters' },
-  { value: 'wide', label: 'Wide', hint: 'About 90 characters' },
-];
+/**
+ * A number you can drag or nudge, showing its value in its own units.
+ *
+ * A slider alone hides the number, and a number field alone makes finding a
+ * comfortable line height an exercise in typing and re-typing. Both, with the
+ * value between them, so coarse search and exact setting each have the control
+ * they want.
+ */
+function Slider({ label, hint, setting, value, format, onChange, testId }: {
+  label: string;
+  hint?: string;
+  setting: NotoNumericSetting;
+  value: number;
+  format: (value: number) => string;
+  onChange: (value: number) => void;
+  testId: string;
+}) {
+  const range = SETTING_RANGES[setting];
+  return (
+    <div className="pref-row pref-slider-row">
+      <span className="pref-label">
+        {label}
+        {hint && <small>{hint}</small>}
+      </span>
+      <span className="pref-slider">
+        <output className="pref-value">{format(value)}</output>
+        <input
+          type="range"
+          data-testid={testId}
+          min={range.min}
+          max={range.max}
+          step={range.step}
+          value={value}
+          aria-label={label}
+          onChange={(event) => onChange(Number(event.target.value))}
+        />
+      </span>
+    </div>
+  );
+}
+
+/**
+ * The custom stylesheet's path.
+ *
+ * A path typed or pasted, not a file picker: a theme is something you keep
+ * open in an editor and reload, and a picker makes you find it again every
+ * time. The path is committed on blur or Enter rather than per keystroke, so a
+ * half-typed path is never written and never reported as unreadable.
+ */
+function ThemeFile({ settings, onChange, problem, onReload }: {
+  settings: NotoSettingsV1;
+  onChange: (patch: Partial<NotoSettingsV1>) => void;
+  problem: string;
+  onReload: () => void;
+}) {
+  const [draft, setDraft] = useState(settings.customCssPath);
+  useEffect(() => { setDraft(settings.customCssPath); }, [settings.customCssPath]);
+  const commit = () => {
+    const next = draft.trim();
+    if (next !== settings.customCssPath) onChange({ customCssPath: next });
+  };
+  return (
+    <div className="pref-row pref-stack">
+      <span className="pref-label">
+        Custom stylesheet
+        <small>An absolute path to a CSS file. It wins over the theme, so <code>:root &#123; --accent: … &#125;</code> is enough to retheme. Leave empty for none.</small>
+      </span>
+      <span className="pref-file">
+        <input
+          type="text"
+          spellCheck={false}
+          data-testid="setting-custom-css"
+          placeholder="/Users/you/noto-theme.css"
+          value={draft}
+          aria-label="Custom stylesheet path"
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={commit}
+          onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commit(); } }}
+        />
+        <button type="button" className="pref-inline-action" data-testid="reload-custom-css"
+          disabled={!settings.customCssPath} onClick={onReload}>Reload</button>
+      </span>
+      {problem && <p className="pref-problem" role="status">{problem}</p>}
+    </div>
+  );
+}
 
 function Choices<T extends string>({ label, options, value, onPick, testPrefix }: {
   label: string;
@@ -104,7 +195,7 @@ function Switch({ label, hint, checked, onChange, testId }: {
 }
 
 export function Preferences({
-  open, section, onSection, settings, onChange, onClose, plugins,
+  open, section, onSection, settings, onChange, onClose, plugins, themeProblem, onReloadCss,
 }: PreferencesProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -167,8 +258,16 @@ export function Preferences({
               <>
                 <Choices label="Theme" options={THEMES} value={settings.theme}
                   onPick={(value) => onChange({ theme: value })} testPrefix="theme" />
-                <Choices label="Line width" options={MEASURES} value={settings.measure}
-                  onPick={(value) => onChange({ measure: value })} testPrefix="measure" />
+                <Slider label="Text size" setting="fontSize" value={settings.fontSize}
+                  format={(value) => `${value} px`} testId="setting-font-size"
+                  onChange={(value) => onChange({ fontSize: value })} />
+                <Slider label="Line height" setting="lineHeight" value={settings.lineHeight}
+                  format={(value) => value.toFixed(2)} testId="setting-line-height"
+                  onChange={(value) => onChange({ lineHeight: Number(value.toFixed(2)) })} />
+                <Slider label="Line width" hint="Characters per line, at the current text size."
+                  setting="measureCh" value={settings.measureCh}
+                  format={(value) => `${value} ch`} testId="setting-measure"
+                  onChange={(value) => onChange({ measureCh: value })} />
                 <Switch
                   label="Open the rail at launch"
                   hint="Start with the file tree showing."
@@ -176,6 +275,8 @@ export function Preferences({
                   onChange={(value) => onChange({ sidebarOnLaunch: value })}
                   testId="setting-sidebar-launch"
                 />
+                <ThemeFile settings={settings} onChange={onChange}
+                  problem={themeProblem} onReload={onReloadCss} />
               </>
             )}
 
@@ -194,6 +295,18 @@ export function Preferences({
                   onChange={(value) => onChange({ spellCheck: value })}
                   testId="setting-spell-check"
                 />
+                <Switch
+                  label="Save automatically"
+                  hint="Save on a timer after typing stops. A save is still refused if the file changed underneath it."
+                  checked={settings.autoSave}
+                  onChange={(value) => onChange({ autoSave: value })}
+                  testId="setting-auto-save"
+                />
+                {settings.autoSave && (
+                  <Slider label="Save after" setting="autoSaveDelayMs" value={settings.autoSaveDelayMs}
+                    format={(value) => `${(value / 1000).toFixed(1)} s`} testId="setting-auto-save-delay"
+                    onChange={(value) => onChange({ autoSaveDelayMs: Math.round(value) })} />
+                )}
               </>
             )}
 

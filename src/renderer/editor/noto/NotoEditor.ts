@@ -52,6 +52,8 @@ export interface NotoEditorOptions extends InputRuleOptions {
   /** Native spell checking, which the user can turn off in settings. */
   readonly spellCheck?: boolean;
   readonly onDirtyChange?: (dirty: boolean) => void;
+  /** Fired for every transaction that changed the document. */
+  readonly onDocumentChanged?: () => void;
   readonly onError?: (message: string) => void;
 }
 
@@ -126,7 +128,12 @@ export class NotoEditor implements NotoEditorPort {
     const view = this.view;
     if (!view) return;
     view.updateState(view.state.apply(transaction));
-    if (transaction.docChanged) this.refreshDirty();
+    if (!transaction.docChanged) return;
+    this.refreshDirty();
+    // Every change, not only the transition into dirty. Automatic saving has to
+    // debounce against typing, and a flag that flips once at the first
+    // keystroke cannot tell it when typing stopped.
+    this.options.onDocumentChanged?.();
   }
 
   private refreshDirty(): void {

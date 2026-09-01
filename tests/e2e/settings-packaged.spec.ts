@@ -50,6 +50,11 @@ async function launch(name: string, reuse?: string): Promise<Workspace> {
   return { app, page, userData };
 }
 
+/** The measure, as the document actually resolved it. */
+const measureOf = (page: Page) => page.evaluate(
+  () => getComputedStyle(document.documentElement).getPropertyValue('--measure').trim(),
+);
+
 test.describe('settings', () => {
   test('opens from the menu and closes again', async () => {
     const { app, page } = await launch('open');
@@ -85,12 +90,15 @@ test.describe('settings', () => {
       const host = page.locator('.noto-editor-host');
       const before = (await host.boundingBox())?.width ?? 0;
 
+      // The measure is a number of characters now rather than three presets,
+      // so the control is a slider and the column follows the value.
       await invokeMenu(app, 'settings');
-      await page.getByTestId('measure-narrow').click();
-      await expect(page.locator('html')).toHaveAttribute('data-measure', 'narrow');
+      await page.getByTestId('setting-measure').fill('48');
+      await expect.poll(() => measureOf(page)).toBe('48ch');
       const narrow = (await host.boundingBox())?.width ?? 0;
 
-      await page.getByTestId('measure-wide').click();
+      await page.getByTestId('setting-measure').fill('96');
+      await page.waitForTimeout(150);
       const wide = (await host.boundingBox())?.width ?? 0;
 
       expect(narrow).toBeLessThan(before);
@@ -120,19 +128,20 @@ test.describe('settings', () => {
     try {
       await invokeMenu(first.app, 'settings');
       await first.page.getByTestId('theme-dark').click();
-      await first.page.getByTestId('measure-wide').click();
+      await first.page.getByTestId('setting-measure').fill('84');
+      await first.page.getByTestId('setting-font-size').fill('21');
       await expect(first.page.locator('html')).toHaveAttribute('data-theme', 'dark');
     } finally {
       await first.app.close();
     }
 
     const stored = JSON.parse(await readFile(path.join(first.userData, 'settings.json'), 'utf8'));
-    expect(stored).toMatchObject({ theme: 'dark', measure: 'wide' });
+    expect(stored).toMatchObject({ theme: 'dark', measureCh: 84, fontSize: 21 });
 
     const second = await launch('persist', first.userData);
     try {
       await expect(second.page.locator('html')).toHaveAttribute('data-theme', 'dark');
-      await expect(second.page.locator('html')).toHaveAttribute('data-measure', 'wide');
+      await expect.poll(() => measureOf(second.page)).toBe('84ch');
     } finally {
       await second.app.close();
     }

@@ -1,20 +1,26 @@
 @use 'roob-tokens' as tokens;
 
-/* The text column, sized by the line width setting.
-   In `ch`, resolved against the prose font on the host below, so the value is
-   the number of characters a line actually holds. It was in `rem` before, which
-   is relative to the 16px root and has no relationship to the 18px serif the
-   prose is set in; the three presets came out at roughly 81, 99 and 120
-   characters, all past the readable ceiling. */
-:root { --measure: 66ch; }
-:root[data-measure='narrow'] { --measure: 58ch; }
-:root[data-measure='wide'] { --measure: 74ch; }
+/* Document typography, set from preferences at runtime.
+   The measure is in `ch`, resolved against the prose font at the prose size on
+   the host below, so the value is the number of characters a line actually
+   holds. It was in `rem` before, which is relative to the 16px root and has no
+   relationship to the serif the prose is set in; the old presets came out at
+   roughly 81, 99 and 120 characters, all past the readable ceiling.
+
+   These are the defaults for the moment before the renderer has read the
+   settings file, so they match `DEFAULT_SETTINGS` rather than being arbitrary:
+   a mismatch shows as the document reflowing once at launch. */
+:root {
+  --doc-font-size: 18px;
+  --doc-line-height: 1.62;
+  --measure: 66ch;
+}
 
 .noto-editor-host {
-  /* Carries the prose font purely so `ch` above means what it says. The host
-     renders no text of its own. */
+  /* Carries the prose font and size purely so `ch` above means what it says.
+     The host renders no text of its own. */
   font-family: tokens.$prose;
-  font-size: 18px;
+  font-size: var(--doc-font-size);
   width: min(calc(100% - 48px), var(--measure));
   max-width: 100%;
   min-width: 0;
@@ -34,8 +40,8 @@
   white-space: pre-wrap;
   color: var(--ink);
   font-family: tokens.$prose;
-  font-size: 18px;
-  line-height: 1.62;
+  font-size: var(--doc-font-size);
+  line-height: var(--doc-line-height);
   caret-color: var(--ink);
 }
 

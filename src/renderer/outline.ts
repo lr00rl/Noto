@@ -48,3 +48,34 @@ export function outlineOf(text: string): OutlineEntry[] {
   });
   return entries;
 }
+
+/** A heading with the headings nested under it. */
+export interface OutlineNode extends OutlineEntry {
+  readonly children: readonly OutlineNode[];
+}
+
+/**
+ * Turn the flat heading list into the tree it describes.
+ *
+ * The rail draws connector lines, and a connector needs to know whether a
+ * heading is the last of its siblings; a flat list with a depth number cannot
+ * answer that without walking forward, so the walk happens once here instead of
+ * in the view.
+ *
+ * Documents skip levels. An `h4` directly under an `h2` is nested under it
+ * rather than given two empty ancestors, because the reader wants the shape of
+ * their document, not a lesson about the levels they did not use. A heading
+ * that starts deeper than everything after it still nests correctly, since the
+ * stack pops on depth rather than on an assumed sequence.
+ */
+export function nestOutline(entries: readonly OutlineEntry[]): OutlineNode[] {
+  const roots: OutlineNode[] = [];
+  const stack: { depth: number; children: OutlineNode[] }[] = [{ depth: 0, children: roots }];
+  for (const entry of entries) {
+    while (stack.length > 1 && stack[stack.length - 1].depth >= entry.depth) stack.pop();
+    const children: OutlineNode[] = [];
+    stack[stack.length - 1].children.push({ ...entry, children });
+    stack.push({ depth: entry.depth, children });
+  }
+  return roots;
+}

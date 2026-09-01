@@ -5,13 +5,16 @@
  * the request, and never let an exception escape as an unhandled rejection.
  */
 
+import { readFile, stat } from 'node:fs/promises';
 import { ipcMain, type BrowserWindow } from 'electron';
 import {
   NOTO_SETTINGS_VERSION,
   SETTINGS_CHANNELS,
+  THEME_CSS_MAX_BYTES,
   type SettingsReplyV1,
   type SettingsResultV1,
   type SettingsWriteRequestV1,
+  type ThemeCssReplyV1,
 } from '../../shared/settings/v1/contracts';
 import {
   isSettingsRequestV1,
@@ -28,12 +31,12 @@ export function registerSettingsHandlers(deps: {
   /** Called after a successful write, so main can react to a changed setting. */
   onChanged: (settings: SettingsReplyV1) => void;
 }): void {
-  const register = <TRequest extends { requestId: string }>(
+  const register = <TRequest extends { requestId: string }, TReply>(
     channel: string,
     validate: (value: unknown) => value is TRequest,
-    operation: (request: TRequest) => Promise<SettingsReplyV1>,
+    operation: (request: TRequest) => Promise<TReply>,
   ) => {
-    ipcMain.handle(channel, async (event, value: unknown): Promise<SettingsResultV1<SettingsReplyV1>> => {
+    ipcMain.handle(channel, async (event, value: unknown): Promise<SettingsResultV1<TReply>> => {
       const candidateId = typeof value === 'object' && value !== null && 'requestId' in value
         ? String((value as { requestId: unknown }).requestId).slice(0, 96)
         : 'invalid';
@@ -79,4 +82,34 @@ export function registerSettingsHandlers(deps: {
     }
     return reply;
   });
+
+  /**
+   * The user's stylesheet.
+   *
+   * The renderer asks for "the theme" and never names a file: the path comes
+   * from the settings main already owns, so this handler cannot be aimed at
+   * anything else no matter what the caller sends. A missing or oversized file
+   * is reported as a problem string rather than an error, because a broken
+   * theme should leave the editor working and say so in preferences.
+   */
+  register<{ requestId: string }, ThemeCssReplyV1>(
+    SETTINGS_CHANNELS.themeCss,
+    isSettingsRequestV1,
+    async () => {
+      const empty = { version: NOTO_SETTINGS_VERSION, css: '', problem: '' } as const;
+      const { customCssPath } = await deps.settings.load();
+      if (!customCssPath) return empty;
+      try {
+        const info = await stat(customCssPath);
+        if (!info.isFile()) return { ...empty, problem: 'That path is not a file.' };
+        if (info.size > THEME_CSS_MAX_BYTES) {
+          return { ...empty, problem: `Stylesheet is larger than ${THEME_CSS_MAX_BYTES / 1024} KB.` };
+        }
+        return { version: NOTO_SETTINGS_VERSION, css: await readFile(customCssPath, 'utf8'), problem: '' };
+      } catch {
+        deps.logger.log('settings_theme_css_unreadable', { requestId: 'theme-css' });
+        return { ...empty, problem: 'Stylesheet could not be read.' };
+      }
+    },
+  );
 }

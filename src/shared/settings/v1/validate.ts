@@ -8,20 +8,42 @@
  */
 
 import {
+  clampSetting,
   DEFAULT_SETTINGS,
   NOTO_SETTINGS_VERSION,
-  type NotoMeasure,
+  SETTING_RANGES,
+  type NotoNumericSetting,
   type NotoSettingsV1,
   type NotoTheme,
   type SettingsReplyV1,
   type SettingsRequestV1,
   type SettingsResultV1,
   type SettingsWriteRequestV1,
+  type ThemeCssReplyV1,
 } from './contracts';
 
 const requestId = /^[A-Za-z0-9._:-]{1,96}$/;
 const themes: readonly NotoTheme[] = ['light', 'dark', 'system'];
-const measures: readonly NotoMeasure[] = ['narrow', 'medium', 'wide'];
+const numericKeys = Object.keys(SETTING_RANGES) as NotoNumericSetting[];
+const isNumericKey = (key: string): key is NotoNumericSetting =>
+  (numericKeys as string[]).includes(key);
+
+/**
+ * A stylesheet path.
+ *
+ * Absolute, because a relative one is resolved against whatever the process
+ * happens to consider its working directory. Bounded, and free of the NUL and
+ * newline that would let a path smuggle a second argument into anything that
+ * later logs or shells it.
+ */
+const isCssPath = (value: unknown): value is string =>
+  typeof value === 'string'
+  && value.length <= 1024
+  && !/[\0\r\n]/.test(value)
+  && (value === '' || value.startsWith('/') || /^[A-Za-z]:[\\/]/.test(value));
+
+const numeric = (value: Record<string, unknown>, key: NotoNumericSetting): number =>
+  clampSetting(key, value[key]);
 
 const record = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -33,9 +55,9 @@ export function coerceSettings(value: unknown): NotoSettingsV1 {
   if (!record(value)) return DEFAULT_SETTINGS;
   return {
     theme: themes.includes(value.theme as NotoTheme) ? value.theme as NotoTheme : DEFAULT_SETTINGS.theme,
-    measure: measures.includes(value.measure as NotoMeasure)
-      ? value.measure as NotoMeasure
-      : DEFAULT_SETTINGS.measure,
+    fontSize: numeric(value, 'fontSize'),
+    lineHeight: numeric(value, 'lineHeight'),
+    measureCh: numeric(value, 'measureCh'),
     smartTypography: typeof value.smartTypography === 'boolean'
       ? value.smartTypography
       : DEFAULT_SETTINGS.smartTypography,
@@ -43,6 +65,11 @@ export function coerceSettings(value: unknown): NotoSettingsV1 {
     sidebarOnLaunch: typeof value.sidebarOnLaunch === 'boolean'
       ? value.sidebarOnLaunch
       : DEFAULT_SETTINGS.sidebarOnLaunch,
+    autoSave: typeof value.autoSave === 'boolean' ? value.autoSave : DEFAULT_SETTINGS.autoSave,
+    autoSaveDelayMs: numeric(value, 'autoSaveDelayMs'),
+    customCssPath: isCssPath(value.customCssPath)
+      ? value.customCssPath
+      : DEFAULT_SETTINGS.customCssPath,
   };
 }
 
@@ -64,7 +91,16 @@ export function isSettingsWriteRequestV1(value: unknown): value is SettingsWrite
   return keys.every((key) => {
     if (!SETTING_KEYS.includes(key as keyof NotoSettingsV1)) return false;
     if (key === 'theme') return themes.includes(patch.theme as NotoTheme);
-    if (key === 'measure') return measures.includes(patch.measure as NotoMeasure);
+    if (key === 'customCssPath') return isCssPath(patch.customCssPath);
+    // Out of range is refused rather than clamped: a write says what it wants,
+    // and silently storing something else is the kind of disagreement that
+    // shows up later as a control that will not move.
+    if (isNumericKey(key)) {
+      const candidate = patch[key];
+      const range = SETTING_RANGES[key];
+      return typeof candidate === 'number' && Number.isFinite(candidate)
+        && candidate >= range.min && candidate <= range.max;
+    }
     return typeof patch[key] === 'boolean';
   });
 }
@@ -79,10 +115,12 @@ export function isSettingsReplyV1(value: unknown): value is SettingsReplyV1 {
   if (!record(value) || value.version !== NOTO_SETTINGS_VERSION || !record(value.settings)) return false;
   const settings = value.settings;
   return themes.includes(settings.theme as NotoTheme)
-    && measures.includes(settings.measure as NotoMeasure)
+    && numericKeys.every((key) => typeof settings[key] === 'number' && Number.isFinite(settings[key]))
     && typeof settings.smartTypography === 'boolean'
     && typeof settings.spellCheck === 'boolean'
-    && typeof settings.sidebarOnLaunch === 'boolean';
+    && typeof settings.sidebarOnLaunch === 'boolean'
+    && typeof settings.autoSave === 'boolean'
+    && isCssPath(settings.customCssPath);
 }
 
 export function isSettingsResultV1(
@@ -91,6 +129,21 @@ export function isSettingsResultV1(
 ): value is SettingsResultV1<SettingsReplyV1> {
   if (!record(value) || value.requestId !== expectedRequestId) return false;
   if (value.ok === true) return isSettingsReplyV1(value.value);
+  return value.ok === false && record(value.error)
+    && typeof value.error.code === 'string' && typeof value.error.message === 'string';
+}
+
+export function isThemeCssReplyV1(value: unknown): value is ThemeCssReplyV1 {
+  return record(value) && value.version === NOTO_SETTINGS_VERSION
+    && typeof value.css === 'string' && typeof value.problem === 'string';
+}
+
+export function isThemeCssResultV1(
+  value: unknown,
+  expectedRequestId: string,
+): value is SettingsResultV1<ThemeCssReplyV1> {
+  if (!record(value) || value.requestId !== expectedRequestId) return false;
+  if (value.ok === true) return isThemeCssReplyV1(value.value);
   return value.ok === false && record(value.error)
     && typeof value.error.code === 'string' && typeof value.error.message === 'string';
 }

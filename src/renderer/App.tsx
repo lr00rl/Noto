@@ -50,6 +50,17 @@ import { restorePluginTriggerFocus, type PluginSnapshotAvailability } from './pl
 
 const rid = (prefix: string) => `${prefix}:${crypto.randomUUID()}`;
 
+/**
+ * The user's stylesheet. One sheet, replaced in place, so a theme reloaded
+ * twenty times does not leave twenty sheets adopted.
+ *
+ * Built on first use rather than at module scope: this file is imported by unit
+ * tests that read it in Node, where `CSSStyleSheet` does not exist, and a
+ * constructor at the top level would make importing the shell fail there.
+ */
+let customThemeSheet: CSSStyleSheet | null = null;
+const themeSheet = (): CSSStyleSheet => (customThemeSheet ??= new CSSStyleSheet());
+
 const bundledManifestList = [
   rendererProofManifest,
   titleShiftManifest,
@@ -145,6 +156,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const [prefs, setPrefs] = useState<{ open: boolean; section: PreferencesSection }>(
     { open: false, section: 'appearance' },
   );
+  /** Bumped to re-read a stylesheet whose contents changed but whose path did not. */
+  const [themeReload, setThemeReload] = useState(0);
+  const [themeProblem, setThemeProblem] = useState('');
   const [pluginSnapshots, setPluginSnapshots] = useState<PluginLifecycleSnapshot[]>([]);
   const [pluginAvailability, setPluginAvailability] = useState<PluginSnapshotAvailability>('loading');
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -225,9 +239,66 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     return () => media.removeEventListener('change', apply);
   }, [settings.theme]);
 
+  /**
+   * Document typography, as custom properties on the root.
+   *
+   * Properties rather than a `data-` attribute with three preset values, so the
+   * measure can be 68 characters when 66 and 74 are both wrong, and so the
+   * three of these compose: a bigger face wants a slightly tighter leading and
+   * the same character count, not the same pixel width.
+   */
   useEffect(() => {
-    globalThis.document.documentElement.dataset.measure = settings.measure;
-  }, [settings.measure]);
+    const root = globalThis.document.documentElement;
+    root.style.setProperty('--doc-font-size', `${settings.fontSize}px`);
+    root.style.setProperty('--doc-line-height', `${settings.lineHeight}`);
+    root.style.setProperty('--measure', `${settings.measureCh}ch`);
+  }, [settings.fontSize, settings.lineHeight, settings.measureCh]);
+
+  /**
+   * The user's own stylesheet, layered over the theme.
+   *
+   * Injected as a single style element that is replaced wholesale on every
+   * change, because a stylesheet appended twice is a stylesheet that fights
+   * itself. Main reads the file; the renderer never touches the filesystem.
+   */
+  useEffect(() => {
+    const root = globalThis.document;
+    let active = true;
+    /*
+     * A constructed stylesheet, not a `<style>` element.
+     *
+     * The renderer's Content Security Policy is `style-src 'self'`, which
+     * refuses an inline style element outright: the element appears in the DOM
+     * and the browser simply declines to apply it, which is a failure with no
+     * symptom except the theme not working. A stylesheet built by script is not
+     * parsed from markup and is not covered by that directive, so the policy
+     * stays exactly as strict as it was. Adopted sheets also come last in the
+     * cascade, which is half of why a custom theme can override anything.
+     */
+    const apply = (css: string) => {
+      if (!active) return;
+      const sheet = themeSheet();
+      const sheets = root.adoptedStyleSheets.filter((existing) => existing !== sheet);
+      if (!css) { root.adoptedStyleSheets = sheets; return; }
+      try {
+        sheet.replaceSync(css);
+      } catch {
+        setThemeProblem('That stylesheet could not be parsed.');
+        root.adoptedStyleSheets = sheets;
+        return;
+      }
+      root.adoptedStyleSheets = [...sheets, sheet];
+    };
+    if (!settings.customCssPath) { apply(''); return () => { active = false; }; }
+    void window.notoSettings.readThemeCss({ version: 1, requestId: rid('theme-css') })
+      .then((result) => {
+        if (!active) return;
+        apply(result.ok ? result.value.css : '');
+        setThemeProblem(result.ok ? result.value.problem : 'The stylesheet could not be read.');
+      })
+      .catch(() => { apply(''); setThemeProblem('The stylesheet could not be read.'); });
+    return () => { active = false; };
+  }, [settings.customCssPath, themeReload]);
 
   // Read once at startup, then follow any change main publishes.
   useEffect(() => {
@@ -523,6 +594,35 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     }
   };
 
+  /**
+   * Automatic saving.
+   *
+   * Debounced against typing rather than fired once the document turns dirty,
+   * because a save costs between 226 ms and several seconds depending on the
+   * document, and saving mid-word on a large file would stall the very typing
+   * that triggered it.
+   *
+   * It refuses in exactly the cases the Save button is refused: a save already
+   * in flight, a recovery record standing, a file that changed underneath us.
+   * Automatic saving must not be a way to reach a path the manual one guards,
+   * and an external conflict resolved automatically is data loss nobody
+   * watched happen.
+   */
+  const typingRef = useRef(0);
+  const [typingTick, setTypingTick] = useState(0);
+  const bumpTyping = useCallback(() => {
+    typingRef.current += 1;
+    setTypingTick(typingRef.current);
+  }, []);
+  const saveRef = useRef<() => Promise<void>>(async () => {});
+
+  useEffect(() => {
+    if (!settings.autoSave || !editorDirty || pending) return;
+    if (recoveryBarrier || state === 'External conflict' || state === 'Stale editor revision') return;
+    const timer = setTimeout(() => { void saveRef.current(); }, settings.autoSaveDelayMs);
+    return () => clearTimeout(timer);
+  }, [settings.autoSave, settings.autoSaveDelayMs, editorDirty, pending, recoveryBarrier, state, typingTick]);
+
   const save = async () => {
     const editor = editorRef.current;
     if (!editor || !token || pending || !editorDirty) return;
@@ -579,6 +679,8 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       setState('Recovery failed');
     }
   };
+
+  saveRef.current = save;
 
   const saveCopy = async () => {
     const editor = editorRef.current;
@@ -854,6 +956,8 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         settings={settings}
         onChange={changeSettings}
         onClose={closePlugins}
+        themeProblem={themeProblem}
+        onReloadCss={() => setThemeReload((current) => current + 1)}
         plugins={(
           <PluginCenter api={window.notoDesktop} snapshots={pluginSnapshots}
             availability={pluginAvailability} open />
@@ -915,6 +1019,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                 smartTypography={settings.smartTypography}
                 spellCheck={settings.spellCheck}
                 onDirtyChange={(dirty) => onDocumentDirtyChange(doc.document.documentId, dirty)}
+                onDocumentChanged={() => {
+                  if (doc.document.documentId === activeIdRef.current) bumpTyping();
+                }}
                 onReady={(editor) => {
                   editorsRef.current.set(doc.document.documentId, editor);
                   if (doc.document.documentId === activeIdRef.current) {

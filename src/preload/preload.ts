@@ -21,6 +21,7 @@ import {
   isSettingsReplyV1,
   isSettingsRequestV1,
   isSettingsResultV1,
+  isThemeCssResultV1,
   isSettingsWriteRequestV1,
 } from '../shared/settings/v1/validate';
 import type {
@@ -302,6 +303,17 @@ const settingsApi: NotoSettingsApiV1 = Object.freeze({
   write: (request: SettingsWriteRequestV1) => isSettingsWriteRequestV1(request)
     ? invokeSettings(SETTINGS_CHANNELS.write, request, request.requestId)
     : Promise.resolve(rejectedSettings('invalid', 'Invalid settings write request')),
+  readThemeCss: async (request: SettingsRequestV1) => {
+    if (!isSettingsRequestV1(request)) {
+      return { ok: false as const, requestId: 'invalid',
+        error: { code: 'BAD_REQUEST', message: 'Invalid theme stylesheet request' } };
+    }
+    const value: unknown = await ipcRenderer.invoke(SETTINGS_CHANNELS.themeCss, request);
+    return isThemeCssResultV1(value, request.requestId)
+      ? value
+      : { ok: false as const, requestId: request.requestId,
+        error: { code: 'BAD_REQUEST', message: 'Main returned an invalid theme stylesheet response' } };
+  },
   onChanged: (listener: (event: SettingsReplyV1) => void) =>
     subscribe(SETTINGS_CHANNELS.changed, isSettingsReplyV1, listener),
 });
