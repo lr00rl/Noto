@@ -1,15 +1,15 @@
-.build/
-DerivedData/
-*.xcuserstate
-xcuserdata/
+node_modules/
+.pnpm-store/
+.vite/
+out/
+coverage/
+test-results/
+artifacts/
+*.log
 .DS_Store
-WebEditor/node_modules/
-WebEditor/coverage/
-.omx/logs/
-.omx/state/
-.omx/tmux-hook.json
 
 # Agent tooling state and worktrees, not project sources.
+.ace-tool/
 .claude/
 .omc/
-.pnpm-store/
+.omx/

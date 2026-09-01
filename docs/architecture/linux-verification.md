@@ -11,7 +11,7 @@ A `node:22` container, arm64, with the source copied in and no `node_modules`
 carried over, so the install was genuinely clean:
 
 ```
-docker run --rm -v "$PWD/ElectronApp/out/linux-ci:/work" -w /work node:22
+docker run --rm -v "$PWD/out/linux-ci:/work" -w /work node:22
 ```
 
 Results:

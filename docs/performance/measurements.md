@@ -1,7 +1,7 @@
 # Performance measurements
 
 Recorded on macOS 26.5, Apple silicon, from the packaged app in
-`ElectronApp/out/e2e`. Reproduce with:
+`out/e2e`. Reproduce with:
 
 ```
 node scripts/bench/corpus.mjs          # build the corpus

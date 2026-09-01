@@ -11,10 +11,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-defaults:
-  run:
-    working-directory: ElectronApp
-
 jobs:
   # Static checks and unit tests are platform independent, so they run once
   # rather than three times.
@@ -30,7 +26,7 @@ jobs:
         with:
           node-version: 22.19.0
           cache: pnpm
-          cache-dependency-path: ElectronApp/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm compat:node22
       - run: pnpm typecheck
@@ -55,7 +51,7 @@ jobs:
         with:
           node-version: 22.19.0
           cache: pnpm
-          cache-dependency-path: ElectronApp/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
 
       # Fetch Electron's binary explicitly.
@@ -94,14 +90,13 @@ jobs:
           for directory in out/e2e/Noto-*; do
             node scripts/verify-package.mjs "$directory"
           done
-        working-directory: ElectronApp
 
       - name: Upload failure traces
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-${{ matrix.os }}
-          path: ElectronApp/test-results
+          path: test-results
           retention-days: 7
 
   # Proves the release variant packages and that installers can actually be
@@ -124,7 +119,7 @@ jobs:
         with:
           node-version: 22.19.0
           cache: pnpm
-          cache-dependency-path: ElectronApp/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
 
       # Fetch Electron's binary explicitly.
@@ -156,5 +151,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: installers-${{ matrix.os }}
-          path: ElectronApp/out/make
+          path: out/make
           retention-days: 7

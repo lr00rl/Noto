@@ -101,7 +101,7 @@ export async function packageVariant(variant, target = {}) {
   if (!isContainedPath(outRoot, stagingRoot)
     || !isContainedPath(outRoot, destinationRoot)
     || !isContainedPath(destinationRoot, destination)) {
-    throw new Error('Package paths escaped the ElectronApp out directory');
+    throw new Error('Package paths escaped the out directory');
   }
 
   await rm(stagingRoot, { recursive: true, force: true });
