@@ -31,7 +31,7 @@ import { FindBar } from './FindBar';
 import { TabBar } from './TabBar';
 import { WorkspaceRail, type RailView } from './WorkspaceRail';
 import { Preferences, type PreferencesSection } from './Preferences';
-import { DEFAULT_SETTINGS, type NotoSettingsV1 } from '../shared/settings/v1/contracts';
+import { DEFAULT_SETTINGS, SETTING_RANGES, type NotoSettingsV1 } from '../shared/settings/v1/contracts';
 import type { NotoEditor } from './editor/noto/NotoEditor';
 import {
   acceptedSaveOutcome,
@@ -173,6 +173,10 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
    */
   const [rail, setRail] = useState<{ open: boolean; view: RailView }>({ open: false, view: 'files' });
   const [settings, setSettings] = useState<NotoSettingsV1>(DEFAULT_SETTINGS);
+  /* The menu handler is registered once, so it would otherwise close over the
+     settings as they were at launch and step the width from 66 every time. */
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
 
   const [folder, setFolder] = useState<{ root: string | null; name: string | null }>({ root: null, name: null });
 
@@ -824,6 +828,18 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         break;
       case 'toggle-sidebar':
         toggleRail('files');
+        break;
+      // Stepped rather than set, and clamped by the same range the slider uses,
+      // so holding the chord walks to the edge and stops instead of wrapping.
+      case 'widen':
+        changeSettings({
+          measureCh: Math.min(SETTING_RANGES.measureCh.max, settingsRef.current.measureCh + 4),
+        });
+        break;
+      case 'narrow':
+        changeSettings({
+          measureCh: Math.max(SETTING_RANGES.measureCh.min, settingsRef.current.measureCh - 4),
+        });
         break;
       case 'find':
         setPrefs((current) => ({ ...current, open: false }));

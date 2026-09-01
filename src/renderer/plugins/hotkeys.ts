@@ -31,6 +31,11 @@ function manifestKey(code: string): string | null {
     return code;
   }
   if (code === 'Space') return 'Space';
+  // Brackets, which `wider` binds. Without them here a manifest could declare
+  // `Mod+]` and the chord could never be produced, so the binding existed on
+  // paper and did nothing at the keyboard.
+  if (code === 'BracketLeft') return '[';
+  if (code === 'BracketRight') return ']';
   return null;
 }
 

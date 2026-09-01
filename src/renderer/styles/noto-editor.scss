@@ -238,23 +238,23 @@
  * The rest of the document stays clean prose, which is the whole point: you see
  * the markup you are editing and nothing else.
  */
-.ProseMirror > .noto-active-block {
-  em::before, em::after,
-  strong::before, strong::after,
-  del::before, del::after,
-  code::before, code::after {
-    color: var(--muted);
-    font-family: tokens.$mono;
-    font-size: 0.85em;
-    font-style: normal;
-    font-weight: 400;
-    opacity: 0.7;
-  }
-
-  em::before, em::after { content: '_'; }
-  strong::before, strong::after { content: '**'; }
-  del::before, del::after { content: '~~'; }
-  code::before, code::after { content: '`'; }
+/*
+ * Inline delimiters, drawn by the active-node plugin as widgets on the one span
+ * the caret is in. The block used to drive this with descendant rules, so a
+ * sentence naming eleven directories showed eleven pairs of backticks the
+ * moment the caret landed anywhere in it.
+ */
+.ProseMirror .noto-syntax {
+  color: var(--muted);
+  font-family: tokens.$mono;
+  font-size: 0.85em;
+  font-style: normal;
+  font-weight: 400;
+  opacity: 0.55;
+  /* The delimiter occupies space but is not text: it must not be selected with
+     the words around it, and it must not be spoken. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /*

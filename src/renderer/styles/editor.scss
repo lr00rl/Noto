@@ -47,15 +47,14 @@
 
 .ProseMirror:focus-visible { outline: none; }
 
+/* The gutter is kept because the heading markers hang in it, not because
+   anything is drawn there. There was an accent bar down the left of whichever
+   block held the caret, which is a highlighter running beside the sentence you
+   are reading: the caret already says where you are, and Typora draws nothing
+   here at all. */
 .ProseMirror > * {
   margin: 0 0 1.05em;
-  border-left: 2px solid transparent;
   padding-left: 14px;
-}
-
-.noto-editor-host:focus-within .ProseMirror > .noto-active-block,
-.noto-editor-host[data-semantic-focus='true'] .ProseMirror > .noto-active-block {
-  border-left-color: var(--accent);
 }
 
 .ProseMirror > [data-noto-marker] { position: relative; }

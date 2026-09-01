@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MenuItemConstructorOptions } from 'electron';
 import { buildMenuTemplate, menuCommandIds } from '../../src/main/workspace/menu-template';
+import { WORKSPACE_MENU_COMMANDS } from '../../src/shared/workspace/v1/contracts';
 import type { RecentFileV1, WorkspaceMenuCommandV1 } from '../../src/shared/workspace/v1/contracts';
 
 const noop = () => undefined;
@@ -99,10 +100,9 @@ describe('the menu and the renderer agree on commands', () => {
    * the menu for a while with nothing on the other side handling it, so the
    * item was live and did nothing.
    */
-  const known: readonly WorkspaceMenuCommandV1[] = [
-    'save', 'save-as', 'undo', 'redo', 'find', 'find-replace',
-    'toggle-source', 'toggle-outline', 'command-palette', 'toggle-sidebar', 'settings',
-  ];
+  // The contract's own list, not a copy of it. A copy is what let `widen` and
+  // `narrow` reach the menu while the preload validator silently dropped them.
+  const known: readonly WorkspaceMenuCommandV1[] = WORKSPACE_MENU_COMMANDS;
 
   it('emits only commands the contract defines', () => {
     const ids = menuCommandIds(template('darwin'));

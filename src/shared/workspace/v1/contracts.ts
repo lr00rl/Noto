@@ -119,18 +119,32 @@ export interface WorkspaceSaveAsReplyV1 {
  * Commands the application menu raises that the renderer has to carry out,
  * because only the renderer knows the editor's current contents.
  */
-export type WorkspaceMenuCommandV1 =
-  | 'save'
-  | 'save-as'
-  | 'undo'
-  | 'redo'
-  | 'settings'
-  | 'find'
-  | 'find-replace'
-  | 'toggle-source'
-  | 'toggle-outline'
-  | 'command-palette'
-  | 'toggle-sidebar';
+/**
+ * Every command the menu can send the renderer.
+ *
+ * A value rather than a bare type union, because the preload has to check an
+ * incoming command against something at runtime and it was checking against a
+ * hand-copied list. The two drifted: `widen` and `narrow` reached the menu, the
+ * validator did not know them, and the items fired into a dropped message. One
+ * list means the type and the check cannot disagree again.
+ */
+export const WORKSPACE_MENU_COMMANDS = [
+  'save',
+  'save-as',
+  'undo',
+  'redo',
+  'settings',
+  'find',
+  'find-replace',
+  'toggle-source',
+  'toggle-outline',
+  'command-palette',
+  'toggle-sidebar',
+  'widen',
+  'narrow',
+] as const;
+
+export type WorkspaceMenuCommandV1 = typeof WORKSPACE_MENU_COMMANDS[number];
 
 export interface WorkspaceMenuEventV1 {
   readonly version: typeof NOTO_WORKSPACE_VERSION;
