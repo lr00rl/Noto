@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "grammarCeiling": "One top-level block edit. Frontmatter, HTML, custom extensions, and conservatively recognized unsupported syntax are source-only opaque nodes.",
+  "fixtures": [
+    { "file": "cjk-inline.md", "status": "projected", "blocks": [{"kind":"heading","editable":true},{"kind":"paragraph","editable":true}], "claims": ["cjk", "paragraph", "emphasis", "strong", "link", "inline-code", "inline-math", "image"] },
+    { "file": "bullet-list.md", "status": "projected", "blocks": [{"kind":"bullet-list","editable":true}], "claims": ["bullet-list", "nested-list"] },
+    { "file": "lists-tasks.md", "status": "projected", "blocks": [{"kind":"task-list","editable":true},{"kind":"ordered-list","editable":true}], "claims": ["ordered-list", "task-list"] },
+    { "file": "quote-callout.md", "status": "projected", "blocks": [{"kind":"quote","editable":true},{"kind":"callout","editable":true}], "claims": ["quote", "callout"] },
+    { "file": "fences.md", "status": "projected", "blocks": [{"kind":"fenced-code","editable":true},{"kind":"fenced-code","editable":true}], "claims": ["backtick-fence", "tilde-fence", "fence-info", "internal-blank-lines"] },
+    { "file": "table-math.md", "status": "projected", "blocks": [{"kind":"table","editable":true},{"kind":"display-math","editable":true}], "claims": ["table", "display-math"] },
+    { "file": "frontmatter.md", "status": "projected", "blocks": [{"kind":"frontmatter","editable":false},{"kind":"paragraph","editable":true}], "claims": ["frontmatter-source-only"] },
+    { "file": "html.md", "status": "projected", "blocks": [{"kind":"html","editable":false},{"kind":"paragraph","editable":true}], "claims": ["html-source-only", "raw-script-never-projected"] },
+    { "file": "raw-html.md", "status": "projected", "blocks": [{"kind":"html","editable":false},{"kind":"html","editable":false},{"kind":"html","editable":false},{"kind":"html","editable":false},{"kind":"html","editable":false}], "claims": ["multiline-raw-html-source-only", "html-comment-source-only", "raw-body-never-projected"] },
+    { "file": "extension.md", "status": "projected", "blocks": [{"kind":"extension","editable":false},{"kind":"paragraph","editable":true}], "claims": ["custom-extension-source-only"] },
+    { "file": "adjacent.md", "status": "projected", "blocks": [{"kind":"heading","editable":true},{"kind":"paragraph","editable":true},{"kind":"bullet-list","editable":true},{"kind":"heading","editable":true}], "claims": ["adjacent-construct-boundaries"] },
+    { "file": "unsupported.md", "status": "projected", "blocks": [{"kind":"unsupported","editable":false},{"kind":"unsupported","editable":false},{"kind":"unsupported","editable":false},{"kind":"unsupported","editable":false}], "claims": ["setext-source-only", "indented-code-source-only", "footnote-source-only", "unknown-extension-source-only"] },
+    { "file": "malformed-fence.md", "status": "fallback", "code": "MALFORMED_BOUNDARY", "claims": ["malformed-boundary-fallback"] },
+    { "file": "malformed-extension.md", "status": "fallback", "code": "MALFORMED_BOUNDARY", "claims": ["malformed-boundary-fallback"] },
+    { "file": "malformed-raw-html.md", "status": "fallback", "code": "MALFORMED_BOUNDARY", "claims": ["unterminated-raw-html-fallback"] },
+    { "file": "malformed-html-comment.md", "status": "fallback", "code": "MALFORMED_BOUNDARY", "claims": ["unterminated-html-comment-fallback"] }
+  ]
+}

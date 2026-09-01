@@ -1,0 +1,237 @@
+@use 'roob-tokens' as tokens;
+
+/* The text column, sized by the line width setting.
+   In `ch`, resolved against the prose font on the host below, so the value is
+   the number of characters a line actually holds. It was in `rem` before, which
+   is relative to the 16px root and has no relationship to the 18px serif the
+   prose is set in; the three presets came out at roughly 81, 99 and 120
+   characters, all past the readable ceiling. */
+:root { --measure: 66ch; }
+:root[data-measure='narrow'] { --measure: 58ch; }
+:root[data-measure='wide'] { --measure: 74ch; }
+
+.noto-editor-host {
+  /* Carries the prose font purely so `ch` above means what it says. The host
+     renders no text of its own. */
+  font-family: tokens.$prose;
+  font-size: 18px;
+  width: min(calc(100% - 48px), var(--measure));
+  max-width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 26px 0 80px;
+}
+
+.ProseMirror {
+  min-height: calc(100vh - 145px);
+}
+
+.ProseMirror {
+  outline: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  color: var(--ink);
+  font-family: tokens.$prose;
+  font-size: 18px;
+  line-height: 1.62;
+  caret-color: var(--ink);
+}
+
+.ProseMirror:focus-visible { outline: none; }
+
+.ProseMirror > * {
+  margin: 0 0 1.05em;
+  border-left: 2px solid transparent;
+  padding-left: 14px;
+}
+
+.noto-editor-host:focus-within .ProseMirror > .noto-active-block,
+.noto-editor-host[data-semantic-focus='true'] .ProseMirror > .noto-active-block {
+  border-left-color: var(--accent);
+}
+
+.ProseMirror > [data-noto-marker] { position: relative; }
+.ProseMirror > [data-noto-marker]::before {
+  content: attr(data-noto-marker);
+  position: absolute;
+  right: calc(100% - 10px);
+  top: 0.42em;
+  max-width: 12px;
+  overflow: hidden;
+  color: var(--accent);
+  font: 9px/1 tokens.$mono;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.ProseMirror h1 { margin-top: 0.2em; font-size: 34px; line-height: 1.22; font-weight: 600; text-wrap: balance; }
+.ProseMirror h2 { font-size: 27px; line-height: 1.28; font-weight: 600; text-wrap: balance; }
+.ProseMirror h3 { font-size: 22px; line-height: 1.35; font-weight: 600; text-wrap: balance; }
+
+/* Below h3 size stops doing the work. At 19px against an 18px body the
+   difference was invisible, so the lower levels are distinguished by weight and
+   tracking instead and the scale keeps its spread at the top. */
+.ProseMirror h4 {
+  font-size: 18px;
+  line-height: 1.45;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  text-wrap: balance;
+}
+
+/* The rule was a hairline at 1.29:1, so the quote was signalled almost entirely
+   by its text turning grey, and grey already means completed task, disabled
+   control and syntax marker. The accent tint gives it a mark of its own. */
+.ProseMirror blockquote {
+  margin-left: 14px;
+  padding-left: 16px;
+  border-left: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--muted);
+}
+
+.ProseMirror code,
+.ProseMirror pre {
+  font-family: tokens.$mono;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.ProseMirror pre {
+  max-width: 100%;
+  overflow-x: auto;
+  background: var(--raised);
+  padding: 14px 16px;
+  border-radius: 4px;
+}
+
+.ProseMirror a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--hairline); }
+.ProseMirror img { width: auto; max-width: 100%; height: auto; border: 1px solid var(--hairline); }
+.ProseMirror ::selection { background: var(--hairline); color: var(--ink); }
+
+.noto-opaque-node {
+  max-width: 100%;
+  border: 0;
+  border-left: 1px solid var(--hairline);
+  border-radius: 0;
+  background: transparent;
+  padding: 4px 0 4px 12px;
+  user-select: text;
+  overflow-wrap: anywhere;
+}
+
+.noto-opaque-content { min-width: 0; }
+.noto-opaque-unavailable { color: var(--danger); font: 12px/1.4 tokens.$ui; }
+
+@media (max-width: 1120px) {
+  .ProseMirror { font-size: 17px; }
+}
+
+@media (max-width: 760px) {
+  .noto-editor-host { width: min(calc(100% - 32px), 860px); padding-top: 20px; }
+}
+
+.ProseMirror .noto-opaque-source {
+  margin: 0;
+  max-height: 160px;
+  overflow: auto;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--muted);
+  white-space: pre;
+  user-select: text;
+}
+
+@media (max-width: 760px) {
+  .ProseMirror .noto-opaque-source {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+}
+
+.daily-editor { min-height: 100%; padding-top: 1px; }
+.editor-commandbar {
+  position: sticky;
+  top: 8px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  min-height: 32px;
+  margin: 10px auto 0;
+  padding: 2px;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--muted);
+  font-family: tokens.$ui;
+  font-size: 12px;
+}
+.editor-commandbar button,
+.format-disclosure summary {
+  flex: 0 0 auto;
+  min-height: 26px;
+  border-color: transparent;
+  background: transparent;
+  padding: 3px 7px;
+  font: inherit;
+  line-height: 18px;
+  white-space: nowrap;
+}
+.editor-commandbar button { text-align: center; }
+.editor-commandbar button:hover:not(:disabled),
+.format-disclosure summary:hover { background: var(--raised); }
+.editor-surface-state { margin: 0 5px 0 3px; white-space: nowrap; }
+.format-disclosure { position: relative; flex: 0 0 auto; }
+.format-disclosure summary { display: block; border: 1px solid transparent; border-radius: 4px; cursor: default; }
+.format-menu {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 5px);
+  right: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+  width: min(280px, calc(100vw - 32px));
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  background: var(--panel);
+  padding: 5px;
+}
+.format-menu button { width: 100%; text-align: left; }
+.noto-source-editor {
+  box-sizing: border-box;
+  display: block;
+  width: min(calc(100% - 40px), 920px);
+  min-height: calc(100vh - 190px);
+  margin: 20px auto;
+  resize: vertical;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  outline: 0;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 24px;
+  font: 14px/1.6 tokens.$mono;
+  tab-size: 2;
+}
+.noto-source-editor:focus-visible { border-color: var(--focus); outline: 2px solid var(--focus); outline-offset: 2px; }
+.source-mode-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(calc(100% - 40px), 920px);
+  margin: 20px auto -8px;
+  color: var(--muted);
+  font-family: tokens.$ui;
+  font-size: 12px;
+}
+
+@media (max-width: 520px) {
+  .editor-surface-state { display: none; }
+  .editor-commandbar { max-width: calc(100% - 24px); }
+}

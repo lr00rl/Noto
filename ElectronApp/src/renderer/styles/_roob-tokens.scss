@@ -1,0 +1,46 @@
+/*
+ * Noto semantic token subset.
+ * Source: /Users/cdcd/roobli/lr00rl/roob-site/quartz/styles/claude-like-tokens.scss
+ * Generated reference revision: 76786919683f14ba90bb3dfd279fcc6f4dc57485
+ * Underlying theme revision: 9093ded405b8f3066559110732855ae03ea610de
+ * Copied: 2026-08-28. Only approved values were manually remapped.
+ * License: owner-authored source, public license not specified.
+ */
+
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+  --paper: #FAF9F6;
+  --panel: #F3F1EC;
+  --raised: #F2F1EE;
+  --ink: #34312E;
+  --hairline: #DDD9D2;
+  --accent: #A85D3B;
+  --muted: #6F6B66;
+  --success: #496B52;
+  --warning: #8A642D;
+  --danger: #93443F;
+  --focus: #34312E;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --paper: #1F1E1C;
+  --panel: #181715;
+  --raised: #292826;
+  --ink: #D7D4CF;
+  --hairline: #3B3935;
+  --accent: #E0A07A;
+  /* Steps back from ink by roughly the same ratio as the light theme's muted
+     tier does, so secondary text recedes at night as much as it does by day.
+     Still clears 4.5:1 on both paper and panel. */
+  --muted: #8B8781;
+  --success: #8BB697;
+  --warning: #D0A45F;
+  --danger: #D88780;
+  --focus: #F1EEE8;
+}
+
+$prose: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", serif;
+$ui: "PingFang SC", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+$mono: Menlo, Monaco, "SF Mono", Consolas, monospace;

@@ -1,0 +1,272 @@
+/**
+ * Noto's ProseMirror schema.
+ *
+ * Owned outright rather than inherited from a preset, because the schema is the
+ * contract that decides what a user can edit. Milkdown's CommonMark preset had
+ * no table, task list, math, frontmatter or footnote nodes, which is why those
+ * constructs had to be frozen into read-only source islands. Every construct
+ * the parser produces has a node here, so nothing is second class.
+ *
+ * Node names follow the conventions of `prosemirror-tables` and
+ * `prosemirror-schema-list` so those packages work without adapters.
+ */
+
+import { Schema, type MarkSpec, type NodeSpec } from 'prosemirror-model';
+import { tableNodes } from 'prosemirror-tables';
+
+const codeLikeBlock = (extra: Partial<NodeSpec> = {}): NodeSpec => ({
+  group: 'block',
+  content: 'text*',
+  marks: '',
+  code: true,
+  defining: true,
+  ...extra,
+});
+
+const nodes: Record<string, NodeSpec> = {
+  doc: { content: 'block+' },
+
+  paragraph: {
+    group: 'block',
+    content: 'inline*',
+    parseDOM: [{ tag: 'p' }],
+    toDOM: () => ['p', 0],
+  },
+
+  heading: {
+    group: 'block',
+    content: 'inline*',
+    defining: true,
+    attrs: { level: { default: 1 } },
+    parseDOM: [1, 2, 3, 4, 5, 6].map((level) => ({ tag: `h${level}`, attrs: { level } })),
+    toDOM: (node) => [`h${node.attrs.level}`, 0],
+  },
+
+  blockquote: {
+    group: 'block',
+    content: 'block+',
+    defining: true,
+    parseDOM: [{ tag: 'blockquote' }],
+    toDOM: () => ['blockquote', 0],
+  },
+
+  code_block: codeLikeBlock({
+    attrs: { lang: { default: '' }, fenced: { default: true } },
+    parseDOM: [{ tag: 'pre', preserveWhitespace: 'full' }],
+    toDOM: (node) => ['pre', { 'data-lang': node.attrs.lang || null }, ['code', 0]],
+  }),
+
+  /** Display math, `$$ ... $$`. Held as text so the source stays editable. */
+  math_block: codeLikeBlock({
+    parseDOM: [{ tag: 'div.noto-math-block', preserveWhitespace: 'full' }],
+    toDOM: () => ['div', { class: 'noto-math-block' }, 0],
+  }),
+
+  /** YAML frontmatter. One per document, always first. */
+  frontmatter: codeLikeBlock({
+    parseDOM: [{ tag: 'div.noto-frontmatter', preserveWhitespace: 'full' }],
+    toDOM: () => ['div', { class: 'noto-frontmatter' }, 0],
+  }),
+
+  /** Raw HTML kept as source. Never rendered live, which would execute it. */
+  html_block: codeLikeBlock({
+    parseDOM: [{ tag: 'div.noto-html-block', preserveWhitespace: 'full' }],
+    toDOM: () => ['div', { class: 'noto-html-block' }, 0],
+  }),
+
+  /**
+   * One block shown as its raw markdown instead of rendered.
+   *
+   * Source mode is a different view of the same block, not a different
+   * document: the node holds exactly the markdown that block would serialize
+   * to, so the file stays saveable while a block is open in source. That is
+   * what makes the toggle per block rather than a whole-document mode.
+   */
+  source_block: codeLikeBlock({
+    attrs: { originalKind: { default: 'paragraph' } },
+    toDOM: (node) => ['div', {
+      class: 'noto-source-block',
+      'data-original-kind': node.attrs.originalKind,
+    }, 0],
+  }),
+
+  horizontal_rule: {
+    group: 'block',
+    atom: true,
+    parseDOM: [{ tag: 'hr' }],
+    toDOM: () => ['hr'],
+  },
+
+  bullet_list: {
+    group: 'block',
+    content: 'list_item+',
+    attrs: { spread: { default: false } },
+    parseDOM: [{ tag: 'ul' }],
+    toDOM: () => ['ul', 0],
+  },
+
+  ordered_list: {
+    group: 'block',
+    content: 'list_item+',
+    attrs: { start: { default: 1 }, spread: { default: false } },
+    parseDOM: [{ tag: 'ol' }],
+    toDOM: (node) => ['ol', node.attrs.start === 1 ? {} : { start: node.attrs.start }, 0],
+  },
+
+  /**
+   * `checked` is null for an ordinary item and a boolean for a task item, which
+   * is exactly how mdast models it. That keeps task lists as real lists rather
+   * than a separate node type.
+   */
+  list_item: {
+    content: 'block+',
+    defining: true,
+    attrs: { checked: { default: null } },
+    parseDOM: [{ tag: 'li' }],
+    toDOM: (node) => node.attrs.checked === null
+      ? ['li', 0]
+      : ['li', { 'data-checked': String(node.attrs.checked), class: 'noto-task-item' }, 0],
+  },
+
+  footnote_definition: {
+    group: 'block',
+    content: 'block+',
+    defining: true,
+    attrs: { identifier: { default: '' }, label: { default: '' } },
+    toDOM: (node) => ['div', { class: 'noto-footnote-definition', 'data-identifier': node.attrs.identifier }, 0],
+  },
+
+  /** A `[id]: url "title"` reference definition. Atomic; edited as a unit. */
+  link_definition: {
+    group: 'block',
+    atom: true,
+    attrs: { identifier: { default: '' }, label: { default: '' }, url: { default: '' }, title: { default: null } },
+    toDOM: (node) => ['div', {
+      class: 'noto-link-definition',
+      'data-identifier': node.attrs.identifier,
+    }, `[${node.attrs.label || node.attrs.identifier}]: ${node.attrs.url}`],
+  },
+
+  ...tableNodes({
+    tableGroup: 'block',
+    cellContent: 'inline*',
+    cellAttributes: {
+      align: {
+        default: null,
+        getFromDOM: (dom) => (dom as HTMLElement).style.textAlign || null,
+        setDOMAttr: (value, attrs) => {
+          if (value) attrs.style = `text-align: ${value}`;
+        },
+      },
+    },
+  }),
+
+  text: { group: 'inline' },
+
+  /**
+   * `referenceType` is null for an inline image and set for the `![alt][id]`
+   * reference form, so editing a paragraph cannot silently rewrite one into the
+   * other.
+   */
+  image: {
+    group: 'inline',
+    inline: true,
+    atom: true,
+    attrs: {
+      src: { default: '' },
+      alt: { default: '' },
+      title: { default: null },
+      referenceType: { default: null },
+      identifier: { default: '' },
+      label: { default: '' },
+    },
+    parseDOM: [{
+      tag: 'img[src]',
+      getAttrs: (dom) => ({
+        src: (dom as HTMLElement).getAttribute('src') ?? '',
+        alt: (dom as HTMLElement).getAttribute('alt') ?? '',
+        title: (dom as HTMLElement).getAttribute('title'),
+      }),
+    }],
+    toDOM: (node) => ['img', { src: node.attrs.src, alt: node.attrs.alt, title: node.attrs.title }],
+  },
+
+  /** Raw inline HTML such as `<br/>`, kept verbatim rather than flattened to text. */
+  inline_html: {
+    group: 'inline',
+    inline: true,
+    atom: true,
+    attrs: { value: { default: '' } },
+    toDOM: (node) => ['span', { class: 'noto-inline-html' }, node.attrs.value],
+  },
+
+  math_inline: {
+    group: 'inline',
+    inline: true,
+    content: 'text*',
+    marks: '',
+    code: true,
+    parseDOM: [{ tag: 'span.noto-math-inline' }],
+    toDOM: () => ['span', { class: 'noto-math-inline' }, 0],
+  },
+
+  footnote_reference: {
+    group: 'inline',
+    inline: true,
+    atom: true,
+    attrs: { identifier: { default: '' }, label: { default: '' } },
+    toDOM: (node) => ['sup', { class: 'noto-footnote-reference' }, `[${node.attrs.label || node.attrs.identifier}]`],
+  },
+
+  hard_break: {
+    group: 'inline',
+    inline: true,
+    selectable: false,
+    parseDOM: [{ tag: 'br' }],
+    toDOM: () => ['br'],
+  },
+};
+
+const marks: Record<string, MarkSpec> = {
+  emphasis: {
+    parseDOM: [{ tag: 'em' }, { tag: 'i' }, { style: 'font-style=italic' }],
+    toDOM: () => ['em', 0],
+  },
+  strong: {
+    parseDOM: [{ tag: 'strong' }, { tag: 'b' }],
+    toDOM: () => ['strong', 0],
+  },
+  strikethrough: {
+    parseDOM: [{ tag: 'del' }, { tag: 's' }],
+    toDOM: () => ['del', 0],
+  },
+  /** Excludes every other mark, matching markdown: you cannot bold inside code. */
+  inline_code: {
+    excludes: '_',
+    code: true,
+    parseDOM: [{ tag: 'code' }],
+    toDOM: () => ['code', 0],
+  },
+  link: {
+    inclusive: false,
+    attrs: {
+      href: { default: '' },
+      title: { default: null },
+      referenceType: { default: null },
+      identifier: { default: '' },
+      label: { default: '' },
+    },
+    parseDOM: [{
+      tag: 'a[href]',
+      getAttrs: (dom) => ({
+        href: (dom as HTMLElement).getAttribute('href') ?? '',
+        title: (dom as HTMLElement).getAttribute('title'),
+      }),
+    }],
+    toDOM: (mark) => ['a', { href: mark.attrs.href, title: mark.attrs.title }, 0],
+  },
+};
+
+export const notoSchema = new Schema({ nodes, marks });
+
+export type NotoSchema = typeof notoSchema;

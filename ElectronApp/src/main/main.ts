@@ -1,0 +1,295 @@
+import path from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { app, BrowserWindow } from 'electron';
+import { FileTruthStoreV1 } from './file-truth/v1/file-truth-store';
+import { registerFileTruthHandlers } from './file-truth/v1/register-file-truth-handlers';
+import { registerIpcHandlers } from './ipc/register-handlers';
+import { createLogger } from './logger';
+import { CapabilityBroker } from './plugins/capability-broker';
+import { LocalPluginStateStore } from './plugins/local-plugin-state-store';
+import { PluginRegistry, bundledPluginCatalog } from './plugins/plugin-registry';
+import {
+  bundledPluginResourceRoot,
+  discoverBundledPluginCatalog,
+} from './plugins/bundled-plugin-discovery';
+import { RendererLeaseBridge } from './plugins/renderer-lease-bridge';
+import { ServiceHost } from './plugins/service-host';
+import { ExperimentalPluginRuntimeHost } from './plugins/experimental-plugin-runtime-host';
+import { installNotoProtocol, isAllowedRendererUrl, registerNotoScheme } from './protocol/register-app-protocol';
+import { IPC_CHANNELS } from '../shared/ipc/contracts';
+import type { PluginCatalog } from '../shared/plugins/catalog';
+import { PLUGIN_LIFECYCLE_VERSION } from '../shared/plugins/lifecycle';
+import { createEditorWindow, type RendererConsoleState } from './windows/create-editor-window';
+import { RecentFiles } from './workspace/recent-files';
+import { SettingsStore } from './workspace/settings-store';
+import { registerSettingsHandlers } from './workspace/register-settings-handlers';
+import { WorkspaceSession } from './workspace/session';
+import { installApplicationMenu } from './workspace/menu';
+import { registerWorkspaceHandlers } from './workspace/register-workspace-handlers';
+
+registerNotoScheme();
+
+const argumentValue = (name: string): string | null => {
+  const prefix = `--${name}=`;
+  const argument = process.argv.find((value) => value.startsWith(prefix));
+  return argument ? argument.slice(prefix.length) : null;
+};
+
+const explicitUserData = argumentValue('user-data-dir');
+if (explicitUserData) app.setPath('userData', path.resolve(explicitUserData));
+
+/**
+ * A document named on the command line, from a file association, or by the
+ * `open-file` event. This is a convenience, not the only way in: the
+ * application menu opens documents without any of it.
+ */
+const markdownArgument = (argv: readonly string[]): string | null =>
+  argv.find((value) => !value.startsWith('-') && /\.(md|markdown|mdown|mkd|txt)$/i.test(value)) ?? null;
+
+let pendingOpenPath: string | null = argumentValue('open') ?? markdownArgument(process.argv.slice(1));
+
+const evidenceDirectory = path.resolve(
+  process.env.NTO_EVIDENCE_DIR ?? path.join(app.getPath('userData'), 'evidence'),
+);
+const logger = createLogger(evidenceDirectory);
+const rendererConsole: RendererConsoleState = { errors: 0, warnings: 0 };
+let editorWindow: BrowserWindow | null = null;
+let session: WorkspaceSession | null = null;
+
+app.on('open-file', (event, filePath) => {
+  event.preventDefault();
+  if (session) void session.openPath(filePath).catch((error) => logger.log('workspace_open_file_failed', {
+    code: error instanceof Error ? error.message.split(':', 1)[0] : 'OPEN_FAILED',
+  }));
+  else pendingOpenPath = filePath;
+});
+
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', (_event, argv) => {
+    const candidate = markdownArgument(argv);
+    if (candidate && session) {
+      void session.openPath(candidate).catch((error) => logger.log('workspace_open_file_failed', {
+        code: error instanceof Error ? error.message.split(':', 1)[0] : 'OPEN_FAILED',
+      }));
+    }
+    if (editorWindow) {
+      if (editorWindow.isMinimized()) editorWindow.restore();
+      editorWindow.focus();
+    }
+  });
+}
+
+app.on('web-contents-created', (_event, contents) => {
+  contents.on('will-attach-webview', (event) => event.preventDefault());
+});
+
+function createApplicationWindow(preloadPath: string): BrowserWindow {
+  editorWindow = createEditorWindow(preloadPath, logger, rendererConsole);
+  editorWindow.on('closed', () => { editorWindow = null; });
+  return editorWindow;
+}
+
+async function run(): Promise<void> {
+  await app.whenReady();
+  app.setAppUserModelId('dev.lr00rl.noto');
+  const rendererRoot = path.join(__dirname, '..', 'renderer', 'main_window');
+  await installNotoProtocol(rendererRoot, logger);
+
+  const serviceModulePath = app.isPackaged
+    ? path.join(process.resourcesPath, 'app.asar.unpacked', '.vite', 'build', 'fs-service.js')
+    : path.join(__dirname, 'fs-service.js');
+  const broker = new CapabilityBroker();
+  const serviceHost = new ServiceHost(serviceModulePath, null, broker, logger);
+  const experimentalRuntimeRoot = path.join(__dirname, '..', 'renderer', 'plugin_runtime');
+  const experimentalRuntimeHost = new ExperimentalPluginRuntimeHost({
+    pluginPreloadPath: path.join(__dirname, 'plugin-preload.js'),
+    runtimeHtmlBytes: await readFile(path.join(experimentalRuntimeRoot, 'index.html')),
+    bootstrapModuleBytes: await readFile(path.join(experimentalRuntimeRoot, 'bootstrap.js')),
+    diagnostic: (event, details) => logger.log(`experimental_plugin_${event}`, details),
+  }, () => {
+    const window = editorWindow;
+    return window && !window.webContents.isDestroyed() ? window.webContents.getOSProcessId() : null;
+  });
+
+  const pluginResourceRoot = bundledPluginResourceRoot({
+    isPackaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
+    appPath: app.getAppPath(),
+  });
+  let pluginCatalog: PluginCatalog;
+  let pluginDiscoveryFailure: string | undefined;
+  try {
+    pluginCatalog = await discoverBundledPluginCatalog(pluginResourceRoot);
+  } catch (error) {
+    pluginCatalog = bundledPluginCatalog;
+    pluginDiscoveryFailure = error instanceof Error ? error.message.split(':', 1)[0] : 'PLUGIN_DISCOVERY_UNAVAILABLE';
+    logger.log('plugin_manifest_discovery_failed_visible', { code: pluginDiscoveryFailure });
+  }
+  const pluginStateStore = new LocalPluginStateStore(
+    path.join(app.getPath('userData'), 'plugins', 'local-state.json'),
+    pluginCatalog,
+  );
+  const rendererLeaseBridge = new RendererLeaseBridge({
+    dispatch: (request) => {
+      const window = editorWindow;
+      if (!window || window.isDestroyed() || window.webContents.isDestroyed()) {
+        throw new Error('PLUGIN_RENDERER_DISPOSED');
+      }
+      if (!isAllowedRendererUrl(window.webContents.mainFrame.url)) {
+        throw new Error('PLUGIN_RENDERER_NAVIGATED');
+      }
+      window.webContents.send(IPC_CHANNELS.pluginRendererRequest, request);
+    },
+    diagnostic: (code) => logger.log('plugin_renderer_transport_failed', { code }),
+  });
+  let pluginRegistry!: PluginRegistry;
+  pluginRegistry = new PluginRegistry({
+    catalog: pluginCatalog,
+    initialDiscoveryFailure: pluginDiscoveryFailure,
+    stateStore: pluginStateStore,
+    rendererHost: rendererLeaseBridge,
+    serviceHost,
+    publish: () => {
+      const window = editorWindow;
+      if (!window || window.isDestroyed() || window.webContents.isDestroyed()) return;
+      if (!isAllowedRendererUrl(window.webContents.mainFrame.url)) return;
+      try {
+        window.webContents.send(IPC_CHANNELS.pluginSnapshots, {
+          version: PLUGIN_LIFECYCLE_VERSION,
+          snapshots: pluginRegistry.getSnapshots(),
+        });
+      } catch {
+        logger.log('plugin_snapshot_publish_failed', { code: 'PLUGIN_RENDERER_DISPOSED' });
+      }
+    },
+  });
+  try {
+    await pluginRegistry.hydrate();
+  } catch (error) {
+    logger.log('plugin_state_hydration_failed_visible', {
+      code: error instanceof Error ? error.message.split(':', 1)[0] : 'PLUGIN_FAILED',
+    });
+  }
+
+  const userData = app.getPath('userData');
+  // One store per open document, created on demand. Each owns its own accepted
+  // revision and recovery journal, which is what keeps tabs from sharing save
+  // state.
+  const createStore = () => new FileTruthStoreV1(userData, logger);
+
+  const recent = new RecentFiles(path.join(userData, 'recent-files.json'));
+  await recent.load();
+  const settings = new SettingsStore(path.join(userData, 'settings.json'));
+  await settings.load();
+  session = new WorkspaceSession(createStore, recent, () => editorWindow, logger);
+  app.once('before-quit', () => session?.closeAll());
+
+  const refreshMenu = () => installApplicationMenu(() => editorWindow, recent.list(), {
+    openDialog: () => { void session?.openWithDialog().then(refreshMenu).catch(reportOpenFailure); },
+    openPath: (filePath) => { void session?.openPath(filePath).then(refreshMenu).catch(reportOpenFailure); },
+    openFolder: () => { void session?.openFolderWithDialog().catch(reportOpenFailure); },
+    closeTab: () => {
+      const current = session?.currentPath;
+      if (current) session?.close(current);
+    },
+    clearRecent: () => {
+      void Promise.all(recent.list().map((file) => recent.forget(file.path))).then(refreshMenu);
+    },
+  });
+  const reportOpenFailure = (error: unknown) => logger.log('workspace_open_failed', {
+    code: error instanceof Error ? error.message.split(':', 1)[0] : 'OPEN_FAILED',
+  });
+  refreshMenu();
+
+  registerIpcHandlers({
+    getWindow: () => editorWindow,
+    logger,
+    rendererConsole,
+    pluginRegistry,
+    rendererLeaseBridge,
+    serviceHost,
+  });
+  registerFileTruthHandlers({
+    session,
+    getWindow: () => editorWindow,
+    logger,
+  });
+  registerSettingsHandlers({
+    settings,
+    getWindow: () => editorWindow,
+    logger,
+    onChanged: (reply) => logger.log('settings_changed', { theme: reply.settings.theme }),
+  });
+  registerWorkspaceHandlers({
+    session,
+    recent,
+    getWindow: () => editorWindow,
+    logger,
+    onRecentChanged: refreshMenu,
+  });
+
+  const preloadPath = path.join(__dirname, 'preload.js');
+  const window = createApplicationWindow(preloadPath);
+  const disposeRendererAuthority = () => {
+    const leases = rendererLeaseBridge.activeLeases();
+    rendererLeaseBridge.rendererDisposed();
+    for (const lease of leases) {
+      void pluginRegistry.rendererDisposed(lease.pluginId, lease.leaseId, lease.generation)
+        .catch((error) => logger.log('plugin_renderer_disposal_failed', {
+          code: error instanceof Error ? error.message.split(':', 1)[0] : 'PLUGIN_FAILED',
+        }));
+    }
+  };
+  window.webContents.on('did-start-navigation', (_event, _url, _inPlace, isMainFrame) => {
+    if (isMainFrame) disposeRendererAuthority();
+  });
+  window.webContents.once('destroyed', disposeRendererAuthority);
+
+  // A document named on the command line opens once the renderer can receive it.
+  if (pendingOpenPath) {
+    const target = pendingOpenPath;
+    pendingOpenPath = null;
+    window.webContents.once('did-finish-load', () => {
+      void session?.openPath(target).then(refreshMenu).catch(reportOpenFailure);
+    });
+  }
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      const restored = createApplicationWindow(preloadPath);
+      restored.webContents.once('did-finish-load', () => session?.republish());
+    }
+  });
+
+  let shutdownStarted = false;
+  app.on('before-quit', (event) => {
+    if (shutdownStarted) return;
+    shutdownStarted = true;
+    event.preventDefault();
+    void pluginRegistry.shutdown()
+      .catch((error) => logger.log('plugin_shutdown_failed', {
+        code: error instanceof Error ? error.message.split(':', 1)[0] : 'PLUGIN_FAILED',
+      }))
+      .then(() => experimentalRuntimeHost.shutdown().catch((error) => logger.log('experimental_runtime_shutdown_failed', {
+        code: error instanceof Error ? error.message.split(':', 1)[0] : 'EXPERIMENTAL_RUNTIME_FAILED',
+      })))
+      .then(() => serviceHost.stop().catch((error) => logger.log('service_stop_failed', {
+        code: error instanceof Error ? error.message.split(':', 1)[0] : 'SERVICE_FAILED',
+      })))
+      .finally(() => {
+        rendererLeaseBridge.rendererDisposed();
+        app.quit();
+      });
+  });
+}
+
+void run().catch((error) => {
+  logger.log('application_start_failed', {
+    code: error instanceof Error ? error.message.split(':', 1)[0] : 'BOOTSTRAP_FAILED',
+  });
+  app.exit(1);
+});
+
+app.on('window-all-closed', () => app.quit());

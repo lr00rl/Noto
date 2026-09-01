@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 2,
+  "id": "dev.lr00rl.noto.md-padding",
+  "name": "Markdown Padding",
+  "version": "1.0.0",
+  "runtime": "trusted-renderer",
+  "activation": {
+    "startup": false,
+    "events": [
+      "editor.ready"
+    ],
+    "hotkeys": [
+      "Mod+Shift+Space"
+    ]
+  },
+  "capabilities": [
+    "editor.read",
+    "editor.transform"
+  ],
+  "lifecycle": [
+    "activate",
+    "deactivate"
+  ],
+  "commands": [
+    {
+      "id": "md-padding.format",
+      "title": "Format: add CJK spacing"
+    }
+  ],
+  "settings": [],
+  "hotkeys": [
+    {
+      "command": "md-padding.format",
+      "keys": "Mod+Shift+Space"
+    }
+  ],
+  "editorExtensions": [],
+  "uiExtensions": []
+}

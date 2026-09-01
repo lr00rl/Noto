@@ -1,0 +1,148 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push supersedes an in-flight run on the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: ElectronApp
+
+jobs:
+  # Static checks and unit tests are platform independent, so they run once
+  # rather than three times.
+  check:
+    name: Typecheck and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.18.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.19.0
+          cache: pnpm
+          cache-dependency-path: ElectronApp/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm compat:node22
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  # The packaged suite is the only thing that proves the app actually runs, and
+  # it has to prove it on every platform Noto ships to.
+  e2e:
+    name: Packaged e2e (${{ matrix.os }})
+    needs: check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.18.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.19.0
+          cache: pnpm
+          cache-dependency-path: ElectronApp/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+
+      # Fetch Electron's binary explicitly.
+      #
+      # The copy of electron that pnpm 11 installs has no `scripts` field, so
+      # its `postinstall` never runs and `node_modules/electron/dist` is never
+      # fetched. `pnpm ignored-builds` reports none and `pnpm rebuild electron`
+      # does nothing, because from pnpm's side there is no build to run.
+      # Without the binary, packaging fails on `electron/dist/LICENSE` and every
+      # packaged test then fails to launch.
+      - name: Ensure the Electron binary
+        run: node node_modules/electron/install.js
+
+      # Electron needs a display server on Linux. xvfb-run supplies one.
+      - name: Package and test (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libnss3 libatk1.0-0 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2t64
+          pnpm package:e2e
+          xvfb-run --auto-servernum pnpm exec playwright test
+
+      - name: Package and test (macOS and Windows)
+        if: runner.os != 'Linux'
+        run: |
+          pnpm package:e2e
+          pnpm exec playwright test
+
+      - name: Upload failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-${{ matrix.os }}
+          path: ElectronApp/test-results
+          retention-days: 7
+
+  # Proves the release variant packages and that installers can actually be
+  # produced on each platform. Unsigned here: signing secrets belong to the
+  # release workflow, not to pull requests.
+  installers:
+    name: Installers (${{ matrix.os }})
+    needs: check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.18.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.19.0
+          cache: pnpm
+          cache-dependency-path: ElectronApp/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+
+      # Fetch Electron's binary explicitly.
+      #
+      # The copy of electron that pnpm 11 installs has no `scripts` field, so
+      # its `postinstall` never runs and `node_modules/electron/dist` is never
+      # fetched. `pnpm ignored-builds` reports none and `pnpm rebuild electron`
+      # does nothing, because from pnpm's side there is no build to run.
+      # Without the binary, packaging fails on `electron/dist/LICENSE` and every
+      # packaged test then fails to launch.
+      - name: Ensure the Electron binary
+        run: node node_modules/electron/install.js
+
+      - name: Install Linux packaging tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fakeroot dpkg rpm
+
+      - name: Build installers
+        env:
+          NTO_PACKAGE_VARIANT: release
+        run: pnpm make:release
+
+      - name: Verify release fuses
+        if: runner.os == 'macOS'
+        run: pnpm exec electron-fuses read --app out/release/Noto-darwin-${{ runner.arch == 'ARM64' && 'arm64' || 'x64' }}/Noto.app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.os }}
+          path: ElectronApp/out/make
+          retention-days: 7

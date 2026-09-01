@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 2,
+  "id": "dev.lr00rl.noto.filesystem-proof",
+  "name": "Fixture Reader",
+  "version": "1.0.0",
+  "runtime": "isolated-service",
+  "activation": {
+    "startup": false,
+    "events": ["document.opened"],
+    "hotkeys": []
+  },
+  "capabilities": ["filesystem.read"],
+  "lifecycle": ["start", "stop"],
+  "commands": [{ "id": "fixture-reader.read", "title": "Read granted fixture" }],
+  "settings": [],
+  "hotkeys": [],
+  "editorExtensions": [],
+  "uiExtensions": ["fixture-reader-status"]
+}

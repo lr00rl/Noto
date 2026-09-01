@@ -1,0 +1,1123 @@
+@use 'roob-tokens' as tokens;
+
+/*
+ * Styling for the node types the Milkdown CommonMark preset could not represent
+ * and which therefore used to render as frozen source islands: tables, task
+ * lists, math, frontmatter, footnotes and inline HTML.
+ *
+ * The organising idea is Typora's: the document reads as finished prose, and
+ * markup only becomes visible in the block holding the cursor. Markers are
+ * drawn with generated content so they never enter the saved file.
+ */
+
+/* Tables ------------------------------------------------------------------ */
+
+.ProseMirror table {
+  width: 100%;
+  margin: 0 0 1.05em;
+  border-collapse: collapse;
+  font-family: tokens.$ui;
+  font-size: 15px;
+  line-height: 1.5;
+  table-layout: fixed;
+  overflow: hidden;
+}
+
+.ProseMirror th,
+.ProseMirror td {
+  position: relative;
+  border: 1px solid var(--hairline);
+  padding: 7px 11px;
+  vertical-align: top;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.ProseMirror th {
+  background: var(--raised);
+  font-weight: 600;
+}
+
+/* prosemirror-tables column resize affordance. */
+.ProseMirror .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 4px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.ProseMirror.resize-cursor {
+  cursor: col-resize;
+}
+
+.ProseMirror .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  pointer-events: none;
+}
+
+/* Task lists -------------------------------------------------------------- */
+
+.ProseMirror li.noto-task-item {
+  list-style: none;
+  margin-left: -1.35em;
+  padding-left: 1.35em;
+  position: relative;
+}
+
+.ProseMirror li.noto-task-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.45em;
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid var(--muted);
+  border-radius: 3px;
+  background: transparent;
+}
+
+.ProseMirror li.noto-task-item[data-checked='true']::before {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.ProseMirror li.noto-task-item[data-checked='true']::after {
+  content: '';
+  position: absolute;
+  left: 3.5px;
+  top: 0.68em;
+  width: 6px;
+  height: 3px;
+  border-left: 1.5px solid var(--paper);
+  border-bottom: 1.5px solid var(--paper);
+  transform: rotate(-45deg);
+}
+
+.ProseMirror li.noto-task-item[data-checked='true'] {
+  color: var(--muted);
+}
+
+/* Math -------------------------------------------------------------------- */
+
+.ProseMirror .noto-math-block,
+.ProseMirror .noto-math-inline {
+  font-family: tokens.$mono;
+  color: var(--ink);
+}
+
+.ProseMirror .noto-math-block {
+  margin: 0 0 1.05em;
+  border-left: 2px solid var(--hairline);
+  background: var(--raised);
+  padding: 12px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+
+.ProseMirror .noto-math-inline {
+  border-radius: 3px;
+  background: var(--raised);
+  padding: 0 4px;
+  font-size: 0.92em;
+}
+
+/* Frontmatter and raw HTML ------------------------------------------------ */
+
+.ProseMirror .noto-frontmatter,
+.ProseMirror .noto-html-block {
+  margin: 0 0 1.05em;
+  border-left: 2px solid var(--hairline);
+  background: var(--raised);
+  padding: 12px 16px;
+  border-radius: 4px;
+  color: var(--muted);
+  font: 13px/1.55 tokens.$mono;
+  white-space: pre-wrap;
+}
+
+/*
+ * Frontmatter is metadata, not prose. It stays collapsed to a single quiet line
+ * until the cursor enters it, so a document does not open on a wall of YAML.
+ */
+.ProseMirror .noto-frontmatter {
+  max-height: 2.6em;
+  overflow: hidden;
+  transition: max-height 140ms ease;
+}
+
+.ProseMirror > .noto-active-block.noto-frontmatter {
+  max-height: 40em;
+  overflow: auto;
+}
+
+.ProseMirror .noto-inline-html {
+  border-radius: 3px;
+  background: var(--raised);
+  padding: 0 3px;
+  color: var(--muted);
+  font: 0.88em tokens.$mono;
+}
+
+/* Footnotes and link definitions ------------------------------------------ */
+
+.ProseMirror .noto-footnote-definition {
+  margin: 0 0 1.05em;
+  border-left: 2px solid var(--hairline);
+  padding-left: 14px;
+  color: var(--muted);
+  font-size: 0.94em;
+}
+
+.ProseMirror .noto-footnote-definition::before {
+  content: '[' attr(data-identifier) ']';
+  margin-right: 6px;
+  color: var(--accent);
+  font: 11px tokens.$mono;
+  vertical-align: super;
+}
+
+.ProseMirror .noto-footnote-reference {
+  color: var(--accent);
+  font: 0.72em tokens.$mono;
+  vertical-align: super;
+}
+
+.ProseMirror .noto-link-definition {
+  color: var(--muted);
+  font: 13px tokens.$mono;
+}
+
+/* Source mode ------------------------------------------------------------- */
+
+/*
+ * One block shown as raw markdown. Marked clearly enough that you know you are
+ * looking at source, quiet enough that a document with one block open does not
+ * feel broken.
+ */
+.ProseMirror .noto-source-block {
+  position: relative;
+  margin: 0 0 1.05em;
+  border-left: 2px solid var(--accent);
+  border-radius: 4px;
+  background: var(--raised);
+  padding: 12px 16px;
+  color: var(--ink);
+  font: 13px/1.6 tokens.$mono;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+}
+
+.ProseMirror .noto-source-block::after {
+  content: attr(data-original-kind) ' source';
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  color: var(--accent);
+  font: 10px tokens.$ui;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Typora style marker reveal ---------------------------------------------- */
+
+/*
+ * Inline markers appear only in the block holding the caret.
+ *
+ * Generated content, so the characters exist in the view and never in the file.
+ * The rest of the document stays clean prose, which is the whole point: you see
+ * the markup you are editing and nothing else.
+ */
+.ProseMirror > .noto-active-block {
+  em::before, em::after,
+  strong::before, strong::after,
+  del::before, del::after,
+  code::before, code::after {
+    color: var(--muted);
+    font-family: tokens.$mono;
+    font-size: 0.85em;
+    font-style: normal;
+    font-weight: 400;
+    opacity: 0.7;
+  }
+
+  em::before, em::after { content: '_'; }
+  strong::before, strong::after { content: '**'; }
+  del::before, del::after { content: '~~'; }
+  code::before, code::after { content: '`'; }
+}
+
+/*
+ * Headings carry their `#` in the gutter, visible only while the caret is in
+ * the block. Generated content, so the marker cannot leak into the file.
+ */
+@each $level, $marker in (1: '#', 2: '##', 3: '###', 4: '####', 5: '#####', 6: '######') {
+  .ProseMirror > h#{$level}::before {
+    content: '#{$marker}';
+  }
+}
+
+.ProseMirror > h1::before,
+.ProseMirror > h2::before,
+.ProseMirror > h3::before,
+.ProseMirror > h4::before,
+.ProseMirror > h5::before,
+.ProseMirror > h6::before {
+  /* In the margin beside the heading, not on top of it, and sharing the
+     heading's line box so it sits on the same line rather than floating above
+     it like a footnote mark. Muted, because it is a hint about the syntax and
+     not a thing to look at. */
+  position: absolute;
+  top: 0;
+  right: calc(100% + 8px);
+  color: var(--muted);
+  font-family: tokens.$mono;
+  font-size: 0.5em;
+  font-weight: 400;
+  line-height: inherit;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  pointer-events: none;
+  user-select: none;
+}
+
+.ProseMirror > h1,
+.ProseMirror > h2,
+.ProseMirror > h3,
+.ProseMirror > h4,
+.ProseMirror > h5,
+.ProseMirror > h6 {
+  position: relative;
+}
+
+/* Only while the editor actually has the caret.
+   ProseMirror selects the first block when a document opens, so without this
+   the first frame of a new file showed markdown syntax for a block nobody was
+   editing. Matches the condition the active block bar already used. */
+.noto-editor-host:focus-within .ProseMirror > .noto-active-block::before,
+.noto-editor-host[data-semantic-focus='true'] .ProseMirror > .noto-active-block::before {
+  opacity: 1;
+}
+
+/* Code blocks ------------------------------------------------------------- */
+
+.ProseMirror pre[data-lang]::after {
+  content: attr(data-lang);
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  color: var(--muted);
+  font: 10px tokens.$ui;
+  letter-spacing: 0.04em;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.ProseMirror > pre {
+  position: relative;
+}
+
+.ProseMirror > pre.noto-active-block::after {
+  opacity: 1;
+}
+
+/* Code tokens ------------------------------------------------------------- */
+
+/*
+ * Built from the document palette rather than an imported Prism theme, so code
+ * sits inside the page instead of looking pasted in, and so light and dark
+ * follow the same token swap as everything else.
+ *
+ * Restrained on purpose: comments recede, literals and keywords carry the
+ * colour, and structure stays quiet. A rainbow competes with the prose.
+ */
+.ProseMirror pre .token {
+  &.comment,
+  &.prolog,
+  &.doctype,
+  &.cdata {
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  &.punctuation,
+  &.operator,
+  &.entity {
+    color: var(--muted);
+  }
+
+  &.keyword,
+  &.rule,
+  &.important,
+  &.atrule {
+    color: var(--accent);
+  }
+
+  &.string,
+  &.char,
+  &.attr-value,
+  &.regex {
+    color: var(--success);
+  }
+
+  &.number,
+  &.boolean,
+  &.constant,
+  &.symbol {
+    color: var(--warning);
+  }
+
+  &.function,
+  &.class-name,
+  &.builtin {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  &.property,
+  &.tag,
+  &.attr-name,
+  &.selector {
+    color: var(--danger);
+  }
+
+  &.deleted {
+    color: var(--danger);
+  }
+
+  &.inserted {
+    color: var(--success);
+  }
+
+  &.bold { font-weight: 600; }
+  &.italic { font-style: italic; }
+}
+
+/* Horizontal rule --------------------------------------------------------- */
+
+.ProseMirror hr {
+  border: 0;
+  border-top: 1px solid var(--hairline);
+  margin: 1.8em 0;
+}
+
+.ProseMirror hr.ProseMirror-selectednode {
+  border-top-color: var(--accent);
+}
+
+/* Gap cursor -------------------------------------------------------------- */
+
+.ProseMirror-gapcursor::after {
+  border-top-color: var(--ink);
+}
+
+@media (max-width: 760px) {
+  .ProseMirror table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+/* Empty state ------------------------------------------------------------- */
+
+/*
+ * What the app shows before a document exists. It is the first thing a new user
+ * sees, so it stays quiet and offers the two things they can actually do: pick a
+ * file, or reopen a recent one.
+ */
+/* Sits where the first line of a document would, rather than adrift in the
+   middle of the window or pinned to the top of it. The measure matches the
+   text column so the eye is already in the right place when a file opens. */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  width: min(calc(100% - 48px), var(--measure));
+  margin: 22vh auto 0;
+  font-family: tokens.$ui;
+}
+
+.empty-state h1 {
+  margin: 0;
+  color: var(--ink);
+  font-family: tokens.$prose;
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.empty-state p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.empty-state .empty-error {
+  color: var(--danger);
+}
+
+/* The one thing this screen exists to get you to do, so it is the one filled
+   control on it. It was styled exactly like the toolbar buttons above it, which
+   made the call to action read as a tertiary control. */
+.empty-state button.primary {
+  margin-top: 6px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  padding: 8px 15px;
+  color: var(--paper);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.empty-state button.primary:hover {
+  background: color-mix(in srgb, var(--accent) 86%, black);
+  border-color: color-mix(in srgb, var(--accent) 86%, black);
+}
+
+.recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  margin-top: 18px;
+}
+
+/* Outline ----------------------------------------------------------------- */
+
+.workspace-layout {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.workspace-layout > .canvas-scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.outline-panel {
+  flex: 0 0 240px;
+  overflow-y: auto;
+  border-right: 1px solid var(--hairline);
+  background: var(--panel);
+  padding: 18px 10px;
+  font-family: tokens.$ui;
+}
+
+.outline-panel nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 8px;
+}
+
+.outline-entry {
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  padding: 4px 8px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outline-entry:hover {
+  background: var(--raised);
+  color: var(--ink);
+}
+
+/* Indentation carries the heading hierarchy without drawing extra chrome. */
+@for $level from 1 through 6 {
+  .outline-entry.depth-#{$level} {
+    padding-left: #{8 + ($level - 1) * 11}px;
+  }
+}
+
+.outline-entry.depth-1 { color: var(--ink); font-weight: 600; }
+
+.palette-empty {
+  margin: 0;
+  padding: 8px 4px;
+  color: var(--muted);
+  font: 13px tokens.$ui;
+}
+
+@media (max-width: 900px) {
+  .outline-panel { display: none; }
+
+  /* The panel cannot open at this width, so the control that opens it should
+     not be sitting there looking live. */
+  [data-testid='outline-toggle'] { display: none; }
+}
+
+/* Find and replace
+   ------------------------------------------------------------------------- */
+
+/* Floats over the document so the line being read does not move when the bar
+   opens. It was `sticky`, which stays in flow and pushed the whole document
+   down by its height; now it is taken out of flow against the workspace so
+   nothing reflows. Pinned to the top right, where it covers the least prose. */
+.find-bar {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  z-index: 20;
+  width: fit-content;
+  max-width: min(46rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--raised);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 12%);
+}
+
+.find-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.find-input {
+  flex: 1 1 14rem;
+  min-width: 8rem;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 0.86rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+
+  &:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: -1px;
+  }
+}
+
+/* Fixed width so the row does not shuffle as the count changes width. */
+.find-status {
+  flex: 0 0 auto;
+  min-width: 5.5rem;
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.find-toggles {
+  display: flex;
+  gap: 2px;
+}
+
+.find-toggle {
+  padding: 3px 6px;
+  font: inherit;
+  font-size: 0.74rem;
+  font-family: var(--mono, ui-monospace, monospace);
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+
+  &:hover { background: var(--panel); }
+
+  &.find-toggle-on {
+    color: var(--paper);
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+}
+
+.find-step,
+.find-close {
+  padding: 4px 9px;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--panel); }
+  &:disabled { opacity: 0.45; cursor: default; }
+}
+
+.find-close {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+/* Every match is tinted; the current one is inverted so it reads as selected
+   even where several matches sit on the same line. */
+.noto-match {
+  background: color-mix(in srgb, var(--warning) 28%, transparent);
+  border-radius: 2px;
+}
+
+.noto-match-active {
+  color: var(--paper);
+  background: var(--accent);
+}
+
+@media (max-width: 700px) {
+  .find-bar {
+    right: 8px;
+    left: 8px;
+    width: auto;
+  }
+
+  /* Wrap instead of overflowing. Every control stays reachable, on a second
+     line if it has to be, rather than being clipped by the one beside it. */
+  .find-row { flex-wrap: wrap; }
+  .find-input { flex: 1 1 100%; }
+  .find-status { min-width: 0; flex: 1 1 auto; }
+  .find-step,
+  .find-close { flex: 0 0 auto; }
+  /* The label wraps inside the button at this width, so shorten it. */
+  .find-row [data-testid='replace-all'] { font-size: 0.74rem; }
+}
+
+/* Tabs
+   ------------------------------------------------------------------------- */
+
+.tab-bar {
+  display: flex;
+  align-items: stretch;
+  min-height: 32px;
+  gap: 1px;
+  overflow-x: auto;
+  padding: 0 8px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--hairline);
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar { display: none; }
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  /* Tabs shrink as more open rather than scrolling immediately, but never below
+     a width where the name is unreadable. */
+  min-width: 6rem;
+  max-width: 15rem;
+  flex: 0 1 auto;
+  padding: 0 4px 0 10px;
+  background: transparent;
+  border-top: 2px solid transparent;
+
+  &:hover { background: var(--raised); }
+
+  &.tab-active {
+    background: var(--paper);
+    border-top-color: var(--accent);
+  }
+}
+
+.tab-label {
+  flex: 1 1 auto;
+  overflow: hidden;
+  padding: 7px 0;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  cursor: pointer;
+
+  .tab-active & { color: var(--ink); }
+}
+
+.tab-close {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:hover { background: var(--hairline); }
+}
+
+/* A dot for unsaved work, which becomes a cross on hover so one target does
+   both jobs without adding a second control to every tab. */
+.tab-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.tab-dot-dirty { background: var(--accent); }
+
+.tab-close:hover .tab-dot {
+  width: 9px;
+  height: 9px;
+  background:
+    linear-gradient(currentcolor, currentcolor) center / 100% 1.5px no-repeat,
+    linear-gradient(currentcolor, currentcolor) center / 1.5px 100% no-repeat;
+  border-radius: 0;
+  color: var(--ink);
+  rotate: 45deg;
+}
+
+/* Each open document keeps its editor mounted; only the active one shows. */
+.canvas-slot[hidden] { display: none; }
+
+/* Workspace file tree
+   ------------------------------------------------------------------------- */
+
+.workspace-layout > .workspace-sidebar {
+  /* Fixed width: a tree that resizes with the window makes filenames jump
+     between lines as you type in the document beside it. */
+  flex: 0 0 232px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 6px 10px 10px;
+}
+
+.tree-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  padding-right: 4px;
+}
+
+.tree-change {
+  font: inherit;
+  font-size: 0.7rem;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+
+  &:hover { color: var(--ink); text-decoration: underline; }
+}
+
+.tree-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 3px 6px;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--ink);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  background: none;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+
+  &:hover { background: var(--raised); }
+}
+
+.tree-directory { color: var(--muted); font-weight: 500; }
+
+/* A CSS triangle rather than an icon font, so it inherits colour and needs no
+   asset. */
+.tree-twisty {
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid currentcolor;
+  transition: rotate 120ms ease;
+}
+
+.tree-twisty-open { rotate: 90deg; }
+
+.tree-file-active {
+  color: var(--ink);
+  font-weight: 500;
+  /* A tint and a spine rather than a filled bar. The current file needs to be
+     findable, not to be the loudest thing on the screen. */
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+
+  &:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+}
+
+.tree-empty,
+.tree-loading,
+.tree-error {
+  margin: 0;
+  padding: 4px 6px;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.tree-error { color: var(--danger); }
+
+.tree-choose {
+  align-self: flex-start;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 0.76rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover { background: var(--raised); }
+}
+
+@media (max-width: 900px) {
+  /* The document wins the narrow window; the tree is reachable from the menu. */
+  .workspace-layout > .workspace-sidebar { display: none; }
+}
+
+/* Settings
+   ------------------------------------------------------------------------- */
+
+.settings-scrim {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 28%);
+}
+
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: min(28rem, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 20px 22px 22px;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  box-shadow: 0 18px 48px rgb(0 0 0 / 24%);
+}
+
+.settings-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+
+  h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+}
+
+.settings-close {
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--paper);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: none;
+
+  legend {
+    padding: 0 0 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+}
+
+/* A segmented control: the options are few and mutually exclusive, so showing
+   them all beats hiding them behind a dropdown. */
+.settings-choices {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--panel);
+  border-radius: 8px;
+}
+
+.settings-choice {
+  flex: 1 1 0;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover { color: var(--ink); }
+
+  &.is-on {
+    color: var(--ink);
+    background: var(--paper);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 10%);
+  }
+}
+
+/* The product's accent, not the platform's blue. The plugin centre keeps its
+   own rows neutral by design, so this is deliberately a separate selector
+   rather than a shared one. */
+.settings-switch input { accent-color: var(--accent); }
+
+.settings-switch {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 0.84rem;
+  cursor: pointer;
+
+  input { margin-top: 2px; }
+
+  small {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.74rem;
+    color: var(--muted);
+  }
+}
+
+.settings-note {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+/* Math
+   ------------------------------------------------------------------------- */
+
+/* A formula reads as typeset mathematics until the caret enters it, then shows
+   its LaTeX so it can be edited in place. Both halves are always in the DOM;
+   only which one is visible changes, so the source stays the document and the
+   saved bytes are never touched by presentation. */
+
+.ProseMirror .noto-math-block > .noto-math-source,
+.ProseMirror .noto-math-inline > .noto-math-source {
+  /* Not display:none: ProseMirror needs the content in the layout to place a
+     caret, so it is collapsed instead of removed. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* The caret is inside, so the source takes over and the typeset copy steps
+   aside. The class is applied by the math editing plugin from the selection. */
+.ProseMirror .noto-math-editing > .noto-math-source {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 0.88em;
+  color: var(--muted);
+}
+
+.ProseMirror .noto-math-editing > .noto-math-render {
+  display: none;
+}
+
+.ProseMirror .noto-math-block {
+  position: relative;
+  margin: 1.1em 0;
+  text-align: center;
+}
+
+.ProseMirror .noto-math-inline {
+  position: relative;
+}
+
+.noto-math-render {
+  cursor: text;
+}
+
+/* A formula being written is usually invalid for a moment, so the message is
+   quiet rather than alarming. */
+.noto-math-render[data-state='error'] {
+  display: inline-block;
+  padding: 2px 8px;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 0.78rem;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  border-radius: 5px;
+}
+
+.noto-math-render[data-state='empty'] {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* KaTeX ships its own colours; these keep it on the document's ink. */
+.ProseMirror .katex { color: var(--ink); }
+
+/* Long document layout
+   ------------------------------------------------------------------------- */
+
+/* Keep a block's layout to itself.
+   Typing changes one block, but without this the engine may reflow the whole
+   document, and on a file with thousands of blocks that reflow is most of what
+   a keystroke costs. Layout containment tells it the inside of a block cannot
+   affect anything outside, so the work stays proportional to the block.
+
+   Deliberately `layout` only. `content-visibility` also skips rendering
+   off-screen blocks, which is faster still, but it implies style containment
+   and that stops markdown input rules from firing. Measured, tried, reverted;
+   see docs/performance/measurements.md. */
+.ProseMirror > * {
+  contain: layout;
+}

@@ -8,3 +8,8 @@ WebEditor/coverage/
 .omx/logs/
 .omx/state/
 .omx/tmux-hook.json
+
+# Agent tooling state and worktrees, not project sources.
+.claude/
+.omc/
+.pnpm-store/

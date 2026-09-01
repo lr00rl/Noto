@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 2,
+  "id": "dev.lr00rl.noto.renderer-proof",
+  "name": "Semantic Focus",
+  "version": "1.0.0",
+  "runtime": "trusted-renderer",
+  "activation": {
+    "startup": true,
+    "events": ["editor.ready"],
+    "hotkeys": ["Mod+Shift+J"]
+  },
+  "capabilities": ["editor.decorate"],
+  "lifecycle": ["activate", "deactivate"],
+  "commands": [{ "id": "semantic-focus.toggle", "title": "Toggle semantic focus" }],
+  "settings": [{ "key": "focusEnabled", "type": "boolean", "default": true }],
+  "hotkeys": [{ "command": "semantic-focus.toggle", "keys": "Mod+Shift+J" }],
+  "editorExtensions": ["active-semantic-focus"],
+  "uiExtensions": ["semantic-focus-status"]
+}

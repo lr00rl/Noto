@@ -1,0 +1,15 @@
+import type { NotoDesktopApi } from '../shared/ipc/contracts';
+import type { NotoFileTruthApiV1 } from '../shared/file-truth/v1/contracts';
+import type { NotoWorkspaceApiV1 } from '../shared/workspace/v1/contracts';
+import type { NotoSettingsApiV1 } from '../shared/settings/v1/contracts';
+
+declare global {
+  interface Window {
+    notoDesktop: NotoDesktopApi;
+    notoFileTruth: NotoFileTruthApiV1;
+    notoWorkspace: NotoWorkspaceApiV1;
+    notoSettings: NotoSettingsApiV1;
+  }
+}
+
+export {};

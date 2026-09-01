@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 2,
+  "id": "dev.lr00rl.noto.title-shift",
+  "name": "Title Shift",
+  "version": "1.0.0",
+  "runtime": "trusted-renderer",
+  "activation": {
+    "startup": false,
+    "events": [
+      "editor.ready"
+    ],
+    "hotkeys": [
+      "Mod+Shift+ArrowUp",
+      "Mod+Shift+ArrowDown"
+    ]
+  },
+  "capabilities": [
+    "editor.read",
+    "editor.transform"
+  ],
+  "lifecycle": [
+    "activate",
+    "deactivate"
+  ],
+  "commands": [
+    {
+      "id": "title-shift.promote",
+      "title": "Headings: promote a level"
+    },
+    {
+      "id": "title-shift.demote",
+      "title": "Headings: demote a level"
+    }
+  ],
+  "settings": [],
+  "hotkeys": [
+    {
+      "command": "title-shift.promote",
+      "keys": "Mod+Shift+ArrowUp"
+    },
+    {
+      "command": "title-shift.demote",
+      "keys": "Mod+Shift+ArrowDown"
+    }
+  ],
+  "editorExtensions": [],
+  "uiExtensions": []
+}
