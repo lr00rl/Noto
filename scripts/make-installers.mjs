@@ -6,8 +6,8 @@
  * identically on all three CI runners.
  *
  * Forge decides which makers apply from the platform each was registered for,
- * so this produces DMG and zip on macOS, Squirrel on Windows, and deb and rpm
- * on Linux without any branching here.
+ * so this produces a zip on macOS, a Squirrel installer on Windows, and deb and
+ * rpm on Linux without any branching here.
  */
 
 import path from 'node:path';

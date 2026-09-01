@@ -246,17 +246,17 @@ it from the outside. What settled the question was getting a clock inside it.
 ## Earlier notes on the comparison
 
 Typora on macOS is a native WebKit application, not Electron, so it cannot be
-driven over the Chrome DevTools Protocol. `scripts/bench/open-time.swift`
-measures any app the same way from the outside, by sampling the CPU consumed by
-the launched process and every process that appeared with it, which covers both
+driven over the Chrome DevTools Protocol. The first attempt was an external
+harness that measured any app the same way, by sampling the CPU consumed by the
+launched process and every process that appeared with it, which covers both
 Electron helpers and the WebKit content process that macOS parents to launchd
 rather than to the app.
 
-That harness runs, but its Typora numbers cannot be trusted yet. Opening the
+That harness ran, but its Typora numbers could not be trusted. Opening the
 8 MiB document cost Typora 0.41 CPU-seconds against 0.31 for the 65 KiB one:
 34 percent more work for a 128 times larger file. Typora almost certainly did
-not parse and render that document, so the number does not measure what it would
-appear to measure.
+not parse and render that document, so the number did not measure what it would
+appear to measure. The harness is gone; what replaced it is below.
 
 Confirming what Typora actually put on screen needs a screenshot, and screen
 capture on this macOS version requires a permission that cannot be granted
