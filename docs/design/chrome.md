@@ -174,7 +174,16 @@ note" and belongs further from the hand. The menu opens upward, since it is
 anchored to the bottom of the window.
 
 Recent folders are the same store as recent documents, instantiated twice: a
-folder is a path with a name and a timestamp exactly as a document is. Before
+folder is a path with a name and a timestamp exactly as a document is.
+
+Reveal takes a kind, not a path. Main already knows which folder is open and
+which document is in front, so the renderer names `folder` or `document` and
+nothing else; a request carrying a path is refused outright. That keeps the one
+capability in the workspace API that reaches outside the app to "open the file
+manager at something this window is already showing you", which is small enough
+to reason about. The label follows the platform, because Finder, File Explorer
+and file manager are three names for the idea and only one of them is true on
+any given machine. Before
 this, moving between two vaults meant walking the file dialog to the same place
 every time.
 

@@ -25,11 +25,14 @@ export interface RailFooterProps {
   readonly onChooseFolder: () => void;
   readonly onOpenRecentFolder: (path: string) => void;
   readonly onRefresh: () => void;
+  readonly onReveal: () => void;
+  /** What the platform calls its file manager, so the label is not a lie. */
+  readonly fileManagerName: string;
 }
 
 export function RailFooter({
   folderName, folderPath, recentFolders, open,
-  onToggle, onClose, onChooseFolder, onOpenRecentFolder, onRefresh,
+  onToggle, onClose, onChooseFolder, onOpenRecentFolder, onRefresh, onReveal, fileManagerName,
 }: RailFooterProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -61,6 +64,10 @@ export function RailFooter({
           <button type="button" role="menuitem" className="rail-menu-item"
             data-testid="rail-choose-folder"
             onClick={() => { onClose(); onChooseFolder(); }}>Open folder…</button>
+          <button type="button" role="menuitem" className="rail-menu-item"
+            data-testid="rail-reveal-folder"
+            disabled={folderPath === null}
+            onClick={() => { onClose(); onReveal(); }}>Reveal in {fileManagerName}</button>
           <button type="button" role="menuitem" className="rail-menu-item"
             disabled={folderPath === null}
             onClick={() => { onClose(); onRefresh(); }}>Refresh folder</button>

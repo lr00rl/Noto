@@ -88,6 +88,10 @@ Wiki links render inline wherever they appear, and `Cmd+click` follows one.
 The links are decorations rather than a node type, so they cannot reach the
 saved bytes: `[[a note]]` is ordinary text in the file, exactly as you typed it.
 
+The rail's footer names the open folder and holds what acts on it: open
+another, reveal it in the file manager, refresh, and the folders you opened
+before. `Cmd+Shift+R` reveals the current note instead.
+
 `Cmd+/` toggles source mode for the block the caret is in, which is the escape
 hatch when you want to see or hand-edit the Markdown behind one paragraph, one
 table or one code fence without leaving the rest of the document rendered.

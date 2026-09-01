@@ -84,6 +84,11 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       // race against the tab list arriving there.
       { id: 'close-tab', label: 'Close Tab', accelerator: 'CmdOrCtrl+W', click: () => actions.closeTab() },
       recentSubmenu(recent, actions),
+      command(
+        mac ? 'Reveal in Finder' : platform === 'win32' ? 'Reveal in File Explorer' : 'Reveal in File Manager',
+        'CmdOrCtrl+Shift+R',
+        'reveal-document',
+      ),
       { type: 'separator' },
       command('Save', 'CmdOrCtrl+S', 'save'),
       command('Save a Copy…', 'CmdOrCtrl+Shift+S', 'save-as'),

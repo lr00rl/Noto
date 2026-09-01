@@ -145,3 +145,64 @@ test.describe('quick open', () => {
     }
   });
 });
+
+test.describe('reveal in the file manager', () => {
+  /**
+   * The real call opens Finder, which would leave windows all over the machine
+   * running a suite, so it is replaced in the app process and observed. What
+   * this proves is the part worth proving: which path main chose, from a
+   * request that named only a kind.
+   */
+  async function captureReveals(app: ElectronApplication): Promise<void> {
+    await app.evaluate(({ shell }) => {
+      const seen: string[] = [];
+      (globalThis as unknown as { revealed: string[] }).revealed = seen;
+      shell.showItemInFolder = (target: string) => { seen.push(target); };
+    });
+  }
+  const revealed = (app: ElectronApplication) =>
+    app.evaluate(() => (globalThis as unknown as { revealed: string[] }).revealed);
+
+  test('reveals the folder from the rail, and the document from the menu', async () => {
+    const { app, page, folder } = await launch('reveal');
+    try {
+      await captureReveals(app);
+
+      await page.getByTestId('rail-folder-menu').click();
+      await page.getByTestId('rail-reveal-folder').click();
+      await expect.poll(() => revealed(app)).toEqual([folder]);
+
+      await invokeMenu(app, 'reveal-document');
+      await expect.poll(() => revealed(app))
+        .toEqual([folder, path.join(folder, 'index.md')]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('does nothing rather than failing when there is no folder', async () => {
+    const workspace = path.join(resultRoot, 'reveal-none');
+    await rm(workspace, { recursive: true, force: true });
+    await mkdir(workspace, { recursive: true });
+    const app = await electron.launch({
+      executablePath: packagedExecutable(),
+      args: [`--user-data-dir=${path.join(workspace, 'user-data')}`],
+    });
+    try {
+      const page = await app.firstWindow();
+      await page.waitForSelector('[data-testid="noto-app"]');
+      await captureReveals(app);
+      const outcome = await page.evaluate(async () => {
+        const api = (window as unknown as {
+          notoWorkspace: { reveal(request: unknown): Promise<{ ok: boolean; value?: { revealed: boolean } }> };
+        }).notoWorkspace;
+        return api.reveal({ version: 1, requestId: 'reveal:none', target: 'document' });
+      });
+      expect(outcome.ok).toBe(true);
+      expect(outcome.value?.revealed).toBe(false);
+      expect(await revealed(app)).toEqual([]);
+    } finally {
+      await app.close();
+    }
+  });
+});

@@ -15,12 +15,14 @@ import {
   type WorkspaceTabRequestV1,
   type WorkspaceFolderRequestV1,
   type RecentFileV1,
+  type WorkspaceRevealRequestV1,
 } from '../../shared/workspace/v1/contracts';
 import {
   isWorkspaceOpenPathRequestV1,
   isWorkspaceRequestV1,
   isWorkspaceTabRequestV1,
   isWorkspaceFolderRequestV1,
+  isWorkspaceRevealRequestV1,
 } from '../../shared/workspace/v1/validate';
 import { isTrustedRendererSender } from '../ipc/trusted-renderer';
 import type { StructuredLogger } from '../logger';
@@ -79,6 +81,9 @@ export function registerWorkspaceHandlers(deps: {
 
   register(WORKSPACE_CHANNELS.openRecentFolder, isWorkspaceOpenPathRequestV1,
     (request: WorkspaceOpenPathRequestV1) => deps.session.openFolderPath(request.path));
+
+  register(WORKSPACE_CHANNELS.reveal, isWorkspaceRevealRequestV1,
+    (request: WorkspaceRevealRequestV1) => deps.session.reveal(request.target));
 
   register(WORKSPACE_CHANNELS.activateTab, isWorkspaceTabRequestV1,
     (request: WorkspaceTabRequestV1) => {

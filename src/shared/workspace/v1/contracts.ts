@@ -34,6 +34,7 @@ export const WORKSPACE_CHANNELS = {
   fileIndex: 'noto:v1:workspace:file-index',
   recentFolders: 'noto:v1:workspace:recent-folders',
   openRecentFolder: 'noto:v1:workspace:open-recent-folder',
+  reveal: 'noto:v1:workspace:reveal',
 } as const;
 
 /** One entry in the workspace tree. */
@@ -148,9 +149,31 @@ export const WORKSPACE_MENU_COMMANDS = [
   'widen',
   'narrow',
   'quick-open',
+  'reveal-document',
 ] as const;
 
 export type WorkspaceMenuCommandV1 = typeof WORKSPACE_MENU_COMMANDS[number];
+
+/**
+ * What to show in the system file manager.
+ *
+ * A kind rather than a path. Main already knows which folder is open and which
+ * document is in front, so the renderer never names a location and a compromised
+ * one cannot point this at somewhere it was not already looking. The whole
+ * capability is then "open the file manager at something this window is already
+ * showing you", which is small enough to reason about.
+ */
+export type WorkspaceRevealTargetV1 = 'folder' | 'document';
+
+export interface WorkspaceRevealRequestV1 extends WorkspaceRequestV1 {
+  readonly target: WorkspaceRevealTargetV1;
+}
+
+export interface WorkspaceRevealReplyV1 {
+  readonly version: typeof NOTO_WORKSPACE_VERSION;
+  /** False when there was nothing of that kind to show. */
+  readonly revealed: boolean;
+}
 
 /** One openable file, as the search index carries it. */
 export interface WorkspaceIndexEntryV1 {
@@ -203,4 +226,5 @@ export interface NotoWorkspaceApiV1 {
   fileIndex(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceIndexReplyV1>>;
   recentFolders(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceRecentReplyV1>>;
   openRecentFolder(request: WorkspaceOpenPathRequestV1): Promise<WorkspaceResultV1<WorkspaceFolderEventV1>>;
+  reveal(request: WorkspaceRevealRequestV1): Promise<WorkspaceResultV1<WorkspaceRevealReplyV1>>;
 }

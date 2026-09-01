@@ -80,6 +80,8 @@ import type {
   WorkspaceRequestV1,
   WorkspaceResultV1,
   WorkspaceIndexReplyV1,
+  WorkspaceRevealReplyV1,
+  WorkspaceRevealRequestV1,
   WorkspaceSaveAsReplyV1,
 } from '../shared/workspace/v1/contracts';
 import { WORKSPACE_CHANNELS } from '../shared/workspace/v1/contracts';
@@ -99,6 +101,8 @@ import {
   isWorkspaceRecentResultV1,
   isWorkspaceRequestV1,
   isWorkspaceIndexResultV1,
+  isWorkspaceRevealRequestV1,
+  isWorkspaceRevealResultV1,
   isWorkspaceSaveAsResultV1,
 } from '../shared/workspace/v1/validate';
 
@@ -300,6 +304,9 @@ const workspaceApi: NotoWorkspaceApiV1 = Object.freeze({
   openRecentFolder: (request: WorkspaceOpenPathRequestV1) => isWorkspaceOpenPathRequestV1(request)
     ? invokeWorkspace<WorkspaceFolderEventV1>(WORKSPACE_CHANNELS.openRecentFolder, request, request.requestId, isWorkspaceFolderResultV1)
     : Promise.resolve(rejectedWorkspace<WorkspaceFolderEventV1>('invalid', 'Invalid open recent folder request')),
+  reveal: (request: WorkspaceRevealRequestV1) => isWorkspaceRevealRequestV1(request)
+    ? invokeWorkspace<WorkspaceRevealReplyV1>(WORKSPACE_CHANNELS.reveal, request, request.requestId, isWorkspaceRevealResultV1)
+    : Promise.resolve(rejectedWorkspace<WorkspaceRevealReplyV1>('invalid', 'Invalid reveal request')),
   fileIndex: (request: WorkspaceRequestV1) => isWorkspaceRequestV1(request)
     ? invokeWorkspace<WorkspaceIndexReplyV1>(WORKSPACE_CHANNELS.fileIndex, request, request.requestId, isWorkspaceIndexResultV1)
     : Promise.resolve(rejectedWorkspace<WorkspaceIndexReplyV1>('invalid', 'Invalid file index request')),
