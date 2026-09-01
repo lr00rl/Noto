@@ -355,18 +355,22 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 
 /* Tabs
    -------------------------------------------------------------------------
-   The active tab takes the canvas surface so it reads as continuous with the
-   document below it. A tab the same colour as the page is already the one you
-   are in, which is why there is no accent underline. */
+   Text on the page, not a row of slabs above it. They were 32px filled
+   rectangles with a vertical rule between each pair and a fill swap marking the
+   active one, which is three separate ways of drawing a boundary for something
+   that is really just a list of names. The strip takes the canvas colour so it
+   reads as the top of the document, and the only difference between the tab you
+   are in and the others is that its name is set in ink. */
 
 .tab-bar {
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  gap: 2px;
   min-width: 0;
+  padding: 0 8px;
   overflow-x: auto;
   overflow-y: hidden;
-  border-bottom: 1px solid var(--hairline);
-  background: var(--panel);
+  background: var(--paper);
   scrollbar-width: none;
 }
 
@@ -375,28 +379,19 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 .tab {
   display: flex;
   align-items: center;
-  gap: 4px;
-  /* Tabs shrink as more open rather than scrolling immediately, but never below
-     a width where the name is unreadable. */
-  min-width: 6rem;
-  max-width: 15rem;
+  gap: 3px;
   flex: 0 1 auto;
-  height: 32px;
-  min-height: 32px;
+  min-width: 0;
+  max-width: 15rem;
+  height: 28px;
+  min-height: 28px;
   border: 0;
-  border-right: 1px solid var(--hairline);
-  border-radius: 0;
+  border-radius: 5px;
   background: transparent;
-  padding: 0 5px 0 11px;
+  padding: 0 3px 0 8px;
 }
 
 .tab:hover { background: var(--raised); }
-
-/* The tab you are in is the one the same colour as the page below it, so it
-   reads as continuous with the document rather than as a control above it.
-   There was an accent border along its top edge as well, which made the strip
-   the second loudest thing in the window. */
-.tab.tab-active { background: var(--paper); }
 
 .tab-label {
   flex: 1 1 auto;
@@ -405,25 +400,27 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   border: 0;
   border-radius: 0;
   background: none;
-  padding: 7px 0;
+  padding: 0;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 12px;
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition-property: color;
+  transition-duration: 120ms;
 }
 
-.tab-label:hover { background: none; }
-.tab-active .tab-label { color: var(--ink); }
+.tab-label:hover { background: none; color: var(--ink); }
+.tab-active .tab-label { color: var(--ink); font-weight: 600; }
 
 .tab-close {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: 18px;
-  min-width: 18px;
-  height: 18px;
-  min-height: 18px;
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  min-height: 16px;
   border: 0;
   border-radius: 4px;
   background: none;
@@ -435,8 +432,8 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 /* A dot for unsaved work, which becomes a cross on hover, so one target does
    both jobs without adding a second control to every tab. */
 .tab-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: transparent;
 }
@@ -444,8 +441,8 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 .tab-dot-dirty { background: var(--accent); }
 
 .tab-close:hover .tab-dot {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   background:
     linear-gradient(currentcolor, currentcolor) center / 100% 1.5px no-repeat,
     linear-gradient(currentcolor, currentcolor) center / 1.5px 100% no-repeat;

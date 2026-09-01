@@ -1,19 +1,125 @@
 /**
- * Marks the top level block that holds the selection.
+ * What reveals its markup, and when.
  *
- * This is the hook for Typora's signature behaviour: syntax markers are visible
- * only in the block you are editing, and the rest of the document stays clean
- * prose. Doing it with a decoration rather than by rewriting the document keeps
- * the markers out of the saved file entirely.
+ * Two scopes, because markdown has two kinds of syntax and they do not behave
+ * the same way.
+ *
+ * Block syntax belongs to the block: a heading's `#`, a fence's language, the
+ * frontmatter's fold. There is nothing smaller to reveal, so the block that
+ * holds the selection carries a class and the stylesheet does the rest.
+ *
+ * Inline syntax belongs to the span. This is the part that was wrong. The block
+ * class used to drive descendant rules, so putting the caret anywhere in a
+ * paragraph revealed the delimiters of every emphasis, every code span and
+ * every link in it at once: a list item mentioning eleven directory names
+ * turned into eleven pairs of visible backticks because the caret was
+ * somewhere in the sentence. Typora reveals the one span you are actually in
+ * and leaves the rest of the sentence set as prose, which is the whole
+ * difference between reading a document and reading its source.
+ *
+ * So the delimiters are widgets on the innermost mark range containing the
+ * caret, and nothing else in the paragraph changes. Widgets rather than
+ * generated content because a widget can be placed at an exact position rather
+ * than at the edge of an element, and because it is a decoration either way and
+ * so can never reach the saved file.
  */
 
 import { Plugin, PluginKey, type EditorState } from 'prosemirror-state';
+import type { Mark } from 'prosemirror-model';
 import { Decoration, DecorationSet } from 'prosemirror-view';
 
 export const activeNodeKey = new PluginKey<DecorationSet>('noto-active-node');
 
+/**
+ * The delimiters each mark is written with.
+ *
+ * These match `serializerOptions` in `markdown/v3/syntax.ts`, so what is
+ * revealed is what a save would write. Emphasis is `_` there, not `*`.
+ */
+export const DELIMITERS: Record<string, { open: string; close: (mark: Mark) => string }> = {
+  emphasis: { open: '_', close: () => '_' },
+  strong: { open: '**', close: () => '**' },
+  strikethrough: { open: '~~', close: () => '~~' },
+  inline_code: { open: '`', close: () => '`' },
+  // A link's closing delimiter carries its destination, which is the part a
+  // reader cannot otherwise see and the part they came to edit.
+  link: { open: '[', close: (mark) => `](${String(mark.attrs.href ?? '')})` },
+};
+
+export interface MarkRange {
+  readonly from: number;
+  readonly to: number;
+  readonly mark: Mark;
+}
+
+const markKey = (mark: Mark): string => `${mark.type.name}:${JSON.stringify(mark.attrs)}`;
+
+/**
+ * Every mark range in the caret's own text block that contains the caret.
+ *
+ * Scoped to one block on purpose: this runs on every selection change, and
+ * walking the document to find mark boundaries would put the length of the file
+ * into the cost of moving the caret.
+ */
+export function containingMarkRanges(state: EditorState, position: number): MarkRange[] {
+  const $position = state.doc.resolve(position);
+  const parent = $position.parent;
+  if (!parent.isTextblock) return [];
+
+  const ranges: MarkRange[] = [];
+  const open = new Map<string, { from: number; mark: Mark }>();
+  let offset = $position.start();
+
+  parent.forEach((child) => {
+    const childFrom = offset;
+    for (const [key, entry] of [...open]) {
+      if (!child.marks.some((mark) => markKey(mark) === key)) {
+        ranges.push({ from: entry.from, to: childFrom, mark: entry.mark });
+        open.delete(key);
+      }
+    }
+    for (const mark of child.marks) {
+      const key = markKey(mark);
+      if (!open.has(key)) open.set(key, { from: childFrom, mark });
+    }
+    offset = childFrom + child.nodeSize;
+  });
+
+  for (const entry of open.values()) ranges.push({ from: entry.from, to: offset, mark: entry.mark });
+  return ranges.filter((range) => position >= range.from && position <= range.to);
+}
+
+/**
+ * The delimiter itself, which is never part of the document.
+ *
+ * `contentEditable = 'false'` matters more than it looks. The widget lives
+ * inside the editable area, so without it the caret can be placed between the
+ * two backticks of a revealed code span and typed characters land in the
+ * decoration, where they are neither in the document nor recoverable: the text
+ * simply disappears on the next redraw. It is also hidden from assistive
+ * technology, because the delimiter is a drawing of syntax rather than content
+ * anyone needs read to them.
+ */
+function delimiter(text: string): HTMLElement {
+  const element = document.createElement('span');
+  element.className = 'noto-syntax';
+  element.textContent = text;
+  element.spellcheck = false;
+  element.contentEditable = 'false';
+  element.setAttribute('aria-hidden', 'true');
+  return element;
+}
+
+/** The smallest range, so emphasis inside strong reveals the emphasis alone. */
+export function innermostRange(ranges: readonly MarkRange[]): MarkRange | null {
+  return ranges.reduce<MarkRange | null>(
+    (best, range) => (best === null || range.to - range.from < best.to - best.from ? range : best),
+    null,
+  );
+}
+
 function activeDecorations(state: EditorState): DecorationSet {
-  const { from, to } = state.selection;
+  const { from, to, empty } = state.selection;
   const decorations: Decoration[] = [];
 
   // Only the blocks the selection actually touches are visited. Scanning every
@@ -26,6 +132,32 @@ function activeDecorations(state: EditorState): DecorationSet {
     }));
     return false;
   });
+
+  /*
+   * Only for a collapsed selection.
+   *
+   * With a range selected the reader is operating on the text rather than
+   * editing inside one span, and inserting delimiters into a highlighted run
+   * shifts the very thing they are looking at.
+   */
+  if (empty) {
+    const ranges = containingMarkRanges(state, from)
+      .filter((range) => DELIMITERS[range.mark.type.name] !== undefined);
+    // The innermost: the smallest range wins, so emphasis inside strong reveals
+    // the emphasis and leaves the strong alone.
+    const innermost = innermostRange(ranges);
+    if (innermost) {
+      const spec = DELIMITERS[innermost.mark.type.name];
+      decorations.push(
+        // `ignoreSelection` keeps the caret out of the widget entirely, so
+        // arrow keys step over a delimiter rather than into it.
+        Decoration.widget(innermost.from, () => delimiter(spec.open),
+          { side: -1, marks: [], ignoreSelection: true }),
+        Decoration.widget(innermost.to, () => delimiter(spec.close(innermost.mark)),
+          { side: 1, marks: [], ignoreSelection: true }),
+      );
+    }
+  }
 
   return DecorationSet.create(state.doc, decorations);
 }

@@ -120,6 +120,12 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       command('Toggle Outline', 'CmdOrCtrl+Shift+O', 'toggle-outline'),
       command('Toggle Source Mode', 'CmdOrCtrl+/', 'toggle-source'),
       { type: 'separator' },
+      // The writing width, stepped from the keyboard. The setting is a slider
+      // in preferences; these are the same value under the fingers, which is
+      // where you actually want it while a paragraph is refusing to sit right.
+      command('Wider', 'CmdOrCtrl+]', 'widen'),
+      command('Narrower', 'CmdOrCtrl+[', 'narrow'),
+      { type: 'separator' },
       { role: 'resetZoom' },
       { role: 'zoomIn' },
       { role: 'zoomOut' },

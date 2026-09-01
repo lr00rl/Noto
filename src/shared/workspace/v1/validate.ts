@@ -6,6 +6,7 @@
  * drift into disagreeing about what a valid message is.
  */
 
+import { WORKSPACE_MENU_COMMANDS } from './contracts';
 import type {
   RecentFileV1,
   WorkspaceDocumentEventV1,
@@ -29,9 +30,7 @@ import type {
 import { isFileTruthOpenReplyV1 } from '../../file-truth/v1/validate';
 
 const requestId = /^[A-Za-z0-9._:-]{1,96}$/;
-const menuCommands: readonly WorkspaceMenuCommandV1[] = [
-  'save', 'save-as', 'undo', 'redo', 'settings', 'find', 'find-replace', 'toggle-source', 'toggle-outline', 'command-palette', 'toggle-sidebar',
-];
+const menuCommands: readonly WorkspaceMenuCommandV1[] = WORKSPACE_MENU_COMMANDS;
 
 const record = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
