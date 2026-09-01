@@ -1,8 +1,9 @@
-import { basicSetup } from "codemirror";
+import { minimalSetup } from "codemirror";
 import { markdown } from "@codemirror/lang-markdown";
 import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { documentSizeLimit } from "./editor-limits";
+import { markdownProjection } from "./markdown-projection-extension";
 import { createNativePostMessage, EditorSession } from "./session";
 import "./editor.css";
 
@@ -16,8 +17,9 @@ if (host === null) {
 }
 
 const extensions = [
-  basicSetup,
+  minimalSetup,
   markdown(),
+  markdownProjection(),
   EditorView.cspNonce.of(CSP_NONCE),
   EditorView.lineWrapping,
   documentSizeLimit(() => session?.rejectOversizedChange()),

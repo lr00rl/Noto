@@ -169,6 +169,23 @@ final class DocumentSessionTests: XCTestCase {
     XCTAssertEqual(session.acceptedRevision, 0)
   }
 
+  func testDirtySessionIgnoresPresenterNotificationForAcceptedFingerprint() async throws {
+    let fixture = try TemporaryMarkdownFixture(data: Data("initial\n".utf8))
+    let accessor = RecordingScopeAccessor(allowsAccess: true)
+    let monitor = LockedValue<ExternalChangeMonitor?>(nil)
+    let session = makeSession(fixture: fixture, accessor: accessor, monitor: monitor)
+    try openForEditing(session)
+    try record("editor\n", revision: 1, in: session)
+
+    monitor.value?.presentedItemDidChange()
+    await Task.yield()
+
+    XCTAssertEqual(session.state, .editing)
+    XCTAssertTrue(session.isDirty)
+    XCTAssertEqual(session.editorRevision, 1)
+    XCTAssertEqual(session.acceptedRevision, 0)
+  }
+
   func testSuccessfulSaveAcceptsOnlyTheRequestedRevision() throws {
     let fixture = try TemporaryMarkdownFixture(data: Data("initial\n".utf8))
     let accessor = RecordingScopeAccessor(allowsAccess: true)

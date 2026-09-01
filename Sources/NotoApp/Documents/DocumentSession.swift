@@ -251,8 +251,11 @@ final class DocumentSession {
       state = .conflict
       authorityConflictHandler?()
       return
-    case .changed:
-      break
+    case .changed(let fingerprint):
+      if fingerprint == acceptedFingerprint {
+        acknowledgePresentedChanges()
+        return
+      }
     }
     if isDirty || state == .snapshotting || state == .committing {
       state = .conflict

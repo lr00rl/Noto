@@ -13,7 +13,21 @@ struct EditorJavaScriptResult: Equatable, Sendable {
   let response: EditorMessage?
 
   static func decode(_ value: Any?) throws -> Self {
-    guard let object = value as? [String: Any] else {
+    let object: [String: Any]
+    if let dictionary = value as? [String: Any] {
+      object = dictionary
+    } else if let json = value as? String {
+      let decoded: Any
+      do {
+        decoded = try JSONSerialization.jsonObject(with: Data(json.utf8))
+      } catch {
+        throw EditorBridgeError.invalidJavaScriptResult
+      }
+      guard let dictionary = decoded as? [String: Any] else {
+        throw EditorBridgeError.invalidJavaScriptResult
+      }
+      object = dictionary
+    } else {
       throw EditorBridgeError.invalidJavaScriptResult
     }
     let allowed = Set(["decision", "outcome", "response"])
@@ -60,7 +74,7 @@ final class WebKitEditorJavaScriptTransport: EditorJavaScriptTransport {
     var bridgeAvailable = false
     for _ in 0..<200 {
       let raw = try await webView.callAsyncJavaScript(
-        "return {decision: typeof globalThis.notoBridge?.bootstrap === 'function' ? 'bridgeReady' : 'bridgeWaiting'}",
+        "return JSON.stringify({decision: typeof globalThis.notoBridge?.bootstrap === 'function' ? 'bridgeReady' : 'bridgeWaiting'})",
         arguments: [:],
         in: nil,
         contentWorld: .page
@@ -73,7 +87,7 @@ final class WebKitEditorJavaScriptTransport: EditorJavaScriptTransport {
     }
     guard bridgeAvailable else { throw EditorBridgeError.transportUnavailable }
     let raw = try await webView.callAsyncJavaScript(
-      "return globalThis.notoBridge.bootstrap(command)",
+      "return JSON.stringify(globalThis.notoBridge.bootstrap(command))",
       arguments: [
         "command": [
           "command": "bootstrap",
@@ -90,7 +104,7 @@ final class WebKitEditorJavaScriptTransport: EditorJavaScriptTransport {
   func receive(_ message: EditorMessage) async throws -> EditorJavaScriptResult {
     guard let webView else { throw EditorBridgeError.transportUnavailable }
     let raw = try await webView.callAsyncJavaScript(
-      "return globalThis.notoBridge.receive(message)",
+      "return JSON.stringify(globalThis.notoBridge.receive(message))",
       arguments: ["message": message.foundationObject],
       in: nil,
       contentWorld: .page

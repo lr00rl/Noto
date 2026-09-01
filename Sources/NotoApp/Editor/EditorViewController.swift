@@ -10,6 +10,7 @@ final class EditorViewController: NSViewController, WKNavigationDelegate, WKUIDe
   private var webView: WKWebView?
   private var transport: WebKitEditorJavaScriptTransport?
   private var bridge: EditorBridge?
+  private var inboundMessageTask: Task<Void, Never>?
   private let authorityRetirementHandler: (@MainActor () -> Void)?
   private(set) var hasUnresolvedAuthority = false
 
@@ -80,12 +81,15 @@ final class EditorViewController: NSViewController, WKNavigationDelegate, WKUIDe
   func userContentController(
     _ userContentController: WKUserContentController, didReceive message: WKScriptMessage
   ) {
-    guard message.name == "notoBridge", let bridge else { return }
-    Task { @MainActor in
+    guard message.name == "notoBridge", bridge != nil else { return }
+    let predecessor = inboundMessageTask
+    inboundMessageTask = Task { @MainActor [weak self] in
+      await predecessor?.value
+      guard !Task.isCancelled, let self, let bridge = self.bridge else { return }
       do {
         try await bridge.receive(message.body)
       } catch {
-        if bridge.state == .desynchronized { retireAuthority() }
+        if bridge.state == .desynchronized { self.retireAuthority() }
       }
     }
   }
@@ -102,6 +106,8 @@ final class EditorViewController: NSViewController, WKNavigationDelegate, WKUIDe
 
   override func viewDidDisappear() {
     session?.setAuthorityConflictHandler(nil)
+    inboundMessageTask?.cancel()
+    inboundMessageTask = nil
     bridge?.invalidate()
     webView?.configuration.userContentController.removeScriptMessageHandler(forName: "notoBridge")
     super.viewDidDisappear()
@@ -110,6 +116,8 @@ final class EditorViewController: NSViewController, WKNavigationDelegate, WKUIDe
   func retireAuthority() {
     guard !hasUnresolvedAuthority else { return }
     hasUnresolvedAuthority = true
+    inboundMessageTask?.cancel()
+    inboundMessageTask = nil
     webView?.configuration.userContentController.removeScriptMessageHandler(forName: "notoBridge")
     webView?.stopLoading()
     webView?.navigationDelegate = nil

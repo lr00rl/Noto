@@ -79,6 +79,31 @@ test("CodeMirror state preserves Markdown and applies edits without DOM reconstr
   assert.equal(transaction.state.doc.toString(), `${markdown}\n`);
 });
 
+test("the production document contains one CodeMirror mount and no preview surface", async () => {
+  const [html, editor] = await Promise.all([read("src/index.html"), read("src/editor.ts")]);
+
+  assert.equal(html.match(/id="editor"/g)?.length, 1);
+  assert.doesNotMatch(html, /preview|rendered-pane|source-pane/i);
+  assert.equal(editor.match(/new EditorView\(/g)?.length, 1);
+  assert.doesNotMatch(editor, /innerHTML|outerHTML|DOMParser|serializeToString/);
+  assert.doesNotMatch(
+    editor,
+    /(?:window|globalThis|bridgeWindow)\s*(?:\.\w+|\[[^\]]+\])?\s*=\s*view\b/,
+  );
+});
+
+test("the production CodeMirror setup omits code-editor gutter and active-line chrome", async () => {
+  const editor = await read("src/editor.ts");
+
+  assert.match(editor, /import \{ minimalSetup \} from "codemirror"/);
+  assert.match(editor, /const extensions = \[\s*minimalSetup,/);
+  assert.doesNotMatch(editor, /\bbasicSetup\b/);
+  assert.doesNotMatch(
+    editor,
+    /\b(?:lineNumbers|foldGutter|highlightActiveLine|highlightActiveLineGutter)\s*\(/,
+  );
+});
+
 test("the WebEditor test command consumes the frozen shared protocol fixtures", async () => {
   const packageJson = JSON.parse(await read("package.json"));
   const sharedFixtures = join(root, "..", "Tests", "Fixtures", "BridgeProtocol", "v1");

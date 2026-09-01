@@ -1,20 +1,43 @@
 import AppKit
 import Foundation
+import WebKit
 import XCTest
 
 @testable import Noto
 
 @MainActor
 final class EditorBridgeTests: XCTestCase {
+  func testReleaseGateProductionSandboxCanLaunchWebKitAndEvaluateJavaScript() async throws {
+    // This intentionally isolates the WebKit process prerequisite from the editor protocol.
+    let controller = EditorViewController()
+    let window = makeEditorWindow(controller)
+    defer { window.close() }
+    let webView = try privateWebView(in: controller)
+    try await Task.sleep(for: .milliseconds(250))
+    let raw = try await webView.callAsyncJavaScript(
+      "return 1",
+      arguments: [:],
+      in: nil,
+      contentWorld: .page
+    )
+    XCTAssertEqual(raw as? NSNumber, 1)
+  }
+
   func testJavaScriptResultParsingIsStrict() throws {
     XCTAssertEqual(
       try EditorJavaScriptResult.decode(["decision": "acceptBootstrap"]),
       EditorJavaScriptResult(decision: "acceptBootstrap", outcome: nil, response: nil))
+    XCTAssertEqual(
+      try EditorJavaScriptResult.decode(
+        #"{"decision":"completed","outcome":"completed"}"#),
+      EditorJavaScriptResult(decision: "completed", outcome: .completed, response: nil))
     XCTAssertThrowsError(
       try EditorJavaScriptResult.decode(["decision": "acceptBootstrap", "extra": true]))
     XCTAssertThrowsError(
       try EditorJavaScriptResult.decode(["decision": "completed", "outcome": "unknown"]))
     XCTAssertThrowsError(try EditorJavaScriptResult.decode(["outcome": "completed"]))
+    XCTAssertThrowsError(try EditorJavaScriptResult.decode("{invalid"))
+    XCTAssertThrowsError(try EditorJavaScriptResult.decode(#"["acceptBootstrap"]"#))
   }
 
   func testWebKitTransportUsesDirectCallAsyncJavaScriptArgumentNames() throws {
@@ -25,8 +48,10 @@ final class EditorBridgeTests: XCTestCase {
       .appendingPathComponent("Sources/NotoApp/Editor/EditorBridge.swift")
     let source = try String(
       contentsOf: sourceURL, encoding: .utf8)
-    XCTAssertTrue(source.contains("globalThis.notoBridge.bootstrap(command)"))
-    XCTAssertTrue(source.contains("globalThis.notoBridge.receive(message)"))
+    XCTAssertTrue(
+      source.contains("JSON.stringify(globalThis.notoBridge.bootstrap(command))"))
+    XCTAssertTrue(
+      source.contains("JSON.stringify(globalThis.notoBridge.receive(message))"))
     XCTAssertFalse(source.contains("arguments.command"))
     XCTAssertFalse(source.contains("arguments.message"))
   }
@@ -67,6 +92,480 @@ final class EditorBridgeTests: XCTestCase {
 
     XCTAssertEqual(session.state, .editing)
     XCTAssertFalse(viewController.hasUnresolvedAuthority)
+  }
+
+  func testBundledWebEditorEditsSavesAndReopensRealMarkdownFile() async throws {
+    let initialData = Data("# Original\n\nOpened from disk.\n".utf8)
+    let editedData = Data("# Saved\n\nEdited through CodeMirror.\n".utf8)
+    let editedText = try XCTUnwrap(String(data: editedData, encoding: .utf8))
+    let fixture = try BridgeTemporaryFixture(data: initialData)
+
+    let firstSession = makeSession(fixture)
+    try firstSession.open()
+    let firstController = EditorViewController(session: firstSession)
+    let firstWindow = makeEditorWindow(firstController)
+    let firstWebView = try privateWebView(in: firstController)
+    defer {
+      firstWindow.close()
+      firstSession.close()
+    }
+
+    try await waitUntil(
+      "first editor open",
+      diagnostic: {
+        "session=\(firstSession.state), authority=\(firstController.hasUnresolvedAuthority)"
+      }
+    ) {
+      firstSession.state == .editing || firstController.hasUnresolvedAuthority
+    }
+    XCTAssertEqual(firstSession.state, .editing)
+    XCTAssertFalse(firstController.hasUnresolvedAuthority)
+
+    let editResult = try await firstWebView.callAsyncJavaScript(
+      #"""
+      const content = document.querySelector(".cm-content");
+      if (!(content instanceof HTMLElement)) return "missingContent";
+      content.focus();
+      if (content.getAttribute("contenteditable") !== "true") return "notEditable";
+      content.focus();
+      const selection = window.getSelection();
+      if (selection === null) return "missingSelection";
+      const range = document.createRange();
+      range.selectNodeContents(content);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return document.execCommand("insertText", false, replacement)
+        ? "editDispatched"
+        : "editRejected";
+      """#,
+      arguments: ["replacement": editedText],
+      in: nil,
+      contentWorld: .page
+    )
+    XCTAssertEqual(editResult as? String, "editDispatched")
+
+    try await waitUntil(
+      "revision 1 dirty state",
+      diagnostic: {
+        "session=\(firstSession.state), editorRevision=\(firstSession.editorRevision), "
+          + "acceptedRevision=\(firstSession.acceptedRevision), dirty=\(firstSession.isDirty)"
+      }
+    ) {
+      firstSession.editorRevision == 1 && firstSession.isDirty
+    }
+    XCTAssertEqual(firstSession.acceptedRevision, 0)
+
+    firstController.saveDocument()
+    for _ in 0..<200
+    where firstSession.state != .editing || firstSession.acceptedRevision != 1
+      || firstSession.isDirty
+    {
+      await mainQueueDelay()
+    }
+
+    XCTAssertEqual(firstSession.state, .editing)
+    XCTAssertEqual(firstSession.editorRevision, 1)
+    XCTAssertEqual(firstSession.acceptedRevision, 1)
+    XCTAssertFalse(firstSession.isDirty)
+    XCTAssertFalse(firstController.hasUnresolvedAuthority)
+    guard
+      firstSession.state == .editing, firstSession.acceptedRevision == 1,
+      !firstSession.isDirty, !firstController.hasUnresolvedAuthority
+    else { return }
+    XCTAssertEqual(try Data(contentsOf: fixture.fileURL), editedData)
+    let directoryContents = try FileManager.default.contentsOfDirectory(
+      at: fixture.directoryURL,
+      includingPropertiesForKeys: nil
+    )
+    XCTAssertEqual(Set(directoryContents.map(\.lastPathComponent)), ["fixture.md"])
+
+    firstWindow.close()
+    firstSession.close()
+    XCTAssertEqual(firstSession.state, .closed)
+
+    let secondSession = makeSession(fixture)
+    try secondSession.open()
+    let secondController = EditorViewController(session: secondSession)
+    let secondWindow = makeEditorWindow(secondController)
+    let secondWebView = try privateWebView(in: secondController)
+    defer {
+      secondWindow.close()
+      secondSession.close()
+    }
+
+    try await waitUntil(
+      "reopened editor",
+      diagnostic: {
+        "session=\(secondSession.state), authority=\(secondController.hasUnresolvedAuthority)"
+      }
+    ) {
+      secondSession.state == .editing || secondController.hasUnresolvedAuthority
+    }
+    XCTAssertEqual(secondSession.state, .editing)
+    XCTAssertFalse(secondController.hasUnresolvedAuthority)
+    XCTAssertEqual(Data(secondSession.text.utf8), editedData)
+    XCTAssertEqual(secondSession.editorRevision, 0)
+    XCTAssertEqual(secondSession.acceptedRevision, 0)
+    XCTAssertFalse(secondSession.isDirty)
+
+    let reopenedResult = try await secondWebView.callAsyncJavaScript(
+      #"""
+      const content = document.querySelector(".cm-content");
+      if (!(content instanceof HTMLElement)) return "missingContent";
+      const visibleText = Array.from(
+        content.querySelectorAll(".cm-line"),
+        (line) => line.textContent ?? ""
+      ).join("\n");
+      if (visibleText !== expected) return "contentMismatch";
+      if (content.getAttribute("contenteditable") !== "true") return "notEditable";
+      if (document.querySelector(".cm-editor") === null) return "missingEditor";
+      return "reopened";
+      """#,
+      arguments: ["expected": editedText],
+      in: nil,
+      contentWorld: .page
+    )
+    XCTAssertEqual(reopenedResult as? String, "reopened")
+  }
+
+  func testBundledWebEditorProjectsMarkdownWithoutSourceOrGeometryDriftAndSavesExactBytes()
+    async throws
+  {
+    let initialText = [
+      "# Noto 投影验证 #",
+      "## 二级标题",
+      "### 三级标题",
+      "#### 四级标题",
+      "##### 五级标题",
+      "###### 六级标题",
+      "",
+      "长篇中文与 English prose keeps one calm writing surface.",
+      "A soft line",
+      "continues here.",
+      "A hard break  ",
+      "continues exactly.",
+      "",
+      "Paragraph with *emphasis*, **strong**, `inline code`, and [a link](local.md).",
+      "",
+      "- bullet item",
+      "12) ordered item",
+      "",
+      "> quoted source",
+      "> continues here",
+      "",
+      "---",
+      "",
+      "```swift",
+      "let exact = true",
+      "```",
+      "",
+      "- [ ] deferred task stays source",
+      "",
+      "| deferred | table |",
+      "| --- | --- |",
+      "| source | visible |",
+      "",
+      "*malformed emphasis stays source",
+      "",
+      "中文长段落用于验证滚动位置与非活动兄弟块几何不会随标记显隐而漂移。",
+      "Second long paragraph keeps the document taller than the hosted viewport.",
+      "Third long paragraph keeps deterministic geometry around the active inline unit.",
+      "Fourth long paragraph keeps deterministic geometry around the active inline unit.",
+      "Fifth long paragraph keeps deterministic geometry around the active inline unit.",
+      "Sixth long paragraph keeps deterministic geometry around the active inline unit.",
+      "",
+      "尾段 before edit",
+    ].joined(separator: "\n")
+    let editedText = initialText.replacingOccurrences(of: "Paragraph with", with: "Paragraph edit")
+    let fixture = try BridgeTemporaryFixture(data: Data(initialText.utf8))
+
+    let firstSession = makeSession(fixture)
+    try firstSession.open()
+    let firstController = EditorViewController(session: firstSession)
+    let firstWindow = makeEditorWindow(firstController)
+    firstWindow.setContentSize(NSSize(width: 900, height: 520))
+    let firstWebView = try privateWebView(in: firstController)
+    defer {
+      firstWindow.close()
+      firstSession.close()
+    }
+
+    try await waitUntil(
+      "projected editor open",
+      diagnostic: {
+        "session=\(firstSession.state), authority=\(firstController.hasUnresolvedAuthority)"
+      }
+    ) {
+      firstSession.state == .editing || firstController.hasUnresolvedAuthority
+    }
+    XCTAssertEqual(firstSession.state, .editing)
+    XCTAssertFalse(firstController.hasUnresolvedAuthority)
+
+    try await waitUntil("projection decorations") {
+      let raw = try await firstWebView.callAsyncJavaScript(
+        #"""
+        return document.querySelectorAll("[data-noto-kind]").length;
+        """#,
+        arguments: [:], in: nil, contentWorld: .page)
+      return (raw as? NSNumber)?.intValue ?? 0 > 0
+    }
+
+    let initialProjection = try await projectionSnapshot(
+      in: firstWebView, scrollTarget: "emphasis", visibleText: "Paragraph with")
+    XCTAssertEqual(firstSession.text, initialText)
+    XCTAssertEqual(initialProjection["visibleTextPresent"] as? Bool, true)
+    XCTAssertEqual((initialProjection["editorCount"] as? NSNumber)?.intValue, 1)
+    XCTAssertEqual((initialProjection["contentCount"] as? NSNumber)?.intValue, 1)
+    XCTAssertEqual((initialProjection["previewCount"] as? NSNumber)?.intValue, 0)
+    let kinds = Set((initialProjection["kinds"] as? [String]) ?? [])
+    XCTAssertTrue(
+      Set([
+        "paragraph", "hardBreak", "heading", "emphasis", "strong", "inlineCode",
+        "link", "listItem", "blockQuote", "thematicBreak", "fencedCode",
+      ]).isSubset(of: kinds),
+      "Observed projection kinds: \(kinds.sorted())")
+    XCTAssertGreaterThan((initialProjection["concealedMarkers"] as? NSNumber)?.intValue ?? 0, 0)
+    XCTAssertEqual((initialProjection["visibleCodeChrome"] as? NSNumber)?.intValue, 0)
+    XCTAssertEqual((initialProjection["activeLineTint"] as? Bool), false)
+    XCTAssertEqual((initialProjection["concealedStyleFailures"] as? NSNumber)?.intValue, 0)
+    XCTAssertEqual((initialProjection["revealedStyleFailures"] as? NSNumber)?.intValue, 0)
+    XCTAssertGreaterThan((initialProjection["revealedMarkers"] as? NSNumber)?.intValue ?? 0, 0)
+    let concealedKinds = Set((initialProjection["concealedKinds"] as? [String]) ?? [])
+    XCTAssertTrue(
+      Set([
+        "emphasis", "strong", "inlineCode", "link", "listItem", "blockQuote",
+        "thematicBreak", "fencedCode",
+      ]).isSubset(of: concealedKinds),
+      "Observed concealed marker kinds: \(concealedKinds.sorted())")
+    XCTAssertEqual(initialProjection["blockquoteAffordance"] as? Bool, true)
+    XCTAssertEqual(initialProjection["bulletAffordance"] as? Bool, true)
+    XCTAssertEqual(initialProjection["thematicBreakAffordance"] as? Bool, true)
+    XCTAssertEqual(initialProjection["fallbackVisible"] as? Bool, true)
+    XCTAssertNotEqual((initialProjection["beforeTop"] as? NSNumber)?.doubleValue, -1)
+    XCTAssertNotEqual((initialProjection["afterTop"] as? NSNumber)?.doubleValue, -1)
+
+    let revealPreparation = try await firstWebView.callAsyncJavaScript(
+      #"""
+      const content = document.querySelector(".cm-content");
+      if (!(content instanceof HTMLElement)) return "missingContent";
+      content.focus();
+      const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        if (node.nodeValue !== needle) continue;
+        const range = document.createRange();
+        range.setStart(node, Math.min(1, node.nodeValue.length));
+        range.collapse(true);
+        const rect = range.getClientRects()[0];
+        const target = node.parentElement;
+        if (rect === undefined || target === null) return "missingTextGeometry";
+        const mouse = (type, buttons) => target.dispatchEvent(new MouseEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+          button: 0,
+          buttons,
+          detail: 1,
+          clientX: rect.left,
+          clientY: rect.top + rect.height / 2,
+        }));
+        mouse("mousedown", 1);
+        mouse("mouseup", 0);
+        return "revealPrepared";
+      }
+      return "missingText";
+      """#,
+      arguments: ["needle": "emphasis"], in: nil, contentWorld: .page)
+    XCTAssertEqual(revealPreparation as? String, "revealPrepared")
+    try await waitUntil("active emphasis marker reveal") {
+      let raw = try await firstWebView.callAsyncJavaScript(
+        #"""
+        return document.querySelectorAll(
+          '[data-noto-kind="emphasis"][data-noto-marker-state="revealed"]'
+        ).length;
+        """#,
+        arguments: [:], in: nil, contentWorld: .page)
+      return (raw as? NSNumber)?.intValue ?? 0 > 0
+    }
+
+    let revealedProjection = try await projectionSnapshot(
+      in: firstWebView, scrollTarget: nil, visibleText: "Paragraph with")
+    XCTAssertEqual(firstSession.text, initialText)
+    XCTAssertEqual((revealedProjection["concealedStyleFailures"] as? NSNumber)?.intValue, 0)
+    XCTAssertEqual((revealedProjection["revealedStyleFailures"] as? NSNumber)?.intValue, 0)
+    XCTAssertTrue(
+      Set((revealedProjection["revealedKinds"] as? [String]) ?? []).contains("emphasis"))
+    XCTAssertLessThanOrEqual(
+      abs(
+        try XCTUnwrap((revealedProjection["beforeDocumentTop"] as? NSNumber)?.doubleValue)
+          - XCTUnwrap((initialProjection["beforeDocumentTop"] as? NSNumber)?.doubleValue)),
+      1)
+    XCTAssertLessThanOrEqual(
+      abs(
+        try XCTUnwrap((revealedProjection["afterDocumentTop"] as? NSNumber)?.doubleValue)
+          - XCTUnwrap((initialProjection["afterDocumentTop"] as? NSNumber)?.doubleValue)),
+      1)
+    let initialMarkerWidths = try XCTUnwrap(
+      initialProjection["markerWidths"] as? [String: NSNumber])
+    let revealedMarkerWidths = try XCTUnwrap(
+      revealedProjection["markerWidths"] as? [String: NSNumber])
+    XCTAssertEqual(Set(initialMarkerWidths.keys), Set(revealedMarkerWidths.keys))
+    for (key, initialWidth) in initialMarkerWidths {
+      XCTAssertEqual(
+        initialWidth.doubleValue,
+        try XCTUnwrap(revealedMarkerWidths[key]).doubleValue,
+        accuracy: 0.25,
+        "marker geometry changed for \(key)")
+    }
+
+    let editPreparation = try await firstWebView.callAsyncJavaScript(
+      #"""
+      const content = document.querySelector(".cm-content");
+      const scroller = document.querySelector(".cm-scroller");
+      if (!(content instanceof HTMLElement) || !(scroller instanceof HTMLElement)) {
+        return "missingEditorSurface";
+      }
+      content.focus();
+      const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        if (!(node.nodeValue?.includes(needle) ?? false)) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const selection = window.getSelection();
+        if (selection === null) return "missingSelection";
+        selection.removeAllRanges();
+        selection.addRange(range);
+        return "editPrepared";
+      }
+      return "missingText";
+      """#,
+      arguments: ["needle": "Paragraph with"], in: nil, contentWorld: .page)
+    XCTAssertEqual(editPreparation as? String, "editPrepared")
+    for _ in 0..<8 { await mainQueueDelay() }
+
+    let beforeEditProjection = try await projectionSnapshot(
+      in: firstWebView, scrollTarget: nil, visibleText: "Paragraph with")
+    XCTAssertEqual(beforeEditProjection["visibleTextPresent"] as? Bool, true)
+    XCTAssertEqual(firstSession.editorRevision, 0)
+
+    let editResult = try await firstWebView.callAsyncJavaScript(
+      #"""
+      const content = document.querySelector(".cm-content");
+      if (!(content instanceof HTMLElement)) return "missingContent";
+      content.focus();
+      const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        const start = node.nodeValue?.indexOf(needle) ?? -1;
+        if (start < 0) continue;
+        const value = node.nodeValue ?? "";
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const selection = window.getSelection();
+        if (selection === null) return "missingSelection";
+        selection.removeAllRanges();
+        selection.addRange(range);
+        const next = value.slice(0, start) + replacement + value.slice(start + needle.length);
+        return document.execCommand("insertText", false, next)
+          ? "editDispatched"
+          : "editRejected";
+      }
+      return "missingText";
+      """#,
+      arguments: ["needle": "Paragraph with", "replacement": "Paragraph edit"],
+      in: nil, contentWorld: .page)
+    XCTAssertEqual(editResult as? String, "editDispatched")
+
+    try await waitUntil(
+      "projected edit revision",
+      diagnostic: {
+        "state=\(firstSession.state), revision=\(firstSession.editorRevision), "
+          + "dirty=\(firstSession.isDirty)"
+      }
+    ) {
+      firstSession.editorRevision == 1 && firstSession.isDirty
+    }
+
+    let afterEditProjection = try await projectionSnapshot(
+      in: firstWebView, scrollTarget: nil, visibleText: "Paragraph edit")
+    XCTAssertEqual(afterEditProjection["visibleTextPresent"] as? Bool, true)
+    XCTAssertEqual(afterEditProjection["fallbackVisible"] as? Bool, true)
+    XCTAssertLessThanOrEqual(
+      abs(
+        try XCTUnwrap((afterEditProjection["beforeTop"] as? NSNumber)?.doubleValue)
+          - XCTUnwrap((beforeEditProjection["beforeTop"] as? NSNumber)?.doubleValue)),
+      1)
+    XCTAssertLessThanOrEqual(
+      abs(
+        try XCTUnwrap((afterEditProjection["afterTop"] as? NSNumber)?.doubleValue)
+          - XCTUnwrap((beforeEditProjection["afterTop"] as? NSNumber)?.doubleValue)),
+      1)
+    XCTAssertLessThanOrEqual(
+      abs(
+        try XCTUnwrap((afterEditProjection["scrollTop"] as? NSNumber)?.doubleValue)
+          - XCTUnwrap((beforeEditProjection["scrollTop"] as? NSNumber)?.doubleValue)),
+      1)
+
+    firstController.saveDocument()
+    try await waitUntil(
+      "projected exact save",
+      diagnostic: {
+        "state=\(firstSession.state), revision=\(firstSession.editorRevision), "
+          + "accepted=\(firstSession.acceptedRevision), dirty=\(firstSession.isDirty)"
+      }
+    ) {
+      firstSession.state == .editing && firstSession.acceptedRevision == 1
+        && !firstSession.isDirty
+    }
+    XCTAssertEqual(firstSession.text, editedText)
+    XCTAssertEqual(try Data(contentsOf: fixture.fileURL), Data(editedText.utf8))
+
+    firstWindow.close()
+    firstSession.close()
+    XCTAssertEqual(firstSession.state, .closed)
+
+    let secondSession = makeSession(fixture)
+    try secondSession.open()
+    let secondController = EditorViewController(session: secondSession)
+    let secondWindow = makeEditorWindow(secondController)
+    let secondWebView = try privateWebView(in: secondController)
+    defer {
+      secondWindow.close()
+      secondSession.close()
+    }
+
+    try await waitUntil("projected reopen") {
+      secondSession.state == .editing || secondController.hasUnresolvedAuthority
+    }
+    XCTAssertEqual(secondSession.state, .editing)
+    XCTAssertEqual(secondSession.text, editedText)
+    let reopened = try await projectionSnapshot(
+      in: secondWebView, scrollTarget: "emphasis", visibleText: "Paragraph edit")
+    XCTAssertEqual(reopened["visibleTextPresent"] as? Bool, true)
+    XCTAssertEqual((reopened["editorCount"] as? NSNumber)?.intValue, 1)
+    XCTAssertEqual((reopened["contentCount"] as? NSNumber)?.intValue, 1)
+    XCTAssertEqual((reopened["previewCount"] as? NSNumber)?.intValue, 0)
+    XCTAssertGreaterThan((reopened["concealedMarkers"] as? NSNumber)?.intValue ?? 0, 0)
+
+    secondWindow.orderOut(nil)
+    secondWindow.setContentSize(NSSize(width: 900, height: 520))
+    secondController.view.layoutSubtreeIfNeeded()
+    for _ in 0..<4 { await mainQueueDelay() }
+    let desktopLayout = try await projectionSnapshot(
+      in: secondWebView, scrollTarget: nil, visibleText: "Paragraph edit")
+    assertEditorLayout(
+      desktopLayout, viewportWidth: 900, contentWidth: 46 * 16,
+      file: #filePath, line: #line)
+
+    secondWindow.setContentSize(NSSize(width: 720, height: 520))
+    secondController.view.layoutSubtreeIfNeeded()
+    for _ in 0..<4 { await mainQueueDelay() }
+    let compactLayout = try await projectionSnapshot(
+      in: secondWebView, scrollTarget: nil, visibleText: "Paragraph edit")
+    assertEditorLayout(
+      compactLayout, viewportWidth: 720, contentWidth: 42 * 16,
+      file: #filePath, line: #line)
   }
 
   func testRejectedBootstrapAndCachedOpenFailureAreFatal() async throws {
@@ -350,6 +849,276 @@ final class EditorBridgeTests: XCTestCase {
       scopeAccessor: BridgeScopeAccessor(),
       monitorFactory: { url, handler in ExternalChangeMonitor(url: url, changeHandler: handler) }
     )
+  }
+
+  private func makeEditorWindow(_ viewController: EditorViewController) -> NSWindow {
+    let window = NSWindow(contentViewController: viewController)
+    window.setContentSize(NSSize(width: 800, height: 600))
+    window.makeKeyAndOrderFront(nil)
+    return window
+  }
+
+  private func privateWebView(in viewController: EditorViewController) throws -> WKWebView {
+    guard
+      let storedWebView = Mirror(reflecting: viewController).children.first(where: {
+        $0.label == "webView"
+      }),
+      let webView = Mirror(reflecting: storedWebView.value).children.first?.value as? WKWebView
+    else {
+      throw BridgeWebEditorTestError.missingWebView
+    }
+    return webView
+  }
+
+  private func waitUntil(
+    _ description: String,
+    attempts: Int = 200,
+    diagnostic: () -> String = { "" },
+    condition: () async throws -> Bool
+  ) async throws {
+    for _ in 0..<attempts {
+      if try await condition() { return }
+      await mainQueueDelay()
+    }
+    let detail = diagnostic()
+    throw BridgeWebEditorTestError.timedOut(
+      detail.isEmpty ? description : "\(description): \(detail)")
+  }
+
+  private func projectionSnapshot(
+    in webView: WKWebView, scrollTarget: String?, visibleText: String
+  ) async throws -> [String: Any] {
+    let raw = try await webView.callAsyncJavaScript(
+      #"""
+      const content = document.querySelector(".cm-content");
+      const scroller = document.querySelector(".cm-scroller");
+      if (!(content instanceof HTMLElement) || !(scroller instanceof HTMLElement)) {
+        return JSON.stringify({ error: "missingEditorSurface" });
+      }
+      if (scrollTarget !== null) {
+        const target = document.querySelector(`[data-noto-kind="${scrollTarget}"]`);
+        if (target instanceof HTMLElement) target.scrollIntoView({ block: "center" });
+      }
+      const lines = Array.from(content.querySelectorAll(".cm-line"));
+      const markers = Array.from(content.querySelectorAll("[data-noto-marker-state]"));
+      const concealed = markers.filter(
+        (marker) => marker.getAttribute("data-noto-marker-state") === "concealed"
+      );
+      const revealed = markers.filter(
+        (marker) => marker.getAttribute("data-noto-marker-state") === "revealed"
+      );
+      const before = lines.find((line) => line.textContent?.includes("Noto 投影验证"));
+      const after = lines.find((line) => line.textContent?.includes("let exact = true"));
+      const codeChrome = Array.from(document.querySelectorAll(
+        ".cm-gutters, .cm-gutter, .cm-lineNumbers, .cm-foldGutter"
+      ));
+      const isVisibleChrome = (element) => {
+        if (!(element instanceof HTMLElement)) return false;
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden"
+          && rect.width > 0 && rect.height > 0;
+      };
+      const probe = document.createElement("span");
+      probe.style.color = "transparent";
+      probe.style.webkitTextFillColor = "transparent";
+      probe.style.textDecorationColor = "transparent";
+      document.body.appendChild(probe);
+      const transparentStyle = getComputedStyle(probe);
+      const transparentColor = transparentStyle.color;
+      const transparentFill = transparentStyle.webkitTextFillColor;
+      const transparentDecoration = transparentStyle.textDecorationColor;
+      probe.style.color = "var(--noto-muted-ink)";
+      probe.style.webkitTextFillColor = "var(--noto-muted-ink)";
+      const mutedStyle = getComputedStyle(probe);
+      const mutedColor = mutedStyle.color;
+      const mutedFill = mutedStyle.webkitTextFillColor;
+      probe.remove();
+      const styledTextNodes = (marker) => [
+        marker,
+        ...Array.from(marker.querySelectorAll("span")),
+      ].filter((element) => element.textContent?.length > 0);
+      const concealedStyleFailures = concealed.flatMap(styledTextNodes).filter((element) => {
+        const style = getComputedStyle(element);
+        return style.color !== transparentColor
+          || style.webkitTextFillColor !== transparentFill
+          || style.textDecorationColor !== transparentDecoration;
+      });
+      const revealedStyleFailures = revealed.flatMap(styledTextNodes).filter((element) => {
+        const style = getComputedStyle(element);
+        return style.color !== mutedColor || style.webkitTextFillColor !== mutedFill;
+      });
+      const markerWidths = {};
+      for (const marker of markers) {
+        const key = [
+          marker.getAttribute("data-noto-unit-id"),
+          marker.getAttribute("data-noto-marker"),
+          marker.textContent,
+        ].join("|");
+        markerWidths[key] = (markerWidths[key] ?? 0) + marker.getBoundingClientRect().width;
+      }
+      const activeLines = Array.from(document.querySelectorAll(".cm-activeLine"));
+      const activeLineTint = activeLines.some((line) => {
+        const color = getComputedStyle(line).backgroundColor;
+        return color !== transparentColor;
+      });
+      const blockquote = document.querySelector(".noto-line-block-quote");
+      const bullet = document.querySelector(
+        '[data-noto-marker="bullet-marker"][data-noto-marker-state="concealed"]'
+      );
+      const thematicBreak = document.querySelector(".noto-line-thematic-break");
+      const fallbackSource = [
+        "- [ ] deferred task stays source",
+        "| deferred | table |",
+        "*malformed emphasis stays source",
+      ];
+      const contentStyle = getComputedStyle(content);
+      const contentRect = content.getBoundingClientRect();
+      const scrollerRect = scroller.getBoundingClientRect();
+      const headingSizes = Object.fromEntries([1, 2, 3, 4, 5, 6].map((level) => {
+        const heading = content.querySelector(`.noto-line-heading-${level}`);
+        return [
+          String(level),
+          heading instanceof HTMLElement
+            ? Number.parseFloat(getComputedStyle(heading).fontSize)
+            : -1,
+        ];
+      }));
+      return JSON.stringify({
+        editorCount: document.querySelectorAll(".cm-editor").length,
+        contentCount: document.querySelectorAll('.cm-content[contenteditable="true"]').length,
+        previewCount: document.querySelectorAll(
+          ".preview, .markdown-preview, [data-preview], [data-noto-preview]"
+        ).length,
+        visibleTextPresent: lines.some((line) => line.textContent?.includes(visibleText)),
+        kinds: Array.from(
+          new Set(Array.from(content.querySelectorAll("[data-noto-kind]"), (element) =>
+            element.getAttribute("data-noto-kind")
+          ).filter(Boolean))
+        ),
+        concealedMarkers: markers.filter(
+          (marker) => marker.getAttribute("data-noto-marker-state") === "concealed"
+        ).length,
+        revealedMarkers: revealed.length,
+        concealedKinds: Array.from(new Set(concealed.map(
+          (marker) => marker.getAttribute("data-noto-kind")
+        ).filter(Boolean))),
+        revealedKinds: Array.from(new Set(revealed.map(
+          (marker) => marker.getAttribute("data-noto-kind")
+        ).filter(Boolean))),
+        concealedStyleFailures: concealedStyleFailures.length,
+        revealedStyleFailures: revealedStyleFailures.length,
+        markerWidths,
+        visibleCodeChrome: codeChrome.filter(isVisibleChrome).length,
+        activeLineTint,
+        blockquoteAffordance: blockquote instanceof HTMLElement
+          && Number.parseFloat(getComputedStyle(blockquote).borderInlineStartWidth) > 0,
+        bulletAffordance: bullet instanceof HTMLElement
+          && Number.parseFloat(getComputedStyle(bullet, "::after").width) > 0
+          && getComputedStyle(bullet, "::after").backgroundColor !== transparentColor,
+        thematicBreakAffordance: thematicBreak instanceof HTMLElement
+          && getComputedStyle(thematicBreak).backgroundImage !== "none",
+        fallbackVisible: fallbackSource.every((expected) => {
+          const line = lines.find((candidate) => candidate.textContent?.includes(expected));
+          return line instanceof HTMLElement
+            && line.textContent?.includes(expected) === true
+            && getComputedStyle(line).visibility !== "hidden"
+            && getComputedStyle(line).display !== "none";
+        }),
+        viewportWidth: window.innerWidth,
+        viewportClientWidth: document.documentElement.clientWidth,
+        scrollerClientWidth: scroller.clientWidth,
+        contentWidth: contentRect.width,
+        contentLeftMargin: contentRect.left - scrollerRect.left + scroller.scrollLeft,
+        contentRightMargin: scrollerRect.right - contentRect.right - scroller.scrollLeft,
+        contentPaddingLeft: Number.parseFloat(contentStyle.paddingLeft),
+        contentPaddingRight: Number.parseFloat(contentStyle.paddingRight),
+        horizontalOverflow: scroller.scrollWidth > scroller.clientWidth + 1
+          || document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        bodyFontSize: Number.parseFloat(contentStyle.fontSize),
+        bodyLineHeight: Number.parseFloat(contentStyle.lineHeight),
+        bodyFontFamily: contentStyle.fontFamily,
+        headingSizes,
+        beforeTop: before?.getBoundingClientRect().top ?? -1,
+        afterTop: after?.getBoundingClientRect().top ?? -1,
+        beforeDocumentTop: before instanceof HTMLElement
+          ? before.getBoundingClientRect().top + scroller.scrollTop
+          : -1,
+        afterDocumentTop: after instanceof HTMLElement
+          ? after.getBoundingClientRect().top + scroller.scrollTop
+          : -1,
+        scrollTop: scroller.scrollTop,
+      });
+      """#,
+      arguments: [
+        "scrollTarget": scrollTarget.map { $0 as Any } ?? NSNull(),
+        "visibleText": visibleText,
+      ],
+      in: nil, contentWorld: .page)
+    let text = try XCTUnwrap(raw as? String)
+    let value = try JSONSerialization.jsonObject(with: Data(text.utf8))
+    return try XCTUnwrap(value as? [String: Any])
+  }
+
+  private func assertEditorLayout(
+    _ snapshot: [String: Any], viewportWidth: Double, contentWidth: Double,
+    file: StaticString = #filePath, line: UInt = #line
+  ) {
+    XCTAssertEqual(
+      (snapshot["viewportWidth"] as? NSNumber)?.doubleValue ?? -1, viewportWidth,
+      accuracy: 1, file: file, line: line)
+    XCTAssertEqual(
+      (snapshot["viewportClientWidth"] as? NSNumber)?.doubleValue ?? -1, viewportWidth,
+      accuracy: 1, file: file, line: line)
+    XCTAssertEqual(
+      (snapshot["scrollerClientWidth"] as? NSNumber)?.doubleValue ?? -1, viewportWidth,
+      accuracy: 1, file: file, line: line)
+    XCTAssertEqual(
+      (snapshot["contentWidth"] as? NSNumber)?.doubleValue ?? -1, contentWidth,
+      accuracy: 1, file: file, line: line)
+    let leftMargin = (snapshot["contentLeftMargin"] as? NSNumber)?.doubleValue ?? -1
+    let rightMargin = (snapshot["contentRightMargin"] as? NSNumber)?.doubleValue ?? -1
+    XCTAssertGreaterThanOrEqual(leftMargin, 0, file: file, line: line)
+    XCTAssertEqual(leftMargin, rightMargin, accuracy: 1, file: file, line: line)
+    XCTAssertGreaterThanOrEqual(
+      (snapshot["contentPaddingLeft"] as? NSNumber)?.doubleValue ?? 0, 24,
+      file: file, line: line)
+    XCTAssertGreaterThanOrEqual(
+      (snapshot["contentPaddingRight"] as? NSNumber)?.doubleValue ?? 0, 24,
+      file: file, line: line)
+    XCTAssertEqual(snapshot["horizontalOverflow"] as? Bool, false, file: file, line: line)
+    XCTAssertEqual(
+      (snapshot["bodyFontSize"] as? NSNumber)?.doubleValue ?? -1, 18,
+      accuracy: 0.1, file: file, line: line)
+    XCTAssertEqual(
+      (snapshot["bodyLineHeight"] as? NSNumber)?.doubleValue ?? -1, 18 * 1.78,
+      accuracy: 0.25, file: file, line: line)
+    let fontFamily = snapshot["bodyFontFamily"] as? String ?? ""
+    XCTAssertTrue(fontFamily.hasPrefix("ui-serif"), fontFamily, file: file, line: line)
+    for family in ["Songti SC", "STSong", "Noto Serif CJK SC", "Georgia", "serif"] {
+      XCTAssertTrue(fontFamily.contains(family), fontFamily, file: file, line: line)
+    }
+    let headingSizes = snapshot["headingSizes"] as? [String: NSNumber]
+    for (level, expected) in ["1": 36, "2": 28, "3": 23, "4": 20, "5": 18, "6": 18] {
+      XCTAssertEqual(
+        headingSizes?[level]?.doubleValue ?? -1, Double(expected), accuracy: 0.1,
+        "heading level \(level)", file: file, line: line)
+    }
+  }
+
+}
+
+private enum BridgeWebEditorTestError: Error {
+  case missingWebView
+  case timedOut(String)
+}
+
+@MainActor
+private func mainQueueDelay() async {
+  await withCheckedContinuation { continuation in
+    DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(25)) {
+      continuation.resume()
+    }
   }
 }
 
