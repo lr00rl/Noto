@@ -49,12 +49,11 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
 
   if (!root) {
     return (
-      <aside className="workspace-sidebar" data-testid="file-tree" aria-label="Workspace">
-        <span className="aside-heading">Workspace</span>
-        <p className="tree-empty">No folder open.</p>
+      <div className="tree-root is-empty" data-testid="file-tree">
+        <p className="rail-empty">No folder open yet.</p>
         <button type="button" className="tree-choose" data-testid="choose-folder"
           onClick={onChooseFolder}>Open a folder…</button>
-      </aside>
+      </div>
     );
   }
 
@@ -118,14 +117,18 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
   };
 
   return (
-    <aside className="workspace-sidebar" data-testid="file-tree" aria-label="Workspace">
-      <div className="tree-header">
-        <span className="aside-heading" title={root}>{rootName ?? 'Workspace'}</span>
+    <div className="tree-root" data-testid="file-tree">
+      {/* The folder's name, and the only way to change it. It is a line of
+          context rather than a heading: the rail's tabs already say what this
+          region is, so repeating "Workspace" above them was a second title for
+          the same thing. */}
+      <div className="tree-root-row">
+        <span className="tree-root-name" title={root}>{rootName ?? 'Workspace'}</span>
         <button type="button" className="tree-change" data-testid="choose-folder"
           title="Open a different folder" onClick={onChooseFolder}>Change</button>
       </div>
       {failed && <p role="alert" className="tree-error">{failed}</p>}
       <nav className="tree-body">{renderLevel(root, 0)}</nav>
-    </aside>
+    </div>
   );
 }

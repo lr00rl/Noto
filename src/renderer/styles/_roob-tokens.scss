@@ -21,6 +21,10 @@
   --warning: #8A642D;
   --danger: #93443F;
   --focus: #34312E;
+  /* A scrim always pushes the page back, so it is not derived from --ink: in
+     the dark theme ink is nearly white and a wash of it lifts the background
+     instead of dimming it. */
+  --scrim: rgb(32 30 28 / 0.30);
 }
 
 :root[data-theme='dark'] {
@@ -39,6 +43,7 @@
   --warning: #D0A45F;
   --danger: #D88780;
   --focus: #F1EEE8;
+  --scrim: rgb(0 0 0 / 0.52);
 }
 
 $prose: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", serif;

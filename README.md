@@ -10,7 +10,7 @@ whatever whitespace it happened to have.
 It runs on macOS, Windows and Linux, and it is built with TypeScript, Electron,
 React and ProseMirror.
 
-![Noto editing a document, with the workspace tree and outline open](docs/images/noto-light.png)
+![Noto editing a document, with the file rail open](docs/images/noto-light.png)
 
 <details>
 <summary>The same window in the dark theme</summary>
@@ -59,11 +59,17 @@ build to run.
 ## Using it
 
 Open a file with `Cmd+O`, or open a folder with `Cmd+Alt+O` to get the
-workspace tree. Documents open in tabs. `Cmd+Shift+L` and `Cmd+Shift+O` toggle
-the tree and the outline, and the title bar carries the same two toggles.
-`Cmd+F` finds, `Cmd+Alt+F` finds and replaces, `Cmd+K` opens the command
-palette, and `Cmd+,` opens settings. On Windows and Linux, read Control for
-Command.
+workspace tree. Documents open in tabs. The rail on the left holds two views,
+the file tree and the document outline; the one control at the top left opens
+and closes it, and `Cmd+Shift+L` and `Cmd+Shift+O` open it directly on the view
+they name. `Cmd+F` finds, `Cmd+Alt+F` finds and replaces, `Cmd+K` opens the
+command palette, and `Cmd+,` opens preferences, which is also where plugins are
+turned on. On Windows and Linux, read Control for Command.
+
+The title bar carries the filename and nothing else that is not an action you
+can take right now: Save appears when there is something to save and is absent
+when there is not. What the chrome is for, and why it is this quiet, is written
+down in [`docs/design/chrome.md`](docs/design/chrome.md).
 
 `Cmd+/` toggles source mode for the block the caret is in, which is the escape
 hatch when you want to see or hand-edit the Markdown behind one paragraph, one

@@ -274,11 +274,13 @@ describe('plugin center interaction and production structure', () => {
       readFile(new URL('../../src/renderer/App.tsx', import.meta.url), 'utf8'),
       readFile(new URL('../../src/renderer/plugins/PluginCenter.tsx', import.meta.url), 'utf8'),
     ]);
-    expect(app).toContain('<PluginCenter api={window.notoDesktop} snapshots={pluginSnapshots} availability={pluginAvailability}');
+    expect(app).toContain('<PluginCenter api={window.notoDesktop} snapshots={pluginSnapshots}');
     expect(app).toContain('data-testid="plugin-toggle"');
     expect(center).not.toMatch(/setPluginSnapshots|reply\.value\.snapshots/);
-    expect(center).toContain("role={modal ? 'dialog' : undefined}");
-    expect(center).toContain('aria-modal={modal ? true : undefined}');
+    // Plugins are a preferences section now, so the dialog around them owns
+    // modality and the focus trap. A second trap inside it fought the first.
+    expect(center).not.toMatch(/role=\{modal|aria-modal=\{modal/);
+    expect(app).toContain('<Preferences');
     expect(center).toContain('aria-busy={pendingAction.renderer !== null}');
     expect(center).toContain('aria-busy={pendingAction.filesystem !== null}');
     expect(center).toContain("action === 'disable' || action === 'retry-cleanup'");
@@ -303,14 +305,11 @@ describe('plugin center interaction and production structure', () => {
     expect(center).toContain('Version {filesystemProofManifest.version}');
   });
 
-  it('keeps plugin chrome neutral across the three specified widths', async () => {
+  it('keeps plugin chrome neutral and reachable', async () => {
     const css = await readFile(new URL('../../src/renderer/styles/app.scss', import.meta.url), 'utf8');
-    const pluginChrome = css.slice(css.indexOf('.plugin-panel {'), css.indexOf('.operational-status'));
-    expect(css).toContain('@media (min-width: 1320px)');
-    expect(css).toContain('width: 352px;');
-    expect(css).toContain('width: min(344px, calc(100vw - 48px));');
-    expect(css).toContain('@media (max-width: 520px)');
-    expect(css).toContain('width: 100vw;');
+    const pluginChrome = css.slice(css.indexOf('.plugin-list {'), css.indexOf('.search-field'));
+    // The accent marks where you are and nothing else, so a list of plugins
+    // never reaches for it. Tone is carried by the warning and danger rails.
     expect(pluginChrome).not.toMatch(/var\(--accent\)|gradient|box-shadow|backdrop-filter/);
     expect(pluginChrome).toContain('border-color: var(--hairline);');
     expect(pluginChrome).toContain('background: transparent;');
@@ -318,6 +317,9 @@ describe('plugin center interaction and production structure', () => {
     expect(pluginChrome).toContain('.setting-row input { accent-color: var(--ink); }');
     expect(pluginChrome).toContain('border-left: 2px solid var(--warning);');
     expect(pluginChrome).toContain('border-left: 2px solid var(--danger);');
+    // The action sits at its natural width beside the plugin rather than as a
+    // full-width slab under a paragraph of it.
+    expect(pluginChrome).not.toMatch(/\.plugin-primary\s*\{[^}]*width:\s*100%/s);
     expect(css).toContain('min-height: 44px;');
     expect(css).toContain('min-height: 17px;');
     expect(css).not.toContain('.plugin-operation-message:empty');

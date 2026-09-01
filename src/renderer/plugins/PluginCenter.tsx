@@ -14,15 +14,28 @@ const trustedNames = new Map<string, string>([
   [titleShiftManifest.id, titleShiftManifest.name],
   [markdownPaddingManifest.id, markdownPaddingManifest.name],
 ]);
+
+/**
+ * What each plugin does, in the reader's terms.
+ *
+ * The lifecycle layer can only describe what a plugin is allowed to touch,
+ * which is the same sentence for every renderer plugin. Three rows reading
+ * "Editor decoration only. No filesystem access." told nobody what any of the
+ * three actually did. The capability still governs; it is just not the thing
+ * worth spending the one line of description on.
+ */
+const pluginDescriptions = new Map<string, string>([
+  [titleShiftManifest.id, 'Promote and demote every heading in the document by one level.'],
+  [markdownPaddingManifest.id, 'Insert the conventional spacing between CJK text and Latin text or numbers.'],
+  [rendererProofManifest.id, 'Dim every block except the one the caret is in.'],
+  [filesystemProofManifest.id, 'Read files from one folder you choose, and prove it is refused everywhere else.'],
+]);
 import {
   createPluginActionCompletionTracker,
   pluginSnapshotIdentity,
   presentFilesystemPlugin,
   pluginOperationFailure,
   presentRendererPlugin,
-  nextTrappedFocusIndex,
-  shouldClosePluginCenter,
-  watchPluginCenterModal,
   type FilesystemPrimaryAction,
   type PluginActionCompletionPolicy,
   type PluginActionSection,
@@ -48,7 +61,6 @@ interface PluginCenterProps {
   snapshots: readonly PluginLifecycleSnapshot[];
   availability: PluginSnapshotAvailability;
   open: boolean;
-  onClose: () => void;
   evidenceControls?: ReactNode;
 }
 
@@ -60,12 +72,9 @@ type OperationErrors = Record<PluginActionSection, string | null>;
 const emptyPending = (): PendingActions => ({ renderer: null, filesystem: null });
 const emptyErrors = (): OperationErrors => ({ renderer: null, filesystem: null });
 
-export function PluginCenter({ api, snapshots, availability, open, onClose, evidenceControls }: PluginCenterProps) {
+export function PluginCenter({ api, snapshots, availability, open, evidenceControls }: PluginCenterProps) {
   const [pendingAction, setPendingAction] = useState<PendingActions>(emptyPending);
   const [operationError, setOperationError] = useState<OperationErrors>(emptyErrors);
-  const [modal, setModal] = useState(false);
-  const panelRef = useRef<HTMLElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
   const snapshotsRef = useRef(snapshots);
   const completionTrackerRef = useRef<ReturnType<typeof createPluginActionCompletionTracker> | null>(null);
   if (!completionTrackerRef.current) {
@@ -97,49 +106,11 @@ export function PluginCenter({ api, snapshots, availability, open, onClose, evid
       presentation: presentRendererPlugin(snapshot, availability),
     }));
 
-  useEffect(() => watchPluginCenterModal(
-    (query) => window.matchMedia(query),
-    setModal,
-  ), []);
-
   useEffect(() => {
     completionTrackerRef.current?.observe(snapshots);
   }, [snapshots]);
 
   useEffect(() => () => completionTrackerRef.current?.dispose(), []);
-
-  useEffect(() => {
-    if (!open) return;
-    queueMicrotask(() => closeRef.current?.focus({ preventScroll: true }));
-  }, [open]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (shouldClosePluginCenter(event.key, open)) {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-      if (!modal || event.key !== 'Tab') return;
-      const panel = panelRef.current;
-      if (!panel) return;
-      const focusable = [...panel.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), input:not([disabled]), summary, [href], [tabindex]:not([tabindex="-1"])',
-      )].filter((element) => {
-        if (element.offsetParent === null) return false;
-        const closedDetails = element.closest('details:not([open])');
-        return closedDetails === null || element.tagName === 'SUMMARY';
-      });
-      if (focusable.length === 0) return;
-      const current = focusable.indexOf(document.activeElement as HTMLElement);
-      const next = nextTrappedFocusIndex(current, event.shiftKey, focusable.length);
-      if (next < 0) return;
-      event.preventDefault();
-      focusable[next]?.focus({ preventScroll: true });
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [modal, onClose, open]);
 
   const run = async <T,>(section: PluginActionSection, key: string,
     completion: { type: 'reply' } | { type: 'snapshot'; pluginId: string },
@@ -269,21 +240,16 @@ export function PluginCenter({ api, snapshots, availability, open, onClose, evid
     : null;
   const activeRequest = filesystem?.capability.request;
 
-  return (
-    <aside ref={panelRef} id="plugin-drawer" className={`plugin-panel ${open ? 'is-open' : ''}`}
-      role={modal ? 'dialog' : undefined} aria-modal={modal ? true : undefined}
-      aria-label="Plugins" aria-hidden={!open}>
-      <div className="plugin-panel-heading">
-        <div><h2>Plugins</h2><p>Extensions stay explicit and recoverable.</p></div>
-        <button ref={closeRef} type="button" className="drawer-close" onClick={onClose}>Close</button>
-      </div>
+  if (!open) return null;
 
+  return (
+    <div className="plugin-list" id="plugin-drawer">
       {trustedPlugins.map(({ snapshot, presentation }) => (
         <section key={snapshot.id} className={`plugin-section plugin-tone-${presentation.tone}`}
           data-testid={`plugin-${snapshot.id}`} aria-busy={pendingAction.renderer !== null}>
           <div className="plugin-name-row"><strong>{snapshot.name}</strong></div>
           <p className="plugin-status" aria-live="polite">{presentation.status}</p>
-          <p className="plugin-scope">{presentation.scope}</p>
+          <p className="plugin-scope">{pluginDescriptions.get(snapshot.id) ?? presentation.scope}</p>
           <button type="button" className="plugin-primary"
             disabled={presentation.actionDisabled || pendingAction.renderer !== null}
             onClick={() => presentation.primaryAction
@@ -300,10 +266,9 @@ export function PluginCenter({ api, snapshots, availability, open, onClose, evid
           prove a denied path. Saying so here keeps a reader from wondering what
           a "Fixture Reader" is doing in their editor. */}
       <div className="plugin-group-heading">
-        <span className="aside-heading">Examples</span>
-        <p>Two working plugins, one per runtime kind, kept in the build so the
-          plugin API has something to read and the capability broker has
-          something to test.</p>
+        <span className="pref-group-label">Examples</span>
+        <p>Two small plugins that ship with Noto, one of each kind, so there is a
+          working example to read before writing your own.</p>
       </div>
 
       <section className={`plugin-section plugin-tone-${rendererPresentation.tone}`}
@@ -312,7 +277,7 @@ export function PluginCenter({ api, snapshots, availability, open, onClose, evid
         <p className="plugin-status" aria-live="polite" data-testid="renderer-plugin-lifecycle">
           {rendererPresentation.status}
         </p>
-        <p className="plugin-scope">{rendererPresentation.scope}</p>
+        <p className="plugin-scope">{pluginDescriptions.get(rendererProofManifest.id) ?? rendererPresentation.scope}</p>
         <button type="button" className="plugin-primary"
           disabled={rendererPresentation.actionDisabled || pendingAction.renderer !== null}
           onClick={() => rendererPresentation.primaryAction
@@ -363,7 +328,7 @@ export function PluginCenter({ api, snapshots, availability, open, onClose, evid
         <p className="plugin-status" aria-live="polite" data-testid="filesystem-plugin-lifecycle">
           {filesystemPresentation.status}
         </p>
-        <p className="plugin-scope">{filesystemPresentation.scope}</p>
+        <p className="plugin-scope">{pluginDescriptions.get(filesystemProofManifest.id) ?? filesystemPresentation.scope}</p>
         <button type="button" className="plugin-primary"
           disabled={filesystemPresentation.actionDisabled || pendingAction.filesystem !== null}
           onClick={() => filesystemPresentation.primaryAction
@@ -417,6 +382,6 @@ export function PluginCenter({ api, snapshots, availability, open, onClose, evid
       </section>
 
       {evidenceControls && <details className="plugin-evidence"><summary>G001 evidence controls</summary>{evidenceControls}</details>}
-    </aside>
+    </div>
   );
 }

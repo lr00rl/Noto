@@ -102,7 +102,7 @@ export function presentFilesystemPlugin(
   snapshot: PluginLifecycleSnapshot | undefined,
   availability: PluginSnapshotAvailability = 'ready',
 ): PluginPresentation<FilesystemPrimaryAction> {
-  const noAccess = 'Filesystem read. No folder access.';
+  const noAccess = 'Reads files from one folder you pick. No access until you pick it.';
   const unavailable = unavailablePresentation<FilesystemPrimaryAction>(availability, noAccess);
   if (unavailable) return unavailable;
   if (!snapshot) {

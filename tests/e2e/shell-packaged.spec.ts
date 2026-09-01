@@ -179,8 +179,11 @@ test.describe('Noto product shell', () => {
 
     const { app, page, issues } = await launch(workspace, file);
     try {
-      // The panel is hidden below 900px by design, so pin a width that shows it.
+      // The rail is hidden below 900px by design, so pin a width that shows it.
       await page.setViewportSize({ width: 1280, height: 860 });
+      // Outline is a view inside the rail now, so the rail has to be showing
+      // before its tab can be picked. The menu item opens both at once.
+      await page.getByTestId('sidebar-toggle').click();
       await page.getByTestId('outline-toggle').click();
       const outline = page.getByTestId('outline-panel');
       await expect(outline).toBeVisible();

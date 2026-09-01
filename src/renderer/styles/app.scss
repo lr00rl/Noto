@@ -1,3 +1,12 @@
+/*
+ * The chrome: everything around the document.
+ *
+ * The document itself is `noto-editor.scss`. The rules for what goes here and
+ * why are in `docs/design/chrome.md`; the short version is that this is a tool
+ * someone is inside for hours a day, so the chrome recedes and the accent marks
+ * exactly one thing: where you are.
+ */
+
 @use 'roob-tokens' as tokens;
 
 * { box-sizing: border-box; }
@@ -18,6 +27,7 @@ body {
   background: var(--paper);
   font-family: tokens.$ui;
   font-size: 14px;
+  -webkit-font-smoothing: antialiased;
 }
 
 button,
@@ -28,36 +38,22 @@ input {
 }
 
 button {
-  min-height: 30px;
+  min-height: 28px;
   border: 1px solid var(--hairline);
-  border-radius: 4px;
+  border-radius: 5px;
   background: var(--paper);
-  padding: 5px 10px;
+  padding: 4px 10px;
   text-align: left;
   cursor: default;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  transition-property: background-color, border-color, color;
+  transition-duration: 90ms;
 }
 
 button:hover:not(:disabled) { background: var(--raised); }
 button:active:not(:disabled) { background: var(--hairline); }
 button:disabled { color: var(--muted); opacity: 0.7; }
-
-/* A toggle that is on has to look different from one that is off. Every toggle
-   in the app declared its state to assistive technology and to nothing else,
-   so the panel toggles, the drawer trigger and the three find options all
-   looked identical whether they were engaged or not. */
-button[aria-pressed='true'],
-button[aria-expanded='true'] {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--ink);
-}
-
-button[aria-pressed='true']:hover:not(:disabled),
-button[aria-expanded='true']:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-}
 
 :focus-visible {
   outline: 2px solid var(--focus);
@@ -71,7 +67,7 @@ button[aria-expanded='true']:hover:not(:disabled) {
   left: 8px;
   transform: translateY(-160%);
   border: 2px solid var(--focus);
-  border-radius: 4px;
+  border-radius: 5px;
   background: var(--paper);
   padding: 6px 10px;
   color: var(--ink);
@@ -82,9 +78,9 @@ button[aria-expanded='true']:hover:not(:disabled) {
 .app-shell {
   position: relative;
   display: grid;
-  /* Title bar, tab bar, document, alert, status bar. The tab bar and the
-     alert are conditional and their tracks collapse when they are absent. */
-  grid-template-rows: 46px auto minmax(0, 1fr) auto auto;
+  /* Title bar, tab bar, document, alert, status bar. The tab bar and the alert
+     are conditional and their tracks collapse when they are absent. */
+  grid-template-rows: 38px auto minmax(0, 1fr) auto auto;
   width: 100%;
   max-width: 100%;
   height: 100%;
@@ -93,16 +89,32 @@ button[aria-expanded='true']:hover:not(:disabled) {
   background: var(--paper);
 }
 
+/* Place every region explicitly.
+   The tab bar and the alert are both conditional, so with automatic placement
+   the row a region landed in depended on how many of its siblings happened to
+   be rendered. Naming the rows makes the layout independent of what is on
+   screen. */
+.app-shell > .titlebar { grid-row: 1; }
+.app-shell > .tab-bar { grid-row: 2; }
+.app-shell > .workspace-layout { grid-row: 3; }
+.app-shell > .file-truth-alert { grid-row: 4; }
+.app-shell > .operational-status { grid-row: 5; }
+
+/* Title bar
+   -------------------------------------------------------------------------
+   Identity, not actions. It draws no rule of its own: the tab bar or the rail
+   below it carries the only line, so a document window has one horizontal rule
+   at the top instead of two stacked ones. */
+
 .titlebar {
   -webkit-app-region: drag;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  position: relative;
+  display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
   max-width: 100%;
-  padding: 0 10px;
-  border-bottom: 1px solid var(--hairline);
+  padding: 0 8px;
   background: var(--panel);
 }
 
@@ -114,107 +126,108 @@ button[aria-expanded='true']:hover:not(:disabled) {
 .titlebar button,
 .titlebar input { -webkit-app-region: no-drag; }
 
-.document-identity {
+.title-left,
+.title-actions {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.title-actions { margin-left: auto; }
+
+/* The filename sits in the optical centre of the window, which is where a
+   window title belongs, rather than being pushed around by however many icons
+   happen to be on either side of it. */
+.document-identity {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(52%, 460px);
   min-width: 0;
-  overflow: hidden;
+  pointer-events: none;
 }
 
 .document-identity strong {
   display: block;
-  flex: 0 1 auto;
   min-width: 0;
-  max-width: 100%;
   overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Small enough to be read as punctuation on the name rather than as a control,
-   which is what it is: a statement, not something to click. */
+/* Read as punctuation on the name rather than as a control, because that is
+   what it is: a statement, not something to click. */
 .document-identity .unsaved-dot {
   flex: 0 0 auto;
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--accent);
-  align-self: center;
 }
 
-.status-path,
-.scope {
-  color: var(--muted);
-  font-family: tokens.$mono;
-  font-size: 12px;
-}
-
-/* Present for assistive technology and for tests, taking no space on screen. */
-.file-state.is-resting {
+/* Announced, never drawn. The dot carries this for sighted readers and the
+   alert carries the exceptional states. */
+.file-state {
   position: absolute;
   width: 1px;
   height: 1px;
+  margin: -1px;
+  padding: 0;
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
 }
 
-.file-state {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 600;
+/* Icons only. No borders, no fills, no labels: at rest they carry the same
+   weight as the filename and they brighten under the pointer. The accent is
+   reserved for the surface that is currently open. */
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  min-height: 26px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  padding: 0;
+  color: var(--muted);
 }
 
-.state-saved,
-.state-reopened,
-.service-granted,
-.service-read-confirmed { color: var(--success); }
-.state-unsaved-changes,
-.state-saving { color: var(--warning); }
-.state-save-failed,
-.state-bootstrap-failed,
-.state-open-failed,
-.state-editor-failed,
-.service-denied,
-.service-failed,
-.service-stopped { color: var(--danger); }
+.icon-button:hover:not(:disabled) { background: var(--raised); color: var(--ink); }
+.icon-button:active:not(:disabled) { background: var(--hairline); }
+.icon-button[aria-pressed='true'],
+.icon-button[aria-expanded='true'] { background: var(--raised); color: var(--ink); }
+/* Save is the exception: it is drawn only when it is the thing to do, so it is
+   allowed to say so. */
+.icon-button.is-live { color: var(--accent); }
 
-.title-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 5px;
-  min-width: 0;
+.icon-button svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.3;
 }
 
-.title-actions button {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Save, while there is something to save. The rest of the bar is navigation
-   and stays quiet; this is the only one that acts on the document. */
-.title-actions button.primary {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--paper);
-}
-
-.title-actions button.primary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 86%, black);
-  border-color: color-mix(in srgb, var(--accent) 86%, black);
-}
+/* Rail
+   -------------------------------------------------------------------------
+   One region, two views. Files and Outline used to be separate columns, so
+   wanting both spent 470 pixels of a 1280 pixel window on navigation. */
 
 .workspace-layout {
   /* Anchors the find bar, which overlays the document. */
   position: relative;
-  display: grid;
-  grid-template-columns: 224px minmax(0, 1fr);
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -222,88 +235,186 @@ button[aria-expanded='true']:hover:not(:disabled) {
   overflow: hidden;
 }
 
-.workspace-sidebar,
-.plugin-panel {
+.workspace-rail {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--hairline);
+  background: var(--panel);
+}
+
+.rail-tabs {
+  display: flex;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  gap: 0;
+  margin: 8px 8px 6px;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--panel);
+  padding: 2px;
+}
+
+.rail-tab {
+  min-height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  padding: 2px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.rail-tab:hover { color: var(--ink); background: transparent; }
+.rail-tab.is-current {
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.rail-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 2px 6px 12px;
+}
+
+.rail-empty {
+  margin: 10px 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.outline-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* Tabs
+   -------------------------------------------------------------------------
+   The active tab takes the canvas surface so it reads as continuous with the
+   document below it. A tab the same colour as the page is already the one you
+   are in, which is why there is no accent underline. */
+
+.tab-bar {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--panel);
+  scrollbar-width: none;
+}
+
+.tab-bar::-webkit-scrollbar { display: none; }
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* Tabs shrink as more open rather than scrolling immediately, but never below
+     a width where the name is unreadable. */
+  min-width: 6rem;
+  max-width: 15rem;
+  flex: 0 1 auto;
+  height: 32px;
+  min-height: 32px;
+  border: 0;
+  border-right: 1px solid var(--hairline);
+  border-radius: 0;
+  background: transparent;
+  padding: 0 5px 0 11px;
+}
+
+.tab:hover { background: var(--raised); }
+
+/* The tab you are in is the one the same colour as the page below it, so it
+   reads as continuous with the document rather than as a control above it.
+   There was an accent border along its top edge as well, which made the strip
+   the second loudest thing in the window. */
+.tab.tab-active { background: var(--paper); }
+
+.tab-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  padding: 7px 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-label:hover { background: none; }
+.tab-active .tab-label { color: var(--ink); }
+
+.tab-close {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  padding: 0;
+}
+
+.tab-close:hover { background: var(--hairline); }
+
+/* A dot for unsaved work, which becomes a cross on hover, so one target does
+   both jobs without adding a second control to every tab. */
+.tab-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.tab-dot-dirty { background: var(--accent); }
+
+.tab-close:hover .tab-dot {
+  width: 9px;
+  height: 9px;
+  background:
+    linear-gradient(currentcolor, currentcolor) center / 100% 1.5px no-repeat,
+    linear-gradient(currentcolor, currentcolor) center / 1.5px 100% no-repeat;
+  border-radius: 0;
+  color: var(--ink);
+}
+
+/* Canvas and its states
+   ------------------------------------------------------------------------- */
+
+.canvas-scroll {
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  background: var(--panel);
-  padding: 14px 12px;
-}
-
-.workspace-sidebar { border-right: 1px solid var(--hairline); }
-
-/* Between the title bar and the status bar, which are the shell's first and
-   last rows. */
-.plugin-panel {
-  position: fixed;
-  z-index: 20;
-  top: 46px;
-  right: 0;
-  bottom: 28px;
-  display: none;
-  width: min(344px, calc(100vw - 48px));
-  max-width: 100%;
-  border: 1px solid var(--hairline);
-  border-right: 0;
-  padding: 18px;
-}
-
-.plugin-panel.is-open { display: block; }
-
-.drawer-heading,
-.dialog-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-}
-
-.aside-heading {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.drawer-close { min-height: 26px; padding: 3px 8px; }
-
-.plugin-group-heading {
-  margin-top: 20px;
-  border-top: 1px solid var(--hairline);
-  padding-top: 14px;
-}
-
-.plugin-group-heading p {
-  margin: 6px 0 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.search-field {
-  display: grid;
-  gap: 4px;
-  margin: 12px 0;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.search-field input,
-.command-palette input {
-  width: 100%;
-  min-width: 0;
-  border: 1px solid var(--hairline);
-  border-radius: 4px;
   background: var(--paper);
-  padding: 7px 9px;
+}
+
+.opening-state {
+  width: min(100%, 820px);
+  margin: 64px auto;
+  padding: 32px;
+  color: var(--muted);
+  font-family: tokens.$prose;
+  font-size: 18px;
 }
 
 .file-row {
@@ -325,115 +436,320 @@ button[aria-expanded='true']:hover:not(:disabled) {
 }
 .file-row span { color: var(--muted); font-size: 12px; }
 
-.workspace-facts {
-  display: grid;
-  gap: 5px;
-  margin-top: 18px;
+.aside-heading {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
 }
 
-.canvas-scroll {
-  width: 100%;
-  max-width: 100%;
+/* Preferences
+   -------------------------------------------------------------------------
+   One dialog with sections, replacing a settings sheet and a plugin drawer
+   that lived on opposite sides of the window. */
+
+.pref-scrim {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--scrim);
+  padding: 24px;
+}
+
+.pref-dialog {
+  display: grid;
+  grid-template-columns: 172px minmax(0, 1fr);
+  width: min(720px, 100%);
+  height: min(560px, 100%);
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow: 0 18px 48px -12px color-mix(in srgb, var(--ink) 34%, transparent);
+}
+
+.pref-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   min-width: 0;
+  border-right: 1px solid var(--hairline);
+  background: var(--panel);
+  padding: 14px 10px;
+}
+
+.pref-title {
+  padding: 0 8px 12px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.pref-section {
+  min-height: 30px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  padding: 6px 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pref-section:hover { background: var(--raised); color: var(--ink); }
+.pref-section.is-current {
+  background: var(--raised);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.pref-body {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.pref-body-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--hairline);
+  padding: 14px 18px;
+}
+
+.pref-body-header h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.pref-close { min-height: 26px; padding: 3px 10px; font-size: 12px; }
+
+.pref-content {
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
+  padding: 6px 18px 18px;
+}
+
+.pref-note {
+  margin: 0;
+  border-top: 1px solid var(--hairline);
+  padding: 9px 18px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* One row per setting: what it is on the left, the control on the right at its
+   natural width. The old sheet stacked a legend, a label and a full-width
+   control for each one, so three settings filled a screen. */
+.pref-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--hairline);
+  padding: 8px 0;
+}
+
+.pref-content > .pref-row:last-child { border-bottom: 0; }
+
+.pref-label {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.pref-label small {
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.pref-group-label {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.pref-segmented {
+  display: flex;
+  flex: 0 0 auto;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--panel);
+  padding: 2px;
+}
+
+.pref-segment {
+  min-height: 24px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  padding: 3px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.pref-segment:hover { color: var(--ink); background: transparent; }
+.pref-segment.is-on {
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* A real switch. A bare checkbox beside a sentence reads as a form field in a
+   window that is otherwise an application. */
+.pref-switch { cursor: default; }
+.pref-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.pref-track {
+  position: relative;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 20px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: var(--panel);
+  transition-property: background-color, border-color;
+  transition-duration: 120ms;
+}
+
+.pref-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition-property: translate, background-color;
+  transition-duration: 120ms;
+}
+
+.pref-switch input:checked ~ .pref-track {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.pref-switch input:checked ~ .pref-track::after {
+  translate: 14px 0;
   background: var(--paper);
 }
 
-.opening-state {
-  width: min(100%, 820px);
-  margin: 64px auto;
-  padding: 32px;
-  color: var(--muted);
-  font-family: tokens.$prose;
-  font-size: 18px;
+.pref-switch input:focus-visible ~ .pref-track {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
-.plugin-panel-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-  padding-bottom: 18px;
-}
+/* Plugins, as a preferences section
+   -------------------------------------------------------------------------
+   Each plugin is one row: name and a plain sentence on the left, the action on
+   the right at its natural width. It was four full-width `Enable` slabs under
+   four paragraphs of capability jargon, which read as a debug console. */
 
-.plugin-panel-heading h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 650;
-  letter-spacing: -0.015em;
-}
-
-.plugin-panel-heading p {
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.plugin-panel .drawer-close,
-.plugin-panel button { min-height: 32px; }
-.plugin-panel button:disabled { color: var(--ink); opacity: 0.45; }
+.plugin-list { min-width: 0; }
 
 .plugin-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 18px;
   min-width: 0;
-  padding: 18px 0;
-  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  padding: 14px 0;
   overflow-wrap: anywhere;
 }
 
 .plugin-name-row {
+  grid-column: 1;
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
+  min-width: 0;
 }
 
-.plugin-name-row strong { font-size: 14px; font-weight: 650; }
+.plugin-name-row strong { font-size: 13px; font-weight: 600; }
+
 .plugin-status {
-  margin: 8px 0 0;
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.4;
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+  justify-self: end;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .plugin-scope {
-  margin: 4px 0 12px;
+  grid-column: 1;
+  margin: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11.5px;
   line-height: 1.45;
 }
 
 .plugin-primary {
-  width: 100%;
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  align-self: center;
+  min-height: 26px;
   border-color: var(--hairline);
   background: transparent;
   color: var(--ink);
+  padding: 3px 10px;
+  font-size: 12px;
   text-align: center;
+  white-space: nowrap;
 }
 
 .plugin-primary:hover:not(:disabled),
 .plugin-primary:active:not(:disabled) { background: var(--raised); }
+.plugin-list button:disabled { color: var(--ink); opacity: 0.45; }
 
 .setting-row {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: 7px;
-  margin: 12px 0 0;
+  margin: 4px 0 0;
   color: var(--ink);
   font-size: 12px;
 }
 .setting-row input { accent-color: var(--ink); }
 
 .plugin-operation-message {
-  margin: 8px 0 0;
+  grid-column: 1 / -1;
+  margin: 0;
   min-height: 17px;
   color: var(--danger);
-  font-size: 12px;
+  font-size: 11.5px;
   line-height: 1.4;
 }
 
@@ -442,11 +758,25 @@ button[aria-expanded='true']:hover:not(:disabled) {
 .plugin-tone-warning { border-left: 2px solid var(--warning); }
 .plugin-tone-danger { border-left: 2px solid var(--danger); }
 
+.plugin-group-heading {
+  margin-top: 22px;
+  border-top: 1px solid var(--hairline);
+  padding-top: 14px;
+}
+
+.plugin-group-heading p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
 .plugin-diagnostics,
 .plugin-evidence {
-  margin-top: 12px;
+  grid-column: 1 / -1;
+  margin-top: 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 /* `display: block` on a summary drops the disclosure triangle the browser
@@ -459,7 +789,7 @@ button[aria-expanded='true']:hover:not(:disabled) {
   align-items: center;
   gap: 6px;
   cursor: default;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 .plugin-diagnostics summary::marker,
@@ -479,8 +809,10 @@ button[aria-expanded='true']:hover:not(:disabled) {
 
 .plugin-diagnostics[open] summary::before,
 .plugin-evidence[open] summary::before { rotate: 90deg; }
+
 .plugin-diagnostics p { margin: 7px 0 0; font-family: tokens.$mono; line-height: 1.45; }
 .plugin-failure { color: var(--ink); }
+
 .diagnostic-actions,
 .evidence-controls {
   display: flex;
@@ -489,17 +821,66 @@ button[aria-expanded='true']:hover:not(:disabled) {
   margin-top: 10px;
 }
 .diagnostic-actions button,
-.evidence-controls button { background: var(--raised); }
+.evidence-controls button { background: var(--raised); min-height: 26px; font-size: 12px; }
 .evidence-controls span { display: block; width: 100%; overflow-wrap: anywhere; }
 .plugin-evidence { padding: 16px 0; border-top: 1px solid var(--hairline); }
 
+.search-field {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.search-field input,
+.command-palette input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--hairline);
+  border-radius: 5px;
+  background: var(--paper);
+  padding: 7px 9px;
+}
+
+.workspace-facts {
+  display: grid;
+  gap: 5px;
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Alert
+   -------------------------------------------------------------------------
+   The one place the chrome raises its voice, and the only place the
+   exceptional file states are spelled out. */
+
+.file-truth-alert {
+  margin: 0 18px 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--hairline);
+  border-left: 3px solid var(--warning);
+  border-radius: 5px;
+  background: var(--raised);
+  color: var(--ink);
+}
+.file-truth-alert p { margin: 6px 0 0; max-width: 78ch; overflow-wrap: anywhere; }
+.file-truth-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.file-truth-actions button { min-height: 32px; }
+.alert-recovery-failed, .alert-cleanup-failed, .alert-save-failed { border-left-color: var(--danger); }
+
+/* Status line
+   ------------------------------------------------------------------------- */
+
 .operational-status {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, auto);
+  grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
   align-items: center;
   gap: 12px;
   min-width: 0;
   max-width: 100%;
+  height: 26px;
   padding: 0 12px;
   overflow: hidden;
   border-top: 1px solid var(--hairline);
@@ -508,69 +889,30 @@ button[aria-expanded='true']:hover:not(:disabled) {
   font-size: 11px;
 }
 
-/* Place every region explicitly.
-   The tab bar and the alert are both conditional, so with automatic placement
-   the rows a region landed in depended on how many of its siblings happened to
-   be rendered. With one document open and no alert, the editor fell into the
-   `auto` track and the status bar took the `1fr` one, which is why the empty
-   state showed a grey slab over two thirds of the window and why a dead strip
-   sat under the status bar in every state. Naming the rows makes the layout
-   independent of what is on screen. */
-.app-shell > .titlebar { grid-row: 1; }
-.app-shell > .tab-bar { grid-row: 2; }
-.app-shell > .workspace-layout { grid-row: 3; }
-.app-shell > .file-truth-alert { grid-row: 4; }
-.app-shell > .operational-status { grid-row: 5; }
-.icon-button {
-  display: grid;
-  width: 30px;
-  min-width: 30px;
-  padding: 5px;
-  place-items: center;
-}
-.icon-button svg {
-  width: 15px;
-  height: 15px;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.25;
-}
-.file-truth-alert {
-  margin: 0 18px 14px;
-  padding: 14px 16px;
-  border: 1px solid var(--hairline);
-  border-left: 3px solid var(--warning);
-  border-radius: 4px;
-  background: var(--raised);
-  color: var(--ink);
-}
-.file-truth-alert p { margin: 6px 0 0; max-width: 78ch; overflow-wrap: anywhere; }
-.file-truth-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.file-truth-actions button { min-height: 36px; }
-.alert-recovery-failed, .alert-cleanup-failed, .alert-save-failed { border-left-color: var(--danger); }
-
-.status-path {
+.status-path,
+.scope {
   min-width: 0;
   overflow: hidden;
+  color: var(--muted);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .status-message {
   min-width: 0;
-  max-width: 70vw;
-  color: var(--ink);
-  overflow-wrap: anywhere;
+  justify-self: end;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
+/* Command palette
+   ------------------------------------------------------------------------- */
 
 .command-palette {
   position: fixed;
   z-index: 30;
   top: 64px;
-  right: auto;
-  bottom: auto;
   left: 50%;
   width: min(620px, calc(100vw - 40px));
   max-width: 100%;
@@ -580,15 +922,21 @@ button[aria-expanded='true']:hover:not(:disabled) {
   overscroll-behavior: contain;
   transform: translateX(-50%);
   border: 1px solid var(--hairline);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--panel);
   padding: 10px;
   color: var(--ink);
+  box-shadow: 0 18px 48px -12px color-mix(in srgb, var(--ink) 34%, transparent);
 }
 
-.command-palette::backdrop { background: transparent; }
-
-.dialog-heading { margin-bottom: 8px; }
+.dialog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  margin-bottom: 8px;
+}
 
 .palette-result {
   display: grid;
@@ -608,108 +956,56 @@ button[aria-expanded='true']:hover:not(:disabled) {
   white-space: nowrap;
 }
 .palette-result span { color: var(--muted); font-size: 12px; }
+.palette-empty { color: var(--muted); font-size: 12px; }
 
-@media (min-width: 1320px) {
-  .plugin-panel { width: 352px; }
-  .app-shell.plugins-open .workspace-layout {
-    grid-template-columns: 208px minmax(760px, 1fr);
-    padding-right: 352px;
-  }
-  .app-shell.plugins-open .canvas-scroll {
-    width: calc(100% - 352px);
-  }
-}
-
-@media (max-width: 1120px) {
-  .titlebar {
-    gap: 6px;
-  }
-  /* The workspace tree is laid out by the editor stylesheet, which keeps it in
-     the row beside the document at every width it is shown at. This block used
-     to make it a fixed overlay here and hide it behind an `.is-open` class no
-     component ever set. The two rules did not cancel out: the tree kept the
-     overlay position and took its display from the other file, so between 900
-     and 1120 pixels it floated across the document and clipped every line of
-     text behind it. */
-  .operational-status { grid-template-columns: minmax(0, 1fr) minmax(180px, 1fr); }
-}
+/* Narrow windows
+   -------------------------------------------------------------------------
+   The rail and the outline are hidden below 900 by the editor stylesheet,
+   which is where their layout lives. What changes here is the bar. */
 
 @media (max-width: 700px) {
-  /* Two rows on the bar at this width. One row cannot hold the window
-     controls, the filename and the actions: the filename is what loses, and it
-     is the one thing on the bar that says which document you are in. Giving it
-     its own line costs a strip of height and makes every action legible
-     instead of truncated to two letters. The state word goes for the same
-     reason, since the dot on the name already says whether there is work to
-     lose. */
-  .app-shell { grid-template-rows: auto auto minmax(0, 1fr) auto 28px; }
-  .titlebar .file-state { display: none; }
-
-  .titlebar {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    gap: 2px;
-    padding: 4px 8px 8px;
-    height: auto;
-  }
-
-  /* Clear of the traffic lights, which only occupy the first row. The bar
-     itself gives its clearance back here, or the two insets stack and the
-     filename starts a third of the way across a phone-width window. */
-  [data-platform='darwin'] .titlebar { padding-left: 8px; }
-
+  /* The filename cannot be centred at this width: the traffic lights take the
+     left third and the icons the right, so a centred title would be squeezed
+     into what is left of the middle. It goes inline instead. */
   .document-identity {
-    min-width: 0;
-    padding-left: 64px;
-    overflow: hidden;
+    position: static;
+    transform: none;
+    max-width: none;
+    flex: 1 1 auto;
+    justify-content: center;
   }
 
-  .title-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    width: auto;
-  }
-  .title-actions button { padding-inline: 10px; text-align: center; }
-
-  .command-palette { top: 88px; max-height: calc(100vh - 152px); }
-
-  /* Only the folder fits here, and it is the half the title bar cannot show. */
-  .operational-status {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 1fr;
-    gap: 0;
-    padding-block: 0;
-  }
+  .app-shell { grid-template-rows: 38px auto minmax(0, 1fr) auto 24px; }
+  .operational-status { height: 24px; grid-template-columns: minmax(0, 1fr); }
   .status-message { display: none; }
-}
-
-@media (max-width: 520px) {
-  .plugin-panel {
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    width: 100vw;
-    border-top: 0;
-    border-bottom: 0;
+  .pref-scrim { padding: 0; }
+  .pref-dialog {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    width: 100%;
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+  }
+  .pref-sections {
+    flex-direction: row;
+    gap: 4px;
+    overflow-x: auto;
     border-right: 0;
-    border-left: 0;
+    border-bottom: 1px solid var(--hairline);
+    padding: 8px;
   }
-  .plugin-panel .drawer-close,
-  .plugin-panel button,
-  .plugin-panel summary {
-    min-height: 44px;
-  }
-  .plugin-panel summary {
-    padding: 11px 0;
-  }
+  .pref-title { display: none; }
+  .pref-section.is-current { box-shadow: none; }
+  .pref-row { flex-wrap: wrap; }
 }
 
 @media (pointer: coarse) {
-  .plugin-panel .drawer-close,
-  .plugin-panel button,
-  .plugin-panel summary { min-height: 44px; }
+  .icon-button,
+  .rail-tab,
+  .pref-section,
+  .plugin-primary { min-height: 44px; }
+  .icon-button { width: 44px; min-width: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

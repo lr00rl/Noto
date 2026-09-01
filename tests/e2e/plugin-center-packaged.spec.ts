@@ -251,7 +251,10 @@ test.describe('plugin hotkeys', () => {
       const section = page.locator('.plugin-section', { hasText: 'Title Shift' });
       await section.locator('button.plugin-primary').click();
       await section.locator('button.plugin-primary').click();
-      await page.getByTestId('plugin-toggle').click();
+      // Preferences is modal, so it is dismissed rather than toggled off from
+      // the title bar behind it.
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('settings-panel')).toBeHidden();
 
       // The declared chord, pressed in the document rather than chosen from a
       // menu. `Mod` is Command here and Control elsewhere.

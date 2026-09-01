@@ -438,13 +438,20 @@
 /* Sits where the first line of a document would, rather than adrift in the
    middle of the window or pinned to the top of it. The measure matches the
    text column so the eye is already in the right place when a file opens. */
+/* Centred, because with nothing else on screen there is no writing column for
+   it to align to: aligned left at 22vh it read as content that had failed to
+   lay out rather than as the one thing the screen is for. */
 .empty-state {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   gap: 10px;
   width: min(calc(100% - 48px), var(--measure));
-  margin: 22vh auto 0;
+  min-height: 100%;
+  margin: 0 auto;
+  padding-bottom: 6vh;
+  text-align: center;
   font-family: tokens.$ui;
 }
 
@@ -467,14 +474,14 @@
 }
 
 /* The one thing this screen exists to get you to do, so it is the one filled
-   control on it. It was styled exactly like the toolbar buttons above it, which
-   made the call to action read as a tertiary control. */
+   control on it. Ink rather than accent: the accent marks where you are, and
+   spending it on a button here would make it mean two things. */
 .empty-state button.primary {
   margin-top: 6px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--ink);
   border-radius: 6px;
-  background: var(--accent);
-  padding: 8px 15px;
+  background: var(--ink);
+  padding: 8px 16px;
   color: var(--paper);
   font: inherit;
   font-size: 14px;
@@ -482,8 +489,8 @@
 }
 
 .empty-state button.primary:hover {
-  background: color-mix(in srgb, var(--accent) 86%, black);
-  border-color: color-mix(in srgb, var(--accent) 86%, black);
+  background: color-mix(in srgb, var(--ink) 82%, var(--paper));
+  border-color: color-mix(in srgb, var(--ink) 82%, var(--paper));
 }
 
 .recent-list {
@@ -491,7 +498,9 @@
   flex-direction: column;
   gap: 2px;
   width: 100%;
-  margin-top: 18px;
+  max-width: 380px;
+  margin-top: 26px;
+  text-align: left;
 }
 
 /* Outline ----------------------------------------------------------------- */
@@ -505,22 +514,6 @@
 .workspace-layout > .canvas-scroll {
   flex: 1 1 auto;
   min-width: 0;
-}
-
-.outline-panel {
-  flex: 0 0 240px;
-  overflow-y: auto;
-  border-right: 1px solid var(--hairline);
-  background: var(--panel);
-  padding: 18px 10px;
-  font-family: tokens.$ui;
-}
-
-.outline-panel nav {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  margin-top: 8px;
 }
 
 .outline-entry {
@@ -560,11 +553,10 @@
 }
 
 @media (max-width: 900px) {
-  .outline-panel { display: none; }
-
-  /* Neither panel can open at this width, so the controls that open them
-     should not be sitting there looking live. */
-  [data-testid='outline-toggle'],
+  /* The document wins the narrow window. The rail is reachable from the View
+     menu, and its own toggle goes with it rather than sitting there looking
+     live over a region that cannot open. */
+  .workspace-rail { display: none; }
   [data-testid='sidebar-toggle'] { display: none; }
 }
 
@@ -700,118 +692,43 @@
   .find-row [data-testid='replace-all'] { font-size: 0.74rem; }
 }
 
-/* Tabs
-   ------------------------------------------------------------------------- */
-
-.tab-bar {
-  display: flex;
-  align-items: stretch;
-  min-height: 32px;
-  gap: 1px;
-  overflow-x: auto;
-  padding: 0 8px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--hairline);
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar { display: none; }
-}
-
-.tab {
-  display: flex;
-  align-items: center;
-  /* Tabs shrink as more open rather than scrolling immediately, but never below
-     a width where the name is unreadable. */
-  min-width: 6rem;
-  max-width: 15rem;
-  flex: 0 1 auto;
-  padding: 0 4px 0 10px;
-  background: transparent;
-  border-top: 2px solid transparent;
-
-  &:hover { background: var(--raised); }
-
-  &.tab-active {
-    background: var(--paper);
-    border-top-color: var(--accent);
-  }
-}
-
-.tab-label {
-  flex: 1 1 auto;
-  overflow: hidden;
-  padding: 7px 0;
-  font: inherit;
-  font-size: 0.8rem;
-  color: var(--muted);
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  background: none;
-  border: none;
-  cursor: pointer;
-
-  .tab-active & { color: var(--ink); }
-}
-
-.tab-close {
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  background: none;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-
-  &:hover { background: var(--hairline); }
-}
-
-/* A dot for unsaved work, which becomes a cross on hover so one target does
-   both jobs without adding a second control to every tab. */
-.tab-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: transparent;
-}
-
-.tab-dot-dirty { background: var(--accent); }
-
-.tab-close:hover .tab-dot {
-  width: 9px;
-  height: 9px;
-  background:
-    linear-gradient(currentcolor, currentcolor) center / 100% 1.5px no-repeat,
-    linear-gradient(currentcolor, currentcolor) center / 1.5px 100% no-repeat;
-  border-radius: 0;
-  color: var(--ink);
-  rotate: 45deg;
-}
-
-/* Each open document keeps its editor mounted; only the active one shows. */
-.canvas-slot[hidden] { display: none; }
-
 /* Workspace file tree
    ------------------------------------------------------------------------- */
 
-.workspace-layout > .workspace-sidebar {
-  /* Fixed width: a tree that resizes with the window makes filenames jump
+.workspace-layout > .workspace-rail {
+  /* Fixed width: a rail that resizes with the window makes filenames jump
      between lines as you type in the document beside it. */
-  flex: 0 0 232px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 6px 10px 10px;
+  flex: 0 0 240px;
 }
 
-.tree-header {
+/* The folder's name, as a line of context rather than a heading. The rail's
+   tabs already say what this region is, so an uppercase "WORKSPACE" above them
+   was a second title for the same thing. */
+.tree-root-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 6px;
-  padding-right: 4px;
+  padding: 2px 6px 6px;
+}
+
+.tree-root-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tree-root.is-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 
 .tree-change {
@@ -837,6 +754,7 @@
   align-items: center;
   gap: 4px;
   width: 100%;
+  min-height: 26px;
   padding: 3px 6px;
   font: inherit;
   font-size: 0.78rem;
@@ -853,7 +771,7 @@
   &:hover { background: var(--raised); }
 }
 
-.tree-directory { color: var(--muted); font-weight: 500; }
+.tree-directory { color: var(--muted); }
 
 /* A CSS triangle rather than an icon font, so it inherits colour and needs no
    asset. */
@@ -879,15 +797,17 @@
   white-space: nowrap;
 }
 
+/* The spine, and the whole job of the accent in this app: it marks where you
+   are and nothing else. The tint used to be accent at 12 percent, which with
+   every open folder also tinted put roughly a third of a deep tree in orange
+   and left the current file no louder than its neighbours. */
 .tree-file-active {
   color: var(--ink);
   font-weight: 500;
-  /* A tint and a spine rather than a filled bar. The current file needs to be
-     findable, not to be the loudest thing on the screen. */
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
   box-shadow: inset 2px 0 0 var(--accent);
 
-  &:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+  &:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); }
 }
 
 .tree-empty,
@@ -903,6 +823,7 @@
 
 .tree-choose {
   align-self: flex-start;
+  margin: 4px 6px;
   padding: 5px 10px;
   font: inherit;
   font-size: 0.76rem;
@@ -915,10 +836,7 @@
   &:hover { background: var(--raised); }
 }
 
-@media (max-width: 900px) {
-  /* The document wins the narrow window; the tree is reachable from the menu. */
-  .workspace-layout > .workspace-sidebar { display: none; }
-}
+
 
 /* Settings
    ------------------------------------------------------------------------- */

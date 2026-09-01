@@ -200,7 +200,10 @@ describe('shell failure containment', () => {
     // document the save belonged to rather than whichever tab is in front.
     expect(app).toContain("patchDoc(id, { token: accepted.saveToken, document: accepted.document");
     expect(app).toContain('fileTruthActions(state, editorDirty, recoveryBarrier)');
-    expect(app).toContain('disabled={!editorDirty || pending || saveBlocked}');
+    // Save is drawn only when there is something to save, and is still refused
+    // while a recovery barrier or a conflict stands.
+    expect(app).toContain("{(editorDirty || state === 'Save failed') && (");
+    expect(app).toContain('disabled={pending || saveBlocked}');
   });
 
   it('restores the last honest clean state when the editor becomes clean again', async () => {

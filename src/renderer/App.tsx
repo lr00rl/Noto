@@ -29,8 +29,8 @@ import { declaredHotkeys, matchHotkey } from './plugins/hotkeys';
 import { NotoCanvas } from './editor/noto/NotoCanvas';
 import { FindBar } from './FindBar';
 import { TabBar } from './TabBar';
-import { FileTree } from './FileTree';
-import { SettingsPanel } from './SettingsPanel';
+import { WorkspaceRail, type RailView } from './WorkspaceRail';
+import { Preferences, type PreferencesSection } from './Preferences';
 import { DEFAULT_SETTINGS, type NotoSettingsV1 } from '../shared/settings/v1/contracts';
 import type { NotoEditor } from './editor/noto/NotoEditor';
 import {
@@ -142,16 +142,24 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const recoveryRecord = active?.recovery ?? null;
   const [localMessage, setLocalMessage] = useState<string | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [pluginsOpen, setPluginsOpen] = useState(false);
+  const [prefs, setPrefs] = useState<{ open: boolean; section: PreferencesSection }>(
+    { open: false, section: 'appearance' },
+  );
   const [pluginSnapshots, setPluginSnapshots] = useState<PluginLifecycleSnapshot[]>([]);
   const [pluginAvailability, setPluginAvailability] = useState<PluginSnapshotAvailability>('loading');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [recent, setRecent] = useState<readonly RecentFileV1[]>([]);
   const [openError, setOpenError] = useState<string | null>(null);
-  const [outlineOpen, setOutlineOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  /**
+   * The navigation rail: one region, two views.
+   *
+   * Files and Outline were separate booleans opening separate columns, so
+   * wanting both spent two panels' width on navigation. They answer the same
+   * question and now take turns in one region.
+   */
+  const [rail, setRail] = useState<{ open: boolean; view: RailView }>({ open: false, view: 'files' });
   const [settings, setSettings] = useState<NotoSettingsV1>(DEFAULT_SETTINGS);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+
   const [folder, setFolder] = useState<{ root: string | null; name: string | null }>({ root: null, name: null });
 
   const editorsRef = useRef<Map<string, NotoEditor>>(new Map());
@@ -160,6 +168,18 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const pluginHostRef = useRef<ReadonlyMap<string, RendererPluginHost> | null>(null);
   const pluginClientRef = useRef<RendererPluginClient | null>(null);
   const pluginsButtonRef = useRef<HTMLButtonElement>(null);
+  /** Show a rail view, opening the rail if it is closed, and close it when the
+   *  view being asked for is already the one showing. */
+  const toggleRail = useCallback((view: RailView) => {
+    setRail((current) => (current.open && current.view === view
+      ? { open: false, view }
+      : { open: true, view }));
+  }, []);
+  const openPreferences = useCallback((section: PreferencesSection) => {
+    setPrefs((current) => (current.open && current.section === section
+      ? { open: false, section }
+      : { open: true, section }));
+  }, []);
   const [find, setFind] = useState<{ open: boolean; replace: boolean }>({ open: false, replace: false });
   const cleanStateRef = useRef<'Opened' | 'Saved'>('Opened');
   const dirtyDocumentIds = useMemo(
@@ -216,7 +236,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       .then((result) => {
         if (!active || !result.ok) return;
         setSettings(result.value.settings);
-        if (result.value.settings.sidebarOnLaunch) setSidebarOpen(true);
+        if (result.value.settings.sidebarOnLaunch) setRail({ open: true, view: 'files' });
       });
     const unsubscribe = window.notoSettings.onChanged((event) => {
       if (active) setSettings(event.settings);
@@ -280,6 +300,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       const mod = event.metaKey || event.ctrlKey;
       if (mod && !event.shiftKey && !event.altKey && event.code === 'KeyK') {
         event.preventDefault();
+        // Same reason as the menu path: preferences is modal, and its scrim
+        // would sit over the palette and swallow every click on a command.
+        setPrefs((current) => ({ ...current, open: false }));
         setPaletteOpen((current) => !current);
         return;
       }
@@ -376,7 +399,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     const unsubscribeFolder = window.notoWorkspace.onFolderChanged((event) => {
       if (!active) return;
       setFolder({ root: event.root, name: event.name });
-      if (event.root) setSidebarOpen(true);
+      if (event.root) setRail({ open: true, view: 'files' });
     });
     const unsubscribeClosed = window.notoWorkspace.onDocumentClosed(() => {
       if (!active) return;
@@ -652,8 +675,10 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     if (!dirty && !recoveryBarrierRef.current) setLocalMessage(null);
   }, []);
 
+  /** Closing preferences returns focus to whatever opened it, so keyboard
+   *  users are not dropped at the top of the document. */
   const closePlugins = useCallback(() => {
-    setPluginsOpen(false);
+    setPrefs((current) => ({ ...current, open: false }));
     restorePluginTriggerFocus(pluginsButtonRef.current);
   }, []);
 
@@ -670,10 +695,15 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         void saveCopy();
         break;
       case 'command-palette':
+        // Preferences is modal, so leaving it open would put its scrim over the
+        // palette and swallow every click on a command. Asking for a command to
+        // run against the document is also a statement that you are done with
+        // preferences.
+        setPrefs((current) => ({ ...current, open: false }));
         setPaletteOpen((current) => !current);
         break;
       case 'toggle-outline':
-        setOutlineOpen((current) => !current);
+        toggleRail('outline');
         break;
       case 'toggle-source':
         // Refusing means the hand-edited text no longer parses as one block.
@@ -688,15 +718,17 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         editorRef.current?.history('redo');
         break;
       case 'settings':
-        setSettingsOpen(true);
+        setPrefs({ open: true, section: 'appearance' });
         break;
       case 'toggle-sidebar':
-        setSidebarOpen((current) => !current);
+        toggleRail('files');
         break;
       case 'find':
+        setPrefs((current) => ({ ...current, open: false }));
         setFind({ open: true, replace: false });
         break;
       case 'find-replace':
+        setPrefs((current) => ({ ...current, open: false }));
         setFind({ open: true, replace: true });
         break;
       default:
@@ -733,7 +765,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const nextTheme = theme === 'light' ? 'dark' : 'light';
 
   return (
-    <div className={`app-shell ${pluginsOpen ? 'plugins-open' : ''}`}
+    <div className="app-shell"
       // Only macOS puts window controls over the page, so only macOS needs the
       // title bar to leave room for them. The value is the one bootstrap
       // validated, which the shell already has.
@@ -743,93 +775,109 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       data-plugin-registrations={pluginSnapshot?.rendererRegistrations ?? 0}>
       <a className="skip-link" href="#document-canvas">Skip to document</a>
 
+      {/* Identity, not actions.
+          Six bordered text buttons in a row read as a toolbar and competed with
+          the document on every screen. What is left is the filename where a
+          window title belongs and icons that stay quiet until they are wanted.
+          Open moved to the File menu and the empty state, Outline into the
+          rail, Theme into preferences, Find to its shortcut. */}
       <header className="titlebar">
+        <div className="title-left">
+          <button type="button" className="icon-button" data-testid="sidebar-toggle"
+            aria-pressed={rail.open} aria-label={rail.open ? 'Hide the rail' : 'Show the rail'}
+            title={rail.open ? 'Hide the rail' : 'Show the rail'}
+            onClick={() => toggleRail(rail.view)}>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.75" />
+              <path d="M6.25 2.75v10.5" />
+            </svg>
+          </button>
+        </div>
+
         <div className="document-identity">
           <strong title={opened?.path} aria-label={opened ? `${filename}. ${opened.path}` : filename}>{filename}</strong>
-          {/* The unsaved marker every editor has, next to the name rather than
-              only in the state of the Save button. Whether there is work to
-              lose is the one thing worth being able to see without reading. */}
+          {/* Whether there is work to lose is the one thing worth seeing
+              without reading. It is also the whole save affordance when the
+              document is clean, since the Save icon is not drawn then. */}
           {opened && editorDirty && (
             <span className="unsaved-dot" data-testid="unsaved-dot" role="img" aria-label="Unsaved changes" />
           )}
         </div>
-        {/* Shown only when it has something to say. "Opened" and "Saved" are
-            the resting states and repeat what the window already implies, and
-            sitting two letters away from the "Open…" button they read as a
-            second control. Kept in the DOM either way so the live region still
-            announces the states that matter. */}
-        <span className={`file-state state-${state.toLowerCase().replaceAll(' ', '-')}`
-          + (state === 'Opened' || state === 'Saved' || state === 'No document' ? ' is-resting' : '')}
-          data-testid="file-state" aria-live="polite">{state}</span>
+
+        {/* Not drawn. The dot carries this for sighted readers and the alert
+            carries the exceptional states; this stays so the live region still
+            announces them. */}
+        <span className="file-state" data-testid="file-state" aria-live="polite">{state}</span>
+
         <div className="title-actions">
-          <button type="button" data-testid="open-button" onClick={() => void openWithDialog()}>Open…</button>
-          {/* The workspace tree had no control at all: it could only be reached
-              from the View menu, so nothing on screen said it existed. Every
-              other panel in this bar has a toggle, and this is the one users
-              look for first. */}
-          <button type="button" data-testid="sidebar-toggle" aria-pressed={sidebarOpen}
-            onClick={() => setSidebarOpen((current) => !current)}>Files</button>
-          <button type="button" data-testid="outline-toggle" aria-pressed={outlineOpen}
-            disabled={outline.length === 0}
-            onClick={() => setOutlineOpen((current) => !current)}>Outline</button>
-          <button ref={pluginsButtonRef} type="button" data-testid="plugin-toggle"
-            aria-expanded={pluginsOpen} aria-controls="plugin-drawer"
-            onClick={() => (pluginsOpen ? closePlugins() : setPluginsOpen(true))}>Plugins</button>
-          {/* Writes the setting rather than the resolved value. `theme` is
-              derived from `settings.theme` by the effect above, so assigning to
-              it directly changed this button's own icon and nothing else: no
-              attribute reached the document and the next settings update put it
-              back. Going through the setting also means the choice survives a
-              restart, which is the only useful behaviour for a theme. */}
-          <button type="button" className="icon-button" data-testid="theme-button"
-            aria-label={`Use ${nextTheme} theme`} title={`Use ${nextTheme} theme`}
-            onClick={() => changeSettings({ theme: nextTheme })}>
-            {theme === 'light'
-              ? <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11.8 10.7A5.2 5.2 0 0 1 5.3 4.2 5.2 5.2 0 1 0 11.8 10.7Z" /></svg>
-              : <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.5" /><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M13 3l-1.4 1.4M4.4 11.6 3 13" /></svg>}
+          <button ref={pluginsButtonRef} type="button" className="icon-button" data-testid="plugin-toggle"
+            aria-expanded={prefs.open && prefs.section === 'plugins'} aria-controls="plugin-drawer"
+            aria-label="Plugins" title="Plugins"
+            onClick={() => openPreferences('plugins')}>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <rect x="2.25" y="2.25" width="5" height="5" rx="1.2" />
+              <rect x="8.75" y="8.75" width="5" height="5" rx="1.2" />
+              <path d="M8.75 4.75h5M4.75 8.75v5" />
+            </svg>
           </button>
-          {/* Filled only while it is the thing to do. A permanently filled Save
-              is loud in a window that is usually already saved, and a Save that
-              never changes gives no signal at all. */}
-          <button type="button" data-testid="save-button"
-            className={editorDirty && !pending && !saveBlocked ? 'primary' : ''}
-            disabled={!editorDirty || pending || saveBlocked}
-            onClick={() => void save()}>{state === 'Save failed' ? 'Retry save' : 'Save'}</button>
+          <button type="button" className="icon-button" data-testid="settings-toggle"
+            aria-expanded={prefs.open && prefs.section !== 'plugins'}
+            aria-label="Preferences" title="Preferences"
+            onClick={() => openPreferences('appearance')}>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="8" r="2.1" />
+              <path d="M8 1.4v1.6M8 13v1.6M14.6 8H13M3 8H1.4M12.7 3.3l-1.1 1.1M4.4 11.6l-1.1 1.1M12.7 12.7l-1.1-1.1M4.4 4.4 3.3 3.3" />
+            </svg>
+          </button>
+          {/* Drawn only when there is something to save. A permanently greyed
+              Save is noise in a window that is saved almost all of the time,
+              and it says nothing when it finally lights up. */}
+          {(editorDirty || state === 'Save failed') && (
+            <button type="button" className="icon-button is-live" data-testid="save-button"
+              aria-label={state === 'Save failed' ? 'Retry save' : 'Save'}
+              title={state === 'Save failed' ? 'Retry save' : 'Save'}
+              disabled={pending || saveBlocked}
+              onClick={() => void save()}>
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M3.4 2.4h7l3.2 3.2v8h-11z" />
+                <path d="M5.4 2.4v3.9h5V2.4M5.4 13.6V9.4h5.2v4.2" />
+              </svg>
+            </button>
+          )}
         </div>
       </header>
 
-      <SettingsPanel
-        open={settingsOpen}
+      <Preferences
+        open={prefs.open}
+        section={prefs.section}
+        onSection={(section) => setPrefs({ open: true, section })}
         settings={settings}
         onChange={changeSettings}
-        onClose={() => setSettingsOpen(false)}
+        onClose={closePlugins}
+        plugins={(
+          <PluginCenter api={window.notoDesktop} snapshots={pluginSnapshots}
+            availability={pluginAvailability} open />
+        )}
       />
 
       <TabBar tabs={tabs} dirty={dirtyDocumentIds} onActivate={activateTab} onClose={closeTab} />
 
-      <div className={`workspace-layout ${sidebarOpen ? 'has-sidebar' : ''}`}>
-        {sidebarOpen && (
-          <FileTree
-            root={folder.root}
-            rootName={folder.name}
-            activePath={opened?.path ?? null}
-            list={listFolder}
-            onOpenFile={openFromTree}
-            onChooseFolder={chooseFolder}
+      <div className={`workspace-layout ${rail.open ? 'has-rail' : ''}`}>
+        {rail.open && (
+          <WorkspaceRail
+            view={rail.view}
+            onView={(view) => setRail({ open: true, view })}
+            outline={outline}
+            onGoToBlock={(blockIndex) => editorRef.current?.focusBlock(blockIndex)}
+            tree={{
+              root: folder.root,
+              rootName: folder.name,
+              activePath: opened?.path ?? null,
+              list: listFolder,
+              onOpenFile: openFromTree,
+              onChooseFolder: chooseFolder,
+            }}
           />
-        )}
-        {outlineOpen && outline.length > 0 && (
-          <aside className="outline-panel" aria-label="Document outline" data-testid="outline-panel">
-            <span className="aside-heading">Outline</span>
-            <nav>
-              {outline.map((entry) => (
-                <button key={`${entry.blockIndex}`} type="button" className={`outline-entry depth-${entry.depth}`}
-                  onClick={() => editorRef.current?.focusBlock(entry.blockIndex)}>
-                  {entry.text}
-                </button>
-              ))}
-            </nav>
-          </aside>
         )}
 
         {/* A sibling of the canvas rather than a child of it, so opening find
@@ -914,9 +962,6 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                 </section>}
         </main>
       </div>
-
-      <PluginCenter api={window.notoDesktop} snapshots={pluginSnapshots} availability={pluginAvailability}
-        open={pluginsOpen} onClose={closePlugins} />
 
       {paletteOpen && (
         <div className="command-palette" role="dialog" aria-modal="true" aria-label="Commands"
