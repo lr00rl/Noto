@@ -12,6 +12,7 @@
  */
 
 import path from 'node:path';
+import { stat } from 'node:fs/promises';
 import { BrowserWindow, dialog } from 'electron';
 import type { FileTruthOpenReplyV1 } from '../../shared/file-truth/v1/contracts';
 import {
@@ -53,6 +54,9 @@ export class WorkspaceSession {
     private readonly recent: RecentFiles,
     private readonly getWindow: () => BrowserWindow | null,
     private readonly logger: StructuredLogger,
+    /** The folders opened before, in the same shape as the recent documents:
+     *  the list is a list of paths either way, so it is the same store. */
+    private readonly recentFolders?: RecentFiles,
   ) {}
 
   get current(): FileTruthOpenReplyV1 | null {
@@ -209,9 +213,34 @@ export class WorkspaceSession {
       : await dialog.showOpenDialog(options);
     if (result.canceled || result.filePaths.length === 0) return this.folderEvent();
 
-    this.folderRoot = path.resolve(result.filePaths[0]);
+    return this.adoptFolder(path.resolve(result.filePaths[0]));
+  }
+
+  /**
+   * Switch to a folder already known to be one, without the dialog.
+   *
+   * The recent list is the caller, and it only ever names a folder this app
+   * opened before. It is still resolved and checked, because a folder can be
+   * renamed or removed between one launch and the next and the honest answer
+   * then is to leave the current one alone.
+   */
+  async openFolderPath(target: string): Promise<WorkspaceFolderEventV1> {
+    const resolved = path.resolve(target);
+    try {
+      if (!(await stat(resolved)).isDirectory()) return this.folderEvent();
+    } catch {
+      // Gone since it was last opened. Forgetting it is the recent list's job.
+      await this.recentFolders?.forget(resolved);
+      return this.folderEvent();
+    }
+    return this.adoptFolder(resolved);
+  }
+
+  private async adoptFolder(root: string): Promise<WorkspaceFolderEventV1> {
+    this.folderRoot = root;
     // A new folder invalidates the old index rather than serving it stale.
     this.indexCache = null;
+    await this.recentFolders?.remember(root);
     this.logger.log('workspace_folder_opened', {});
     const event = this.folderEvent();
     this.send(WORKSPACE_CHANNELS.folderChanged, event);

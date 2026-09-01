@@ -294,6 +294,12 @@ const workspaceApi: NotoWorkspaceApiV1 = Object.freeze({
     subscribe(WORKSPACE_CHANNELS.documentClosed, isWorkspaceClosedEventV1, listener),
   onTabsChanged: (listener: (event: WorkspaceTabsEventV1) => void) =>
     subscribe(WORKSPACE_CHANNELS.tabsChanged, isWorkspaceTabsEventV1, listener),
+  recentFolders: (request: WorkspaceRequestV1) => isWorkspaceRequestV1(request)
+    ? invokeWorkspace<WorkspaceRecentReplyV1>(WORKSPACE_CHANNELS.recentFolders, request, request.requestId, isWorkspaceRecentResultV1)
+    : Promise.resolve(rejectedWorkspace<WorkspaceRecentReplyV1>('invalid', 'Invalid recent folders request')),
+  openRecentFolder: (request: WorkspaceOpenPathRequestV1) => isWorkspaceOpenPathRequestV1(request)
+    ? invokeWorkspace<WorkspaceFolderEventV1>(WORKSPACE_CHANNELS.openRecentFolder, request, request.requestId, isWorkspaceFolderResultV1)
+    : Promise.resolve(rejectedWorkspace<WorkspaceFolderEventV1>('invalid', 'Invalid open recent folder request')),
   fileIndex: (request: WorkspaceRequestV1) => isWorkspaceRequestV1(request)
     ? invokeWorkspace<WorkspaceIndexReplyV1>(WORKSPACE_CHANNELS.fileIndex, request, request.requestId, isWorkspaceIndexResultV1)
     : Promise.resolve(rejectedWorkspace<WorkspaceIndexReplyV1>('invalid', 'Invalid file index request')),

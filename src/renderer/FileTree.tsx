@@ -23,7 +23,7 @@ export interface FileTreeProps {
   readonly onChooseFolder: () => void;
 }
 
-export function FileTree({ root, rootName, activePath, list, onOpenFile, onChooseFolder }: FileTreeProps) {
+export function FileTree({ root, activePath, list, onOpenFile, onChooseFolder }: FileTreeProps) {
   const [children, setChildren] = useState<ReadonlyMap<string, readonly WorkspaceEntryV1[]>>(new Map());
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [failed, setFailed] = useState<string | null>(null);
@@ -131,15 +131,6 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
 
   return (
     <div className="tree-root" data-testid="file-tree">
-      {/* The folder's name, and the only way to change it. It is a line of
-          context rather than a heading: the rail's tabs already say what this
-          region is, so repeating "Workspace" above them was a second title for
-          the same thing. */}
-      <div className="tree-root-row">
-        <span className="tree-root-name" title={root}>{rootName ?? 'Workspace'}</span>
-        <button type="button" className="tree-change" data-testid="choose-folder"
-          title="Open a different folder" onClick={onChooseFolder}>Change</button>
-      </div>
       {failed && <p role="alert" className="tree-error">{failed}</p>}
       <nav className="tree-body">{renderLevel(root, 0)}</nav>
     </div>

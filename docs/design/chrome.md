@@ -89,6 +89,12 @@ is measured after paint and the first frame is never in the wrong place.
 The rail toggle in the title bar opens and closes the region; the menu items
 open it on the view they name.
 
+`Cmd+]` and `Cmd+[` step the writing width between three stops rather than
+nudging it. The chord exists to change the shape of the page in one press while
+reading something that does not fit; four characters at a time turns that into
+six presses and a squint. The slider in preferences still sets any value, which
+is where a measure gets tuned once and forgotten.
+
 Its width is dragged from the right edge and remembered. Not a fixed width and
 not a fraction of the window: a rail that follows the window rewraps filenames
 while you type in the document beside it, and a fixed one cannot serve both a
@@ -143,15 +149,38 @@ crescent rather than a bar. Every "you are here" mark in the app is its own
 absolutely positioned element with its own 1px radius and a 5px inset top and
 bottom, so it is a straight bar with round caps and looks like a decision.
 
-## Tabs
+## Recent documents, in the status bar
 
-Only drawn when more than one document is open. The active tab takes `--paper`,
-the same surface as the canvas, so it reads as continuous with the document
-below it rather than as a separate control strip. Inactive tabs take `--panel`
-and `--muted` text. The close affordance appears on hover.
+There was a tab bar. It was a row of chrome across the top of every screen, the
+loudest thing in the window, and it was doing a job nobody asked for: managing
+a set of open documents. What is actually wanted is a way back to the note you
+were just in.
 
-No accent underline. The tab that is the same colour as the page is already the
-one you are in.
+So it keeps four, sits in the status bar where a hint belongs, and has no close
+buttons, no drag, no overflow and no order to maintain. Four is what can be
+taken in without reading; past that it is a list, and a list of documents is the
+file tree, two feet to the left. The documents are still open behind it and
+`Cmd+W` still closes one; this is a signpost, not a manager.
+
+The current one is set in ink rather than boxed. At eleven pixels a filled chip
+is a smudge, and weight reads at any size.
+
+## Rail footer
+
+The folder's name, and the actions that operate on the folder rather than on a
+file: open another, refresh, and the folders opened before. At the bottom
+because it answers "which folder", which is asked far less often than "which
+note" and belongs further from the hand. The menu opens upward, since it is
+anchored to the bottom of the window.
+
+Recent folders are the same store as recent documents, instantiated twice: a
+folder is a path with a name and a timestamp exactly as a document is. Before
+this, moving between two vaults meant walking the file dialog to the same place
+every time.
+
+The tree above it no longer names the folder. The footer does, and a header
+saying the same thing above the same tree was the name twice with two ways to
+change it.
 
 ## Status line
 
@@ -167,6 +196,11 @@ line the window has on something already read.
 
 One dialog, 720×560, reached from the gear or `Cmd+,`. Sections down the left,
 content on the right: Appearance, Editor, Plugins.
+
+No rule between rows. A line under every setting draws a table where there is
+only a list, and the last row of a section always ended up floating above the
+footer's own rule with nothing between them. Space separates; a label and its
+control are already a pair by sharing a line.
 
 Appearance carries the theme, the three typographic settings, and the custom
 stylesheet. Text size, line height and line width are sliders with the value

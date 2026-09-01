@@ -83,7 +83,7 @@ test.describe('workspace file tree', () => {
       await expect(page.getByTestId('choose-folder')).toBeVisible();
 
       await chooseFolder(app, folder);
-      await expect(page.getByTestId('file-tree')).toContainText('notes');
+      await expect(page.getByTestId('rail-folder-menu')).toContainText('notes');
       await expect(page.getByTestId('tree-file')).toHaveCount(2);
     } finally {
       await app.close();
@@ -130,8 +130,8 @@ test.describe('workspace file tree', () => {
 
       await page.getByTestId('tree-file').filter({ hasText: 'appendix.md' }).click();
       await expect(page.locator('.ProseMirror:visible')).toContainText('Appendix body.');
-      // Opening a second document gives it its own tab.
-      await expect(page.getByTestId('tab')).toHaveCount(2);
+      // Opening a second document puts it in the recent strip beside the first.
+      await expect(page.getByTestId('recent-chip')).toHaveCount(2);
     } finally {
       await app.close();
     }
@@ -160,7 +160,7 @@ test.describe('workspace file tree', () => {
     try {
       await invokeMenu(app, 'toggle-sidebar');
       await chooseFolder(app, folder);
-      await expect(page.getByTestId('file-tree')).toContainText('notes');
+      await expect(page.getByTestId('rail-folder-menu')).toContainText('notes');
 
       // The renderer asking for the parent must be refused by main, not served.
       const outcome = await page.evaluate(async (parent) => {
