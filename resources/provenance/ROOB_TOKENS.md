@@ -11,6 +11,9 @@ strings, or editor aliases from the reference themes.
 - Transformation: manually mapped approved values to Noto-owned semantic names
 - License: owner-authored source, public license not specified
 
-Public redistribution remains blocked until the owner records an explicit
-license or written permission for the source theme tokens.
+Public redistribution is authorised. The reference theme is the same owner's
+own work (`lr00rl/roob-site`), and Noto is published by that owner under
+AGPL-3.0-only, which settles the permission this note was waiting on. The twelve
+values and three font roles are recorded above so the provenance stays legible
+even though the licensing question is closed.
 
