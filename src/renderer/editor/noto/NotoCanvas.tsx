@@ -23,6 +23,8 @@ export interface NotoCanvasProps {
   readonly typewriterMode?: boolean;
   /** Close a bracket or a quote as it is opened. */
   readonly autoPair?: boolean;
+  /** The top level block the caret is in, when it changes. */
+  readonly onActiveBlockChanged?: (index: number) => void;
   readonly onDirtyChange: (dirty: boolean) => void;
   readonly onDocumentChanged?: () => void;
   readonly onFollowWikiLink?: (target: string) => void;
@@ -40,6 +42,7 @@ export function NotoCanvas({
   remoteImages,
   typewriterMode,
   autoPair,
+  onActiveBlockChanged,
   onDirtyChange,
   onDocumentChanged,
   onFollowWikiLink,
@@ -61,6 +64,7 @@ export function NotoCanvas({
         smartTypography,
         spellCheck,
         images: { documentDir: documentDirOf(documentPath), remote: remoteImages ?? true },
+        onActiveBlockChanged,
         onDirtyChange,
         onDocumentChanged,
         onFollowWikiLink,

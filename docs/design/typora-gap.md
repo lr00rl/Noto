@@ -410,6 +410,18 @@ nearly always meant as one character. It is a setting, on by default, because
 this is the kind of help that is either invisible or infuriating and which of
 the two depends on the person.
 
+## 5w. The outline never said which heading you were in. Closed.
+
+A list of headings is asked two different questions. Navigating, it is asked
+where to go, and this answered that. Writing, it is asked where am I, and this
+said nothing: the outline looked the same whatever the caret was doing.
+Typora marks the heading you are under; so does this now, in the same warm
+grey the current file gets in the tree, following the caret as it moves and
+resolving a paragraph to the heading above it.
+
+The editor reports the top level block the caret is in whenever it changes,
+which is a thing worth having anyway and cost one comparison per transaction.
+
 ## 5k. A line the author broke is now drawn broken. Closed.
 
 CommonMark reads a single newline inside a paragraph as a space, and so did
