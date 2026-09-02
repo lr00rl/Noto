@@ -123,6 +123,11 @@
 
 }
 
-$prose: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", serif;
+/* The author's Typora stack, face for face, so a machine without the first
+   one falls back the same way Typora does rather than to whatever the system
+   calls serif. The two at the end are the ones Typora lists and this did not:
+   without them a machine missing all three serif faces drops to Times, where
+   Typora would still be setting Chinese in PingFang. */
+$prose: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", "PingFang SC", "Hiragino Sans GB", serif;
 $ui: "PingFang SC", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
 $mono: Menlo, Monaco, "SF Mono", Consolas, monospace;

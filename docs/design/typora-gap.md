@@ -1017,6 +1017,27 @@ Building those would be reimplementing macOS. And export, which is the largest
 thing Typora has and this does not, needs a rendering pipeline this does not
 carry; it is a real gap and a whole piece of work rather than an afternoon's.
 
+## 55. The type scale, measured against Typora one more time. One face short.
+
+The same note in both windows, every heading and paragraph measured. Every
+ratio matches: the headings are the same multiples of the body, the leading is
+the same multiple of the size, the margins are the same multiples again. The
+whole difference is the body size, 16 in Typora and 15 here.
+
+That 15 was chosen by eye by an earlier pass, and it holds up to a
+measurement. Set the same string in both and Typora's is 391.9 pixels wide at
+16 and this is 382.1 at 15, within two and a half per cent. At 16 this would
+be four per cent wider than Typora, because the Latin glyphs resolve to
+different faces at the same nominal size. The eye was right and now there is a
+number for it.
+
+What did not match was the fallback chain. Typora lists PingFang SC and
+Hiragino Sans GB after the three serif faces; this stopped at the third and
+then at whatever the system calls serif. On a machine with Songti SC, which
+this one has, it makes no difference at all, which is why it went unnoticed.
+On a machine without it, Typora would still be setting Chinese in PingFang
+while this dropped to Times. The stack is now Typora's, face for face.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
