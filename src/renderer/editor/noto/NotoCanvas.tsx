@@ -10,6 +10,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import { documentDirOf } from './image-source';
 import type { NotoDocumentWire, NotoTransaction } from '../../../shared/markdown/v3/contracts';
 import { NotoEditor } from './NotoEditor';
+import type { DocumentCount } from './word-count';
 
 export interface NotoCanvasProps {
   readonly document: NotoDocumentWire;
@@ -29,6 +30,7 @@ export interface NotoCanvasProps {
   readonly onDocumentChanged?: () => void;
   readonly onFollowWikiLink?: (target: string) => void;
   readonly onFollowLink?: (href: string) => void;
+  readonly onCountChanged?: (count: DocumentCount) => void;
   readonly onReady: (editor: NotoEditor) => void;
   readonly onTeardown: (editor: NotoEditor) => void;
   readonly onError: (message: string) => void;
@@ -48,6 +50,7 @@ export function NotoCanvas({
   onDocumentChanged,
   onFollowWikiLink,
   onFollowLink,
+  onCountChanged,
   onReady,
   onTeardown,
   onError,
@@ -71,6 +74,7 @@ export function NotoCanvas({
         onDocumentChanged,
         onFollowWikiLink,
         onFollowLink,
+        onCountChanged,
         onError,
       });
     } catch (error) {

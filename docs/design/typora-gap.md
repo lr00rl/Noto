@@ -745,6 +745,33 @@ opening the raw string is a bug wherever the two parsers disagree, and they do:
 is dropped, a newline inside a scheme is dropped. Only the normalised form is
 opened, so what was checked is what is launched.
 
+## 43. A note never said how long it was. Closed, with a difference.
+
+Typora keeps a word count and puts it behind a popover. Noto's status line
+had the folder path and a promise about fidelity and nothing about the note
+itself. The count now sits at the end of that line, where nothing competes
+with it.
+
+It is counted from what the document draws, never from the file. One of the
+author's notes is 910 bytes of which most is image addresses; counting the
+file says 144 words and counting the document says 84. Typora agrees with the
+principle here: it reports far less than the file holds too.
+
+It is counted after typing stops, not during. A megabyte of prose takes about
+37 milliseconds, which is nothing to wait for after a pause and far too much
+to pay for a letter. Typora does the same, on a deferred timer of its own.
+
+The rule is a run of letters or digits for one word, and a Han character, a
+kana or a Hangul syllable for one word each, because Chinese and Japanese put
+no spaces between words and counting runs would report one word per sentence.
+
+This does not match Typora and is not meant to. On that same note Typora says
+112 where this says 84. The note holds 81 Han characters, three hyphenated
+Latin words and fifteen pieces of Chinese punctuation, and Typora appears to
+be counting the punctuation. A full stop is not a word. Parity is the goal
+everywhere it describes something a reader wanted; here it would mean copying
+a number that is wrong.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
