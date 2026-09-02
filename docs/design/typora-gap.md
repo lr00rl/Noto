@@ -833,6 +833,19 @@ What remains after those is small and scattered. The corpus measurement has
 paid for itself four times over and this is where it stops being the best
 place to look.
 
+## 47. A band of rail colour across a window with no rail. Closed.
+
+Found by opening the window at 1440, 900 and 640 and looking at each. Below
+900 the rail is hidden and the document takes the window, which is deliberate,
+but the title bar goes on painting the rail's ground above where the rail
+would be. Toggling the sidebar from the View menu at that width left a grey
+band across the top left of the window with nothing underneath it.
+
+The width comes from an inline style, which no stylesheet rule can outrank, so
+the title bar now reads it through a property of its own and the narrow window
+sets that to zero. An `!important` would have worked and would have hidden the
+reason.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form

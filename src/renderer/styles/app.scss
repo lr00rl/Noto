@@ -170,10 +170,14 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   height: 32px;
   /* The rail's ground above the rail, the page's above the page, so the two
      columns read floor to ceiling. A band of panel across the whole window
-     cut the page off from its own title. */
+     cut the page off from its own title.
+     Read through a property of its own rather than straight from
+     `--shell-rail`, because that one is an inline style and no stylesheet can
+     outrank it. The narrow window needs to say the rail is not there. */
+  --titlebar-rail: var(--shell-rail, 0px);
   background: linear-gradient(to right,
-    var(--panel) 0 var(--shell-rail, 0px),
-    var(--paper) var(--shell-rail, 0px));
+    var(--panel) 0 var(--titlebar-rail),
+    var(--paper) var(--titlebar-rail));
 }
 
 /* macOS opens the window with `hiddenInset`, which floats the traffic lights

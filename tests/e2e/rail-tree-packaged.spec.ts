@@ -148,6 +148,33 @@ test.describe('a note opened on its own', () => {
     }, id);
   }
 
+  test('leaves no band across the title bar in a window too narrow for the rail', async () => {
+    const { app, page } = await launchFile('narrow');
+    try {
+      // Below 900 the rail is hidden and the document takes the window. The
+      // title bar paints the rail's ground above where the rail would be, and
+      // that width is an inline style no stylesheet can outrank, so it reads
+      // it through a property of its own.
+      await page.setViewportSize({ width: 640, height: 700 });
+      await invokeMenu(app, 'toggle-sidebar');
+      await expect(page.getByTestId('file-tree')).toBeHidden();
+      const band = await page.locator('.titlebar').evaluate(
+        (element) => getComputedStyle(element).getPropertyValue('--titlebar-rail').trim(),
+      );
+      expect(band).toBe('0px');
+
+      // Wide again, and the band comes back with the rail.
+      await page.setViewportSize({ width: 1200, height: 700 });
+      await expect(page.getByTestId('file-tree')).toBeVisible();
+      const wide = await page.locator('.titlebar').evaluate(
+        (element) => getComputedStyle(element).getPropertyValue('--titlebar-rail').trim(),
+      );
+      expect(wide).not.toBe('0px');
+    } finally {
+      await app.close();
+    }
+  });
+
   test('brings its own folder with it, so quick open has something to search', async () => {
     const { app, page } = await launchFile('lone-file');
     try {
