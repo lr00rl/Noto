@@ -130,6 +130,28 @@ describe('markdown v3 byte fidelity', () => {
     expect(preservedBlocks).toHaveLength(3);
   });
 
+  it('leaves a neighbour written in its own style completely alone', () => {
+    // Re-serializing either of these would change bytes: a long rule collapses
+    // to three dashes and an aligned delimiter row to the minimum width. Neither
+    // block is edited, so neither is re-serialized, and the file keeps the
+    // shape its author gave it.
+    const source = [
+      'Lead paragraph.',
+      '',
+      '------------------',
+      '',
+      '| Field | Meaning |',
+      '|-------|---------|',
+      '| a     | first   |',
+      '',
+    ].join('\n');
+    const document = parsed(source);
+    const output = Buffer.from(serialized(document, editing(document, 0, 'Edited lead.'))).toString('utf8');
+    expect(output).toBe(source.replace('Lead paragraph.', 'Edited lead.'));
+    expect(output).toContain('------------------');
+    expect(output).toContain('|-------|---------|');
+  });
+
   it('restores CRLF for an edited block in a CRLF document', () => {
     const source = '# Title\r\n\r\nBody.\r\n';
     const document = parsed(source);
