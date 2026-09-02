@@ -66,12 +66,22 @@ Noto now draws the theme's rules, in the prose face at 0.92em with lining
 tabular figures, and the first column in the strong ink tier as the theme has
 it.
 
-## 4. Code blocks have no line numbers
+## 4. Code blocks had no line numbers. Closed, bar two extras.
 
 The author's `fence-enhance` plugin adds a gutter of line numbers, a language
-label and a copy button to every fence. Noto shows the language on hover and
-nothing else. The line numbers are the part that changes how a code block reads
-at a glance.
+label and a copy button to every fence. Noto showed the language on hover and
+nothing else. The line numbers are the part that changes how a code block
+reads at a glance.
+
+A fence is now a node view: a gutter column of numbers in the plugin's rule,
+as wide as the block's own line count and never narrower than two digits,
+beside the code, which no longer wraps so the two stay in step; the language
+and a copy button share the corner and show while the pointer is over the
+block or the caret is in it. The numbers are not content: a selection never
+takes them and copying copies code. A switch turns them off, on by default as
+the author's Typora is set. The plugin's indent guides and tab markers are not
+ported; each needs a per-line element inside the fence, which the editor does
+not have, and they are listed with the plugins below.
 
 ## 5. The file tree has no icons
 
@@ -113,6 +123,7 @@ a plugin model Typora does not have.
 Images first, because the gap was functional and a third of the vault was
 behind it; done, bar the HTML `<img>` remainder. Then the prose scale, tables
 and inline code together, since they are one stylesheet and one pass with the
-theme open beside it; done. Then line numbers and tree icons, which are each a
-morning. Then `<img>` inside HTML, which is the last of the pictures. The
-remaining plugins after that, in the order the author names them.
+theme open beside it; done. Then line numbers, done, and tree icons. Then
+`<img>` inside HTML, which is the last of the pictures. The remaining plugins
+after that, in the order the author names them, with `fence-enhance`'s indent
+guides and tab markers among them.

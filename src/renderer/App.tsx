@@ -305,7 +305,8 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     root.style.setProperty('--doc-font-size', `${settings.fontSize}px`);
     root.style.setProperty('--doc-line-height', `${settings.lineHeight}`);
     root.dataset.widthMode = settings.widthMode;
-  }, [settings.fontSize, settings.lineHeight, settings.widthMode]);
+    root.dataset.codeLineNumbers = settings.codeLineNumbers ? 'on' : 'off';
+  }, [settings.fontSize, settings.lineHeight, settings.widthMode, settings.codeLineNumbers]);
 
   /**
    * The user's own stylesheet, layered over the theme.

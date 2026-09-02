@@ -164,25 +164,37 @@
   padding: 0.06em 0.3em 0.08em;
 }
 
+/* A fence is two columns, the line numbers and the code, and the code never
+   wraps: a long line scrolls inside its own column while the numbers stay
+   put, which is the only way the two can stay in step. The padding lives on
+   the columns rather than the box so the gutter's rule runs the full height. */
 .ProseMirror pre {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   max-width: 100%;
-  overflow-x: auto;
+  overflow: hidden;
   border: 1px solid var(--hairline);
   border-radius: 4px;
   background: var(--raised);
-  padding: 0.9em 1em 0.85em;
+  padding: 0;
   font-family: tokens.$mono;
   font-size: 0.9em;
   line-height: 1.52;
+  white-space: pre;
+  tab-size: 4;
 }
 
 .ProseMirror pre code {
+  display: block;
+  min-width: 0;
+  overflow-x: auto;
   font-size: inherit;
   border: 0;
   border-radius: 0;
   background: transparent;
   color: inherit;
-  padding: 0;
+  padding: 0.9em 1em 0.85em;
 }
 
 /* Links in the accent, as the theme has them, with the underline held back
