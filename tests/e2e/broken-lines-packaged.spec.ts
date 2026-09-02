@@ -55,6 +55,31 @@ test.describe('a paragraph the author broke across lines', () => {
     }
   });
 
+  test('keeps the lines of a heading that swallowed them', async () => {
+    // A line of dashes straight after a paragraph, with no blank line between,
+    // is a setext heading and takes every line above it with it. 2,963 of the
+    // vault's notes have one, almost all of them frontmatter missing its
+    // opening delimiter. Whatever the author meant, that is what the file says,
+    // and typing into it must not flatten six lines into one.
+    const heading = ['spec: task', 'name: something', 'tags: two', '---', '', 'Body.', ''].join('\n');
+    const { app, page, file } = await launch('setext', heading);
+    try {
+      await expect(page.locator('.ProseMirror h2')).toBeVisible();
+      await placeCaret(page, page.locator('.ProseMirror h2'));
+      await page.keyboard.type('X');
+      await page.getByTestId('save-button').click();
+
+      await expect.poll(async () => readFile(file, 'utf8')).toContain('X');
+      const saved = await readFile(file, 'utf8');
+      // Three lines above the underline, as before, not one long one.
+      expect(saved.split('\n').slice(0, 3)).toHaveLength(3);
+      expect(saved).toContain('spec: task');
+      expect(saved).toContain('name: something');
+    } finally {
+      await app.close();
+    }
+  });
+
   test('keeps them in a file written with carriage returns', async () => {
     const crlf = NOTE.replaceAll('\n', '\r\n');
     const { app, page, file } = await launch('crlf', crlf);

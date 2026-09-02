@@ -52,7 +52,17 @@ const nodes: Record<string, NodeSpec> = {
     content: 'inline*',
     defining: true,
     attrs: { level: { default: 1 } },
-    parseDOM: [1, 2, 3, 4, 5, 6].map((level) => ({ tag: `h${level}`, attrs: { level } })),
+    /*
+     * A heading can hold newlines too, and 2,963 of the vault's notes have one
+     * that does: a line of dashes straight after a paragraph, with no blank
+     * line between, is a setext heading and swallows every line above it.
+     * Whether the author meant a heading or a rule, that is what the file says
+     * and what every parser reads. The serializer already writes a heading
+     * with a newline in it back as setext; it only needed the newline to still
+     * be there, which is the same flag the paragraph needs.
+     */
+    whitespace: 'pre',
+    parseDOM: [1, 2, 3, 4, 5, 6].map((level) => ({ tag: `h${level}`, attrs: { level }, preserveWhitespace: 'full' as const })),
     toDOM: (node) => [`h${node.attrs.level}`, 0],
   },
 
