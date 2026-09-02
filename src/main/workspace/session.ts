@@ -12,7 +12,7 @@
  */
 
 import path from 'node:path';
-import { stat } from 'node:fs/promises';
+import { stat, writeFile } from 'node:fs/promises';
 import { BrowserWindow, dialog, shell } from 'electron';
 import type { FileTruthOpenReplyV1 } from '../../shared/file-truth/v1/contracts';
 import { openableExternalUrl } from '../../shared/workspace/v1/validate';
@@ -21,6 +21,7 @@ import {
   WORKSPACE_CHANNELS,
   type WorkspaceTabV1,
   type WorkspaceFolderEventV1,
+  type WorkspaceNewFileReplyV1,
   type WorkspaceOpenExternalReplyV1,
 } from '../../shared/workspace/v1/contracts';
 import type {
@@ -295,6 +296,38 @@ export class WorkspaceSession {
     const event = this.folderEvent();
     this.send(WORKSPACE_CHANNELS.folderChanged, event);
     return event;
+  }
+
+  /**
+   * Make a new note and open it.
+   *
+   * Where it goes is decided here rather than asked for: the folder that is
+   * open, or failing that the folder the note in front came from. A request
+   * that could name its own path would be a request to write anywhere this
+   * process can reach, and the renderer is the least trusted side of it.
+   *
+   * The name is the first free one, and the file is created with the flag that
+   * fails if something is already there, so a note is never written over even
+   * if one appears between the check and the write.
+   */
+  async newFile(): Promise<WorkspaceNewFileReplyV1> {
+    const directory = this.folderRoot ?? (this.activePath ? path.dirname(this.activePath) : null);
+    if (directory === null) return { version: NOTO_WORKSPACE_VERSION, created: false, path: null };
+
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const name = attempt === 0 ? 'Untitled.md' : `Untitled ${attempt + 1}.md`;
+      const target = path.join(directory, name);
+      try {
+        await writeFile(target, '', { encoding: 'utf8', flag: 'wx' });
+      } catch (cause) {
+        if ((cause as NodeJS.ErrnoException).code === 'EEXIST') continue;
+        throw cause;
+      }
+      await this.openPath(target);
+      this.logger.log('workspace_note_created', {});
+      return { version: NOTO_WORKSPACE_VERSION, created: true, path: target };
+    }
+    throw new Error('A hundred notes here are already called Untitled.');
   }
 
   /**

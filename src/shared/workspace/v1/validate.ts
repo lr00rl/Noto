@@ -35,6 +35,7 @@ import type {
   WorkspaceFolderEventV1,
   WorkspaceFolderReplyV1,
   WorkspaceFolderRequestV1,
+  WorkspaceNewFileReplyV1,
   WorkspaceOpenExternalReplyV1,
   WorkspaceOpenExternalRequestV1,
 } from './contracts';
@@ -252,6 +253,15 @@ export function isWorkspaceOpenExternalReplyV1(value: unknown): value is Workspa
 
 export const isWorkspaceOpenExternalResultV1 = (value: unknown, id: string): value is WorkspaceResultV1<WorkspaceOpenExternalReplyV1> =>
   isResult(value, id, isWorkspaceOpenExternalReplyV1);
+
+export function isWorkspaceNewFileReplyV1(value: unknown): value is WorkspaceNewFileReplyV1 {
+  return record(value) && exact(value, ['version', 'created', 'path'])
+    && value.version === 1 && typeof value.created === 'boolean'
+    && (value.path === null || (typeof value.path === 'string' && value.path.length <= 4096));
+}
+
+export const isWorkspaceNewFileResultV1 = (value: unknown, id: string): value is WorkspaceResultV1<WorkspaceNewFileReplyV1> =>
+  isResult(value, id, isWorkspaceNewFileReplyV1);
 
 export function isWorkspaceRevealReplyV1(value: unknown): value is WorkspaceRevealReplyV1 {
   return record(value) && exact(value, ['version', 'revealed'])

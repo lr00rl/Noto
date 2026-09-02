@@ -95,6 +95,9 @@ export function registerWorkspaceHandlers(deps: {
   register(WORKSPACE_CHANNELS.openExternal, isWorkspaceOpenExternalRequestV1,
     (request: WorkspaceOpenExternalRequestV1) => deps.session.openExternal(request.url));
 
+  register(WORKSPACE_CHANNELS.newFile, isWorkspaceRequestV1,
+    () => deps.session.newFile());
+
   register(WORKSPACE_CHANNELS.searchContent, isWorkspaceContentRequestV1,
     (request: WorkspaceContentRequestV1) => deps.session.searchContent(request.query));
 

@@ -957,6 +957,24 @@ adopting a folder. It cannot. The claim is the first statement of
 `adoptFolder`, before any await, so the check and the claim are one tick and
 nothing can interleave.
 
+## 52. There was no way to make a note. Closed.
+
+The File menu had Open, Open Folder, Quick Open, Close, Recent, Reveal, Save
+and Save a Copy, and no New. An editor for a vault of seven thousand notes
+could open any of them and could not add one.
+
+Command and N makes one now. Where it goes is decided in main rather than
+asked for: the folder that is open, or failing that the folder the note in
+front came from. The renderer names no path at all, because a request that
+could name its own would be a request to write anywhere this process can
+reach.
+
+The name is the first free `Untitled`, and the file is created with the flag
+that fails if something is already there, so a note is never written over even
+if one appears between the check and the write. A test puts a note called
+`Untitled.md` in the way and checks that it still holds its own words
+afterwards.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
