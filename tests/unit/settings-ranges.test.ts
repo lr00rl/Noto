@@ -42,10 +42,10 @@ describe('numeric settings', () => {
   });
 
   it('coerces an out-of-range stored value instead of refusing the whole file', () => {
-    const stored = coerceSettings({ fontSize: 999, lineHeight: 0, measureCh: 66 });
+    const stored = coerceSettings({ fontSize: 999, lineHeight: 0, widthMode: 'wide' });
     expect(stored.fontSize).toBe(SETTING_RANGES.fontSize.max);
     expect(stored.lineHeight).toBe(SETTING_RANGES.lineHeight.min);
-    expect(stored.measureCh).toBe(66);
+    expect(stored.widthMode).toBe('wide');
   });
 
   it('refuses an out-of-range write rather than silently storing something else', () => {
@@ -53,7 +53,8 @@ describe('numeric settings', () => {
     expect(write({ fontSize: SETTING_RANGES.fontSize.max + 1 })).toBe(false);
     expect(write({ fontSize: SETTING_RANGES.fontSize.min - 1 })).toBe(false);
     expect(write({ lineHeight: Number.NaN })).toBe(false);
-    expect(write({ measureCh: '66' })).toBe(false);
+    expect(write({ widthMode: 'wider' })).toBe(false);
+    expect(write({ widthMode: 'full' })).toBe(true);
   });
 });
 

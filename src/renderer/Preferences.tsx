@@ -19,6 +19,7 @@ import {
   type NotoNumericSetting,
   type NotoSettingsV1,
   type NotoTheme,
+  type WidthModeV1,
 } from '../shared/settings/v1/contracts';
 
 export type PreferencesSection = 'appearance' | 'editor' | 'plugins';
@@ -50,6 +51,14 @@ const THEMES: readonly { value: NotoTheme; label: string }[] = [
   { value: 'system', label: 'System' },
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
+];
+
+/* The numbers are in the hints rather than the labels: the labels are what
+   the reader chooses between, the numbers are how the choice is kept honest. */
+const WIDTHS: readonly { value: WidthModeV1; label: string; hint: string }[] = [
+  { value: 'default', label: 'Default', hint: 'A reading column, up to 860px.' },
+  { value: 'wide', label: 'Wide', hint: '78% of the canvas, between 1000 and 1180px.' },
+  { value: 'full', label: 'Full', hint: 'Everything beside the rail, up to 1680px.' },
 ];
 
 /**
@@ -139,8 +148,9 @@ function ThemeFile({ settings, onChange, problem, onReload }: {
   );
 }
 
-function Choices<T extends string>({ label, options, value, onPick, testPrefix }: {
+function Choices<T extends string>({ label, hint, options, value, onPick, testPrefix }: {
   label: string;
+  hint?: string;
   options: readonly { value: T; label: string; hint?: string }[];
   value: T;
   onPick: (value: T) => void;
@@ -148,7 +158,10 @@ function Choices<T extends string>({ label, options, value, onPick, testPrefix }
 }) {
   return (
     <div className="pref-row">
-      <span className="pref-label">{label}</span>
+      <span className="pref-label">
+        {label}
+        {hint && <small>{hint}</small>}
+      </span>
       <div className="pref-segmented" role="radiogroup" aria-label={label}>
         {options.map((option) => (
           <button
@@ -264,10 +277,9 @@ export function Preferences({
                 <Slider label="Line height" setting="lineHeight" value={settings.lineHeight}
                   format={(value) => value.toFixed(2)} testId="setting-line-height"
                   onChange={(value) => onChange({ lineHeight: Number(value.toFixed(2)) })} />
-                <Slider label="Line width" hint="Characters per line, at the current text size."
-                  setting="measureCh" value={settings.measureCh}
-                  format={(value) => `${value} ch`} testId="setting-measure"
-                  onChange={(value) => onChange({ measureCh: value })} />
+                <Choices label="Page width" hint="Cmd+] and Cmd+[ step through these."
+                  options={WIDTHS} value={settings.widthMode}
+                  onPick={(value) => onChange({ widthMode: value })} testPrefix="width" />
                 <Switch
                   label="Open the rail at launch"
                   hint="Start with the file tree showing."

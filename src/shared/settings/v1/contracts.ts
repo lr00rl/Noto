@@ -27,19 +27,13 @@ export type NotoTheme = 'light' | 'dark' | 'system';
  * Numeric settings, with the range each one is clamped to.
  *
  * Bounds rather than free numbers because these reach CSS: a line height of 40
- * or a measure of 5000 characters does not produce an unusual document, it
- * produces an unusable window with no way back except editing the settings file
- * by hand. The floor is as important as the ceiling for the same reason.
- *
- * The measure is in characters rather than pixels because comfortable line
- * length is what it actually controls, and it should hold as the font size
- * changes. It replaces a three-way narrow/medium/wide preset, which could not
- * say 68 when 66 and 74 were both wrong.
+ * or a text size of 400 does not produce an unusual document, it produces an
+ * unusable window with no way back except editing the settings file by hand.
+ * The floor is as important as the ceiling for the same reason.
  */
 export const SETTING_RANGES = Object.freeze({
   fontSize: { min: 13, max: 26, step: 1 },
   lineHeight: { min: 1.3, max: 2.2, step: 0.02 },
-  measureCh: { min: 46, max: 110, step: 1 },
   autoSaveDelayMs: { min: 400, max: 10_000, step: 100 },
   /* A vault six levels deep spends 90px of the rail on indentation before the
      first character of a filename. 248px was chosen against a shallow fixture
@@ -51,24 +45,37 @@ export const SETTING_RANGES = Object.freeze({
 export type NotoNumericSetting = keyof typeof SETTING_RANGES;
 
 /**
- * The three widths `Cmd+[` and `Cmd+]` step between.
+ * The three widths of the writing column, in the order `Cmd+]` walks them.
  *
- * Three stops, not a fine step through the whole range. The chord exists to
- * change the shape of the page in one press while reading something that does
- * not fit; nudging four characters at a time turns that into six presses and a
- * squint. The slider in preferences still sets any value in the range, because
- * that is where someone tunes a measure once and forgets it.
+ * Modes rather than a number, because the width is not a number the reader
+ * owns: it is a share of whatever canvas is left beside the rail, capped so a
+ * paragraph never runs across a 27-inch display. The share and the cap for each
+ * mode live in the stylesheet, where the canvas width is known, and each one is
+ * `min(canvas - gutters, cap)`. That last clause is the rule the whole thing
+ * exists for: the column is never wider than the canvas it sits in, so the
+ * document never scrolls sideways, whatever the mode and however narrow the
+ * window.
  *
- * Named after what they are for rather than by number: comfortable prose, a
- * width that holds a wide table, and as much as the window will give.
+ * `default` is the reading column, up to 860px, which is the width of Typora's
+ * own page. `wide` is 78% of the canvas held between 1000px and 1180px, for a
+ * code block that runs past the reading column. `full` is everything beside
+ * the rail, up to 1680px. Ported from the author's `wider` plugin for Typora,
+ * whose numbers were tuned against a real vault.
  */
-export const WIDTH_STOPS = [66, 84, 106] as const;
+export const WIDTH_MODES = ['default', 'wide', 'full'] as const;
 
-/** The next stop in `direction`, from wherever the measure currently is. */
-export function stepWidth(current: number, direction: 1 | -1): number {
-  const stops = WIDTH_STOPS;
-  if (direction === 1) return stops.find((stop) => stop > current + 0.5) ?? stops[stops.length - 1];
-  return [...stops].reverse().find((stop) => stop < current - 0.5) ?? stops[0];
+export type WidthModeV1 = (typeof WIDTH_MODES)[number];
+
+/**
+ * The next mode in `direction`, wrapping at either end.
+ *
+ * A ring rather than a line, as in the plugin: the chord is a single motion
+ * ("make it wider") and a press that does nothing at the end of the range reads
+ * as a key that is broken rather than as a limit reached.
+ */
+export function stepWidthMode(current: WidthModeV1, direction: 1 | -1): WidthModeV1 {
+  const at = Math.max(0, WIDTH_MODES.indexOf(current));
+  return WIDTH_MODES[(at + direction + WIDTH_MODES.length) % WIDTH_MODES.length];
 }
 
 export interface NotoSettingsV1 {
@@ -77,8 +84,8 @@ export interface NotoSettingsV1 {
   readonly fontSize: number;
   /** Unitless line height for document text. */
   readonly lineHeight: number;
-  /** Width of the text column, in characters of the prose font. */
-  readonly measureCh: number;
+  /** How much of the canvas the text column takes. See `WIDTH_MODES`. */
+  readonly widthMode: WidthModeV1;
   /** Turn quotes and dashes into their typographic forms as you type. */
   readonly smartTypography: boolean;
   readonly spellCheck: boolean;
@@ -109,7 +116,7 @@ export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   theme: 'system',
   fontSize: 18,
   lineHeight: 1.62,
-  measureCh: 66,
+  widthMode: 'default',
   // On by default because it is what a writing tool should do, and it is
   // reversible per document by undoing the substitution.
   smartTypography: true,

@@ -1,11 +1,6 @@
 @use 'roob-tokens' as tokens;
 
 /* Document typography, set from preferences at runtime.
-   The measure is in `ch`, resolved against the prose font at the prose size on
-   the host below, so the value is the number of characters a line actually
-   holds. It was in `rem` before, which is relative to the 16px root and has no
-   relationship to the serif the prose is set in; the old presets came out at
-   roughly 81, 99 and 120 characters, all past the readable ceiling.
 
    These are the defaults for the moment before the renderer has read the
    settings file, so they match `DEFAULT_SETTINGS` rather than being arbitrary:
@@ -13,15 +8,43 @@
 :root {
   --doc-font-size: 18px;
   --doc-line-height: 1.62;
-  --measure: 66ch;
+
+  /* The writing column, as a share of the canvas beside the rail.
+
+     Three modes, ported from the author's `wider` plugin for Typora and set on
+     the root as `data-width-mode`. Each is `min(canvas - gutters, cap)`: a
+     share of the canvas with a ceiling, never more than the canvas itself.
+     That last clause is the rule the whole block exists for. The column can
+     never be wider than the canvas it sits in, so the document never scrolls
+     sideways, whatever the mode, however narrow the window and whether or not
+     the rail is open. The percentages resolve where the width is used, so the
+     rail is already subtracted: the canvas is its flex sibling.
+
+     The gutter scales with the canvas, 4% held between 20px and 72px, so a
+     narrow window spends its pixels on text and a wide one keeps the column
+     off the edge. `default` is the reading column, up to 860px, which is the
+     width of Typora's own page. `wide` is 78% held between 1000px and 1180px,
+     for a code block that runs past the reading column. `full` is everything
+     beside the rail, up to 1680px. */
+  --canvas-gutter: clamp(20px, 4%, 72px);
+  --measure-cap: 860px;
+  --measure: min(100% - 2 * var(--canvas-gutter), var(--measure-cap));
+}
+
+:root[data-width-mode='wide'] {
+  --measure-cap: clamp(1000px, 78%, 1180px);
+}
+
+:root[data-width-mode='full'] {
+  --measure-cap: 1680px;
 }
 
 .noto-editor-host {
-  /* Carries the prose font and size purely so `ch` above means what it says.
+  /* Carries the prose font and size so the document's `em` means what it says.
      The host renders no text of its own. */
   font-family: tokens.$prose;
   font-size: var(--doc-font-size);
-  width: min(calc(100% - 48px), var(--measure));
+  width: var(--measure);
   max-width: 100%;
   min-width: 0;
   min-height: 100%;
@@ -133,8 +156,12 @@
   .ProseMirror { font-size: 17px; }
 }
 
+/* A phone-width window spends its pixels on text: the gutter drops to a
+   fixed 16px, as in the plugin below 1024, and the modes all resolve to the
+   same column because none of the caps fit. */
 @media (max-width: 760px) {
-  .noto-editor-host { width: min(calc(100% - 32px), 860px); padding-top: 20px; }
+  :root { --canvas-gutter: 16px; }
+  .noto-editor-host { padding-top: 20px; }
 }
 
 .ProseMirror .noto-opaque-source {

@@ -89,11 +89,16 @@ is measured after paint and the first frame is never in the wrong place.
 The rail toggle in the title bar opens and closes the region; the menu items
 open it on the view they name.
 
-`Cmd+]` and `Cmd+[` step the writing width between three stops rather than
-nudging it. The chord exists to change the shape of the page in one press while
-reading something that does not fit; four characters at a time turns that into
-six presses and a squint. The slider in preferences still sets any value, which
-is where a measure gets tuned once and forgotten.
+`Cmd+]` and `Cmd+[` walk the page width through three modes, default, wide and
+full, in a ring. Each mode is a share of the canvas beside the rail with a
+ceiling: the reading column up to 860px, which is the width of Typora's page;
+78% held between 1000px and 1180px, for code that runs past the column; and
+everything beside the rail up to 1680px. The share is taken from the canvas
+rather than the window, so the rail is already subtracted, and every mode is at
+most the canvas less its gutters. The document therefore never scrolls
+sideways, whatever the mode and however narrow the window; a code block that
+is wider than the column scrolls inside its own box. The numbers and the ring
+are the author's `wider` plugin for Typora, ported.
 
 Its width is dragged from the right edge and remembered. Not a fixed width and
 not a fraction of the window: a rail that follows the window rewraps filenames
@@ -211,14 +216,13 @@ only a list, and the last row of a section always ended up floating above the
 footer's own rule with nothing between them. Space separates; a label and its
 control are already a pair by sharing a line.
 
-Appearance carries the theme, the three typographic settings, and the custom
-stylesheet. Text size, line height and line width are sliders with the value
-beside them in its own units, because a slider alone hides the number and a
-number field alone turns finding a comfortable line height into typing and
-re-typing. The width is a character count rather than a pixel width, since
-comfortable line length is what it actually controls and it should hold as the
-size changes; it replaced a narrow/medium/wide preset that could not say 68
-when 66 and 74 were both wrong.
+Appearance carries the theme, the typographic settings, and the custom
+stylesheet. Text size and line height are sliders with the value beside them in
+its own units, because a slider alone hides the number and a number field alone
+turns finding a comfortable line height into typing and re-typing. Page width
+is the same three-way control as the theme, since it is three modes rather than
+a number and the pixels each mode resolves to depend on the canvas; the hint
+under the label names the chord that walks them.
 
 Range inputs are painted rather than left alone. A bare one uses the operating
 system's accent colour, which is neither this app's accent nor anything the

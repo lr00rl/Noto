@@ -38,7 +38,20 @@ async function launch(name: string, reuse?: string): Promise<Workspace> {
   }
   const file = path.join(workspace, 'notes.md');
   await mkdir(path.dirname(file), { recursive: true });
-  await writeFile(file, '# Notes\n\nBody.\n', 'utf8');
+  // Wide content on purpose: a fence and a token that cannot wrap are the two
+  // things that would push a page sideways if the column did not contain them.
+  await writeFile(file, [
+    '# Notes',
+    '',
+    'Body.',
+    '',
+    '```ts',
+    `const wide = ${'"x"'.repeat(120)};`,
+    '```',
+    '',
+    `A token that never wraps: ${'unbroken'.repeat(40)}.`,
+    '',
+  ].join('\n'), 'utf8');
 
   const app = await electron.launch({
     executablePath: packagedExecutable(),
@@ -50,10 +63,24 @@ async function launch(name: string, reuse?: string): Promise<Workspace> {
   return { app, page, userData };
 }
 
-/** The measure, as the document actually resolved it. */
-const measureOf = (page: Page) => page.evaluate(
-  () => getComputedStyle(document.documentElement).getPropertyValue('--measure').trim(),
+/** The page width mode, as the document actually carries it. */
+const modeOf = (page: Page) => page.evaluate(
+  () => document.documentElement.dataset.widthMode ?? '',
 );
+
+/** The column, the canvas it sits in, and how far the canvas could scroll sideways. */
+const layoutOf = (page: Page) => page.evaluate(() => {
+  const canvas = document.getElementById('document-canvas');
+  const host = document.querySelector<HTMLElement>('.noto-editor-host');
+  if (!canvas || !host) throw new Error('No canvas on screen');
+  return {
+    column: host.getBoundingClientRect().width,
+    canvas: canvas.clientWidth,
+    sideways: canvas.scrollWidth - canvas.clientWidth,
+  };
+});
+
+const MODES = ['default', 'wide', 'full'] as const;
 
 test.describe('settings', () => {
   test('opens from the menu and closes again', async () => {
@@ -84,25 +111,53 @@ test.describe('settings', () => {
     }
   });
 
-  test('changes the width of the text column', async () => {
-    const { app, page } = await launch('measure');
+  test('steps the page width through three modes, never past the canvas', async () => {
+    const { app, page } = await launch('width');
     try {
-      const host = page.locator('.noto-editor-host');
-      const before = (await host.boundingBox())?.width ?? 0;
+      // 1280 wide with the rail closed: the reading column stops at its cap,
+      // wide is at least 1000, and full is the canvas less its gutters.
+      const reading = await layoutOf(page);
+      expect(reading.column).toBeCloseTo(860, 0);
+      expect(reading.sideways).toBe(0);
 
-      // The measure is a number of characters now rather than three presets,
-      // so the control is a slider and the column follows the value.
       await invokeMenu(app, 'settings');
-      await page.getByTestId('setting-measure').fill('48');
-      await expect.poll(() => measureOf(page)).toBe('48ch');
-      const narrow = (await host.boundingBox())?.width ?? 0;
+      await page.getByTestId('width-wide').click();
+      await expect.poll(() => modeOf(page)).toBe('wide');
+      const wide = await layoutOf(page);
+      expect(wide.column).toBeGreaterThanOrEqual(1000);
+      expect(wide.column).toBeLessThanOrEqual(wide.canvas);
 
-      await page.getByTestId('setting-measure').fill('96');
-      await page.waitForTimeout(150);
-      const wide = (await host.boundingBox())?.width ?? 0;
+      await page.getByTestId('width-full').click();
+      await expect.poll(() => modeOf(page)).toBe('full');
+      const full = await layoutOf(page);
+      expect(full.column).toBeGreaterThan(wide.column);
+      expect(full.column).toBeLessThanOrEqual(full.canvas);
+      expect(full.sideways).toBe(0);
+      await page.getByTestId('settings-close').click();
 
-      expect(narrow).toBeLessThan(before);
-      expect(wide).toBeGreaterThan(narrow);
+      // The chord walks a ring: full wraps round to default.
+      await invokeMenu(app, 'widen');
+      await expect.poll(() => modeOf(page)).toBe('default');
+      await invokeMenu(app, 'narrow');
+      await expect.poll(() => modeOf(page)).toBe('full');
+
+      // With the rail open the canvas is narrower and the column follows it.
+      // Every mode at every window width is at most the canvas: the document
+      // never scrolls sideways, which is the rule the modes exist under.
+      await invokeMenu(app, 'toggle-sidebar');
+      await expect(page.locator('.workspace-rail')).toBeVisible();
+      let mode: (typeof MODES)[number] = 'full';
+      for (const width of [1280, 960, 760]) {
+        await page.setViewportSize({ width, height: 800 });
+        for (let step = 0; step < MODES.length; step += 1) {
+          await invokeMenu(app, 'widen');
+          mode = MODES[(MODES.indexOf(mode) + 1) % MODES.length];
+          await expect.poll(() => modeOf(page)).toBe(mode);
+          const layout = await layoutOf(page);
+          expect(layout.column, `${mode} at ${width}`).toBeLessThanOrEqual(layout.canvas);
+          expect(layout.sideways, `${mode} at ${width}`).toBe(0);
+        }
+      }
     } finally {
       await app.close();
     }
@@ -128,20 +183,21 @@ test.describe('settings', () => {
     try {
       await invokeMenu(first.app, 'settings');
       await first.page.getByTestId('theme-dark').click();
-      await first.page.getByTestId('setting-measure').fill('84');
+      await first.page.getByTestId('width-wide').click();
       await first.page.getByTestId('setting-font-size').fill('21');
       await expect(first.page.locator('html')).toHaveAttribute('data-theme', 'dark');
+      await expect.poll(() => modeOf(first.page)).toBe('wide');
     } finally {
       await first.app.close();
     }
 
     const stored = JSON.parse(await readFile(path.join(first.userData, 'settings.json'), 'utf8'));
-    expect(stored).toMatchObject({ theme: 'dark', measureCh: 84, fontSize: 21 });
+    expect(stored).toMatchObject({ theme: 'dark', widthMode: 'wide', fontSize: 21 });
 
     const second = await launch('persist', first.userData);
     try {
       await expect(second.page.locator('html')).toHaveAttribute('data-theme', 'dark');
-      await expect.poll(() => measureOf(second.page)).toBe('84ch');
+      await expect.poll(() => modeOf(second.page)).toBe('wide');
     } finally {
       await second.app.close();
     }
