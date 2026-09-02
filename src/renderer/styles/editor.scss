@@ -256,7 +256,6 @@
 }
 .noto-image-name { overflow: hidden; text-overflow: ellipsis; font-family: tokens.$mono; }
 .noto-image-reason { flex: 0 0 auto; opacity: 0.75; }
-.ProseMirror ::selection { background: var(--hairline); color: var(--ink); }
 
 .noto-opaque-node {
   max-width: 100%;
@@ -388,12 +387,6 @@
 .ProseMirror > pre {
   margin-top: calc(0.93 * var(--doc-font-size));
   margin-bottom: calc(1.2 * var(--doc-font-size));
-}
-
-/* The theme's selection: the accent at a wash, never the system blue. */
-.ProseMirror ::selection,
-.ProseMirror::selection {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 /* Focus mode, as Typora has it: everything but the block being written

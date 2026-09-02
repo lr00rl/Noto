@@ -174,6 +174,7 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       command('Unordered List', 'CmdOrCtrl+Alt+U', 'block-bullet-list'),
       command('Task List', 'CmdOrCtrl+Alt+X', 'block-task-list'),
       command('Horizontal Line', 'CmdOrCtrl+Alt+-', 'block-rule'),
+      command('Hyperlink…', 'CmdOrCtrl+K', 'insert-link'),
       { type: 'separator' },
       command('Underline', 'CmdOrCtrl+U', 'mark-underline'),
       command('Highlight', 'CmdOrCtrl+Shift+H', 'mark-highlight'),

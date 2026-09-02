@@ -65,7 +65,7 @@ describe('revealing inline markdown', () => {
       [' end', [strong.create()]],
     ]);
     const inNested = 1 + 'bold '.length + 2;
-    expect(revealedAt(state, inNested)).toEqual(['_', '_']);
+    expect(revealedAt(state, inNested)).toEqual(['*', '*']);
   });
 
   it('falls back to the outer mark once the caret leaves the inner one', () => {
@@ -95,11 +95,9 @@ describe('revealing inline markdown', () => {
     expect(selected.selection.empty).toBe(false);
   });
 
-  it('keeps the delimiters it draws in step with what a save would write', () => {
-    // Emphasis serializes as `_` in markdown/v3/syntax.ts, so it is revealed
-    // as `_`. Showing `*` would be showing markup the file does not contain.
-    expect(DELIMITERS.emphasis.open).toBe('_');
-    expect(DELIMITERS.strong.open).toBe('**');
-    expect(DELIMITERS.inline_code.open).toBe('`');
-  });
+  // Whether the delimiters match what a save writes is checked in
+  // `reveal-matches-save.test.ts`, against the serializer's real output. This
+  // file used to assert the characters directly and passed for months while
+  // showing an underscore the file no longer contained: two places naming the
+  // same constant agreed with each other and not with the document.
 });

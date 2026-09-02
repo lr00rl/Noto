@@ -1715,3 +1715,57 @@
   width: 2px;
   transform: translateX(-1px);
 }
+
+/* The panel for a link's address.
+ *
+ * Small, anchored under the link it belongs to, and holding one field. It is
+ * fixed to the viewport because that is the space the editor measures
+ * positions in, and it takes the raised surface for the same reason the find
+ * bar does: it floats over the page without a scrim, so it has to differ from
+ * the page it covers. */
+.noto-link-panel {
+  position: fixed;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 7px;
+  background: var(--raised);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
+
+  /* `display: flex` outranks the browser's own rule for the hidden attribute,
+     so without this the panel is never actually hidden. */
+  &[hidden] { display: none; }
+}
+
+.noto-link-input {
+  width: 22rem;
+  max-width: 50vw;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 0.86rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+
+  &:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: -1px;
+  }
+}
+
+.noto-link-remove {
+  padding: 4px 9px;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover { color: var(--ink); background: var(--panel); }
+}

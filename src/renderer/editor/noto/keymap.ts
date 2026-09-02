@@ -34,6 +34,7 @@ import {
   isInTable,
 } from 'prosemirror-tables';
 import { moveBlock, moveColumn } from './move-block';
+import { openLinkEditor } from './link-plugin';
 import { TextSelection, type Command, type Plugin } from 'prosemirror-state';
 import { notoSchema } from '../../../shared/markdown/v3/pm/schema';
 
@@ -254,6 +255,7 @@ export const EDITOR_COMMANDS: Readonly<Record<string, Command>> = {
   'move-down': moveBlock(false),
   'move-column-left': moveColumn(true),
   'move-column-right': moveColumn(false),
+  'insert-link': openLinkEditor,
 };
 
 export function notoKeymap({ mac }: { mac: boolean }): Plugin[] {
@@ -294,6 +296,7 @@ export function notoKeymap({ mac }: { mac: boolean }): Plugin[] {
     [`${mod}-+`]: shiftHeading(true),
     [`${mod}--`]: shiftHeading(false),
     [`${mod}-Shift-q`]: wrapIn(nodes.blockquote),
+    [`${mod}-k`]: openLinkEditor,
 
     [`${mod}-z`]: undo,
     [`${mod}-Shift-z`]: redo,

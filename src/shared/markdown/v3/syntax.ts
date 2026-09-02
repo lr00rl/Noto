@@ -285,12 +285,31 @@ const verbatimRunsInText: ToMarkdownOptions = {
   },
 };
 
+/**
+ * The characters each inline mark is written with.
+ *
+ * Exported because the editor reveals a mark's delimiters around the caret and
+ * must show what a save would actually write. The two were once written out
+ * separately and drifted: the serializer moved to a star for emphasis and the
+ * reveal went on showing an underscore.
+ *
+ * The vault writes emphasis with a star, 5,280 times against 364 with an
+ * underscore, so an edited paragraph keeps the form the file already uses.
+ */
+const EMPHASIS_MARKER = '*';
+const STRONG_MARKER = '*';
+
+export const INLINE_DELIMITERS = {
+  emphasis: EMPHASIS_MARKER,
+  strong: STRONG_MARKER.repeat(2),
+  strikethrough: '~~',
+  inline_code: '`',
+} as const;
+
 const serializerOptions: ToMarkdownOptions = {
   bullet: '-',
-  // The vault writes emphasis with a star, 5,280 times against 364 with an
-  // underscore, so an edited paragraph keeps the form the file already uses.
-  emphasis: '*',
-  strong: '*',
+  emphasis: EMPHASIS_MARKER,
+  strong: STRONG_MARKER,
   fence: '`',
   fences: true,
   listItemIndent: 'one',
