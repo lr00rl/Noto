@@ -328,6 +328,18 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   );
   if (!pluginHostRef.current) pluginHostRef.current = createRendererPluginHosts();
 
+  /*
+   * The editor came up before the snapshots did, so this batch is the one that
+   * gets told. Watched as state rather than by wrapping the stream's own
+   * writer, which stays the single thing that writes snapshot state.
+   */
+  useEffect(() => {
+    if (!awaitingSnapshotsRef.current) return;
+    if (pluginSnapshots.length === 0) return;
+    awaitingSnapshotsRef.current = false;
+    announceEditorRef.current();
+  }, [pluginSnapshots]);
+
   const pluginSnapshot = pluginSnapshots.find((snapshot) => snapshot.id === rendererProofManifest.id);
   const filename = useMemo(() => opened?.path.split(/[\\/]/).at(-1) ?? 'No document', [opened]);
   // The containing folder, shortened to a leading tilde inside the home
@@ -479,16 +491,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     pluginClientRef.current = client;
     // The snapshots may be the second of the two to arrive, so every update
     // asks again whether there is now an editor for a waiting plugin.
-    const stream = createPluginSnapshotStream((snapshots) => {
-      setPluginSnapshots(snapshots);
-      pluginSnapshotsRef.current = snapshots;
-      // The editor came up before the snapshots did, so this batch is the one
-      // that gets told. Spent once, whatever it finds.
-      if (awaitingSnapshotsRef.current) {
-        awaitingSnapshotsRef.current = false;
-        announceEditorRef.current();
-      }
-    });
+    const stream = createPluginSnapshotStream(setPluginSnapshots);
     let active = true;
     let authoritative = false;
     const unsubscribe = window.notoDesktop.plugins.onSnapshots((event) => {
