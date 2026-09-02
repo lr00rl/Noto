@@ -27,6 +27,14 @@ highlighter and the marks: the set is mapped through the transaction and only
 the blocks the change or the selection touched are rescanned. On the 8MB
 document the 95th percentile keystroke fell from 5.2s to 1.5s.
 
+The view layer was then tested by removing plugins from a real build rather
+than by inference. With the alert plugin, the inline marks and the active
+block all taken out, the 2MB document still took 113ms a keystroke, the same
+as with them. No decoration this editor draws accounts for the cost: it is
+ProseMirror reconciling a document whose top level holds eleven thousand
+children, and shortening that would mean rendering only what is on screen,
+which is a different architecture rather than a tuning.
+
 What is left is the view layer, and it is the honest limit of this design at
 this size. A 2MB note, which is larger than all but three notes in the vault,
 takes 113ms a keystroke: perceptible, and short of where it should be.
