@@ -58,3 +58,23 @@ describe('what a link command acts on', () => {
     expect(linkTarget(stateFor(fence, start, start + 5))).toBeNull();
   });
 });
+
+describe('a link whose text is not one plain run', () => {
+  const mixed = 'See [**the bold** part](https://example.com/x) here.';
+
+  it('covers the whole link, not the first run of it', () => {
+    const start = at(mixed, 'the bold');
+    const target = linkTarget(stateFor(mixed, start + 2));
+    expect(target).not.toBeNull();
+    // "the bold part" is the whole link text; the bold run alone is 8 characters.
+    expect(target!.to - target!.from).toBe('the bold part'.length);
+  });
+
+  it('finds the same range from the plain half of it', () => {
+    const bold = at(mixed, 'the bold');
+    const plain = at(mixed, ' part');
+    const fromBold = linkTarget(stateFor(mixed, bold + 2));
+    const fromPlain = linkTarget(stateFor(mixed, plain + 2));
+    expect(fromPlain).toEqual(fromBold);
+  });
+});
