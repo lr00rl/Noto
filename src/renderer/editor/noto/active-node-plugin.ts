@@ -27,20 +27,22 @@
 import { Plugin, PluginKey, type EditorState } from 'prosemirror-state';
 import type { Mark, Node as ProseNode } from 'prosemirror-model';
 import { Decoration, DecorationSet } from 'prosemirror-view';
+import { INLINE_DELIMITERS } from '../../../shared/markdown/v3/syntax';
 
 export const activeNodeKey = new PluginKey<DecorationSet>('noto-active-node');
 
 /**
  * The delimiters each mark is written with.
  *
- * These match `serializerOptions` in `markdown/v3/syntax.ts`, so what is
- * revealed is what a save would write. Emphasis is `_` there, not `*`.
+ * Taken from the serializer rather than written out again, so what is revealed
+ * is what a save would write. Copying them was how the reveal came to show an
+ * underscore for emphasis months after the serializer had moved to a star.
  */
 export const DELIMITERS: Record<string, { open: string; close: (mark: Mark) => string }> = {
-  emphasis: { open: '_', close: () => '_' },
-  strong: { open: '**', close: () => '**' },
-  strikethrough: { open: '~~', close: () => '~~' },
-  inline_code: { open: '`', close: () => '`' },
+  emphasis: { open: INLINE_DELIMITERS.emphasis, close: () => INLINE_DELIMITERS.emphasis },
+  strong: { open: INLINE_DELIMITERS.strong, close: () => INLINE_DELIMITERS.strong },
+  strikethrough: { open: INLINE_DELIMITERS.strikethrough, close: () => INLINE_DELIMITERS.strikethrough },
+  inline_code: { open: INLINE_DELIMITERS.inline_code, close: () => INLINE_DELIMITERS.inline_code },
   // A link's closing delimiter carries its destination, which is the part a
   // reader cannot otherwise see and the part they came to edit.
   link: { open: '[', close: (mark) => `](${String(mark.attrs.href ?? '')})` },

@@ -56,6 +56,7 @@ import {
 } from './search-plugin';
 import { syntaxHighlightPlugin } from './highlight';
 import { wikiLinkPlugin } from './wiki-link-plugin';
+import { linkEditorPlugin } from './link-plugin';
 
 export interface NotoEditorOptions extends InputRuleOptions {
   readonly mac: boolean;
@@ -142,6 +143,7 @@ export class NotoEditor implements NotoEditorPort {
       tableEditing(),
       activeNodePlugin(),
       wikiLinkPlugin({ onFollow: (target) => this.options.onFollowWikiLink?.(target) }),
+      linkEditorPlugin(),
       mathEditingPlugin(),
       searchPlugin(),
       syntaxHighlightPlugin(),

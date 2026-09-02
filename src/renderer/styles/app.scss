@@ -1680,6 +1680,15 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   }
 }
 
+/* The theme's selection: the accent at a wash, never the system blue. It was
+   set inside the editor only, so every field outside it, the find bar, a link's
+   address, the stylesheet path in preferences, selected in the platform's blue
+   on a warm page. */
+::selection {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--ink);
+}
+
 /* The theme's scrollbars: a thin thumb in the hairline colour on no track. */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: var(--hairline); border-radius: 3px; }

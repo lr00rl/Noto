@@ -184,6 +184,7 @@ export const WORKSPACE_MENU_COMMANDS = [
   'move-down',
   'move-column-left',
   'move-column-right',
+  'insert-link',
   'toggle-focus-mode',
   'toggle-typewriter',
   'toggle-outline',

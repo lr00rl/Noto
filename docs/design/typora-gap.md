@@ -663,6 +663,48 @@ rather than matched to it. The find bar keeps the raised colour, because it
 floats without a scrim and has to differ from the page it sits on. The two
 cases look like one and are not.
 
+## 39. There was no way to make a link, or to change one. Closed.
+
+Typora's menu was read out of its own bundle, 301 labels, and set beside
+Noto's. Most of what it has that Noto does not is export, printing and
+document conversion. One entry was not like the others: Hyperlink, on Command
+and K, which Noto had no command for at all, on any menu or key. Making a link
+is among the most common things anybody does in markdown.
+
+Worse, an existing link could not be changed either. The delimiters revealed
+around the caret show a link's destination because it is the part a reader
+cannot otherwise see, but they are decorations and nobody can type into a
+decoration, so the only way to correct an address was to leave for source mode.
+
+Command and K now opens a small panel under the link. With text selected it
+makes one; with the caret in a link it opens on that link and shows its
+address; Enter writes, Escape and clicking away leave the file alone because
+nothing is dispatched until then, and Remove takes the link off and keeps the
+words. It declines inside a fence, which holds its text as literal source and
+takes no marks.
+
+Three things about the panel were only findable by driving it. `display: flex`
+outranks the browser's own rule for the hidden attribute, so the panel was
+never actually hidden. A command run from the menu focuses the editor again as
+soon as it returns, which blurred the field, and blurring is the dismissal, so
+the panel opened and shut in the same tick; the field now takes focus on the
+next frame. And pressing Remove blurred the field before the click landed, so
+by the time the button's handler ran there was nothing left to act on; a press
+inside the panel no longer moves focus.
+
+## 40. The revealed delimiters were lying about the file. Closed.
+
+The reveal showed `_` for emphasis while a save wrote `*`, ever since the
+serializer moved to the star the vault actually uses. There was a test for
+exactly this, and it passed the whole time, because it asserted the characters
+against themselves rather than against a save. Two places naming the same
+constant agreed with each other and not with the document.
+
+The reveal now takes the characters from the serializer, and the test
+serializes a document with each mark and compares. The selection colour went
+the same way: it was set inside the editor only, so every field outside it
+selected in the platform's blue on a warm page.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
