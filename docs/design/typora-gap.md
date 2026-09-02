@@ -508,11 +508,9 @@ rows unpadded and 4,039 of its delimiter rows with three dashes. Padding is
 off and the delimiter cells are widened back, colons kept where they were.
 Table churn fell by 44%, and the total from 9.4% to 8.7%.
 
-What is left is deliberate. A rule written as six dashes comes back as three,
-and a CRLF file loses one carriage return at a fence's first line. Each is a
-normalisation rather than a loss.
+A third pass took it to 7.3%, and is written up below.
 
-## 30. A code block had no indent guides. Closed.
+## 31. A code block had no indent guides. Closed.
 
 `fence-enhance`, which the author runs in Typora, rules a hairline at each tab
 stop of a line's indentation, and the vault has 285,431 indented lines across
@@ -531,7 +529,7 @@ changed, so they cost what the highlighting costs and nothing more.
 
 # Faults found on the way
 
-## 31. A plugin enabled last time did not always come back. Closed.
+## 32. A plugin enabled last time did not always come back. Closed.
 
 Found through a test that failed about one run in three under load and passed
 every time on its own, which is the shape of a race rather than of slowness.
@@ -547,7 +545,7 @@ first snapshot batch of that same startup spends. Deliberately one shot: a
 plugin the reader enables later is meant to stay idle until they activate it,
 and an announcement left standing would start it the moment it was enabled.
 
-## 32. The shell would open anything, and draw it as prose. Closed.
+## 33. The shell would open anything, and draw it as prose. Closed.
 
 The tree lists Markdown and plain text, the search index holds the same, and
 the Open dialog filters to it. The command line took whatever it was given, so
@@ -559,7 +557,7 @@ The four now give the same answer, from one list rather than the two copies
 that each carried a comment saying they had to match. Opening something else
 says what the editor is for instead of quietly making a mess of the file.
 
-## 33. Opened against the vault, note by note. Nothing broke.
+## 34. Opened against the vault, note by note. Nothing broke.
 
 220 notes spread across the whole vault were opened one after another in a
 packaged window, with every console error collected and every render compared
@@ -571,6 +569,46 @@ No note failed to open, none rendered empty, and none lost its content.
 The script is `scratchpad/probe/sweep.mjs`, and it is worth running again after
 any change to the parser or the editor's plugins: it exercises constructs no
 made-up document contains.
+
+## 35. A note was written back in a dialect its author does not use. Closed.
+
+Three findings from the same corpus measurement, taking it from 8.7% to 7.3%.
+
+A paragraph opening with a highlight had its first `=` escaped, because an `=`
+at the start of a line can underline a setext heading. `\==text==` is not a
+highlight any more, so the feature broke itself the first time anybody saved.
+
+A hard break was written as a backslash. The vault ends a line with two spaces
+16,328 times and with a backslash 237 times, so editing one paragraph of an old
+note rewrote every break in it into a form the file has never used. Both mean
+the same thing to every parser here, so the file's own convention wins. Inside
+a setext heading or a table cell, where no newline can go, the break still
+degrades to a space.
+
+The carriage returns were a false alarm. The pipeline works in LF and the
+writer restores the file's own endings, which the measurement was not
+accounting for; a packaged test now drives the real app against a CRLF note and
+reads the file back. What remains is mostly a block written in a style of its
+own, a rule of six dashes or an aligned delimiter row, and those are only ever
+rewritten if the block itself is edited. A test covers a neighbouring edit
+leaving both untouched.
+
+## 36. There was no way to move a line, a row or a block. Closed.
+
+Typora puts three behaviours on Option and an arrow, and which one you get
+depends on where the caret is: a line of code moves inside its fence, a row
+moves inside its table, and anywhere else the block itself moves among its
+siblings. When a block has no sibling on that side the move is tried again on
+its parent, so the last item of a list carries the whole list with it. Columns
+move left and right on Command, Control and an arrow. The bindings are read
+from the running Typora rather than remembered: `alt+up`, `alt+down`,
+`command+control+left`, `command+control+right`.
+
+A table's first row is its header, and markdown cannot write a table without
+one, so the header stays where it is and no row moves above it. One difference
+is deliberate: Typora stops at the line inside a fence, which leaves a fence
+with nothing above it stuck where it is, while here the move carries on to the
+block. The intent behind the key is the same either way.
 
 # Where things stand
 
