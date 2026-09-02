@@ -377,6 +377,23 @@ links as marks, lists as lists, and the file it saves has no HTML in it. A
 fragment pasted into the middle of a sentence merges with that sentence, which
 is what every editor does; on a line of its own the blocks survive.
 
+## 5u. A table could be read but not edited. Closed.
+
+The vault holds 42,330 table rows and there was no way to add one. Tab moved
+between cells and stopped at the last; nothing anywhere could insert a row or
+a column, delete one, or make a table at all.
+
+Tab at the last cell now makes a row and puts the caret in it, which is what
+every table editor does and the only way a table grows without leaving the
+keyboard. Typora's own Table submenu is there too, under a Paragraph menu
+that also gives the block shapes a home: insert a table, add a row above or
+below, add a column before or after, delete a row, a column or the table.
+
+The Paragraph menu closes a second gap. The block bindings taken from Typora
+were real but invisible, reachable only by somebody who already knew them.
+Every item in that menu runs the same editor command its shortcut runs, so
+the two cannot drift apart, and the menu is where a hand goes looking.
+
 ## 5k. A line the author broke is now drawn broken. Closed.
 
 CommonMark reads a single newline inside a paragraph as a space, and so did

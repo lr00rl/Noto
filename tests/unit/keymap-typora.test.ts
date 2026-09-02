@@ -4,7 +4,7 @@ import { splitBlocks } from '../../src/shared/markdown/v3/blocks';
 import { docFromSpans } from '../../src/shared/markdown/v3/pm/from-mdast';
 import { blockToMarkdown } from '../../src/shared/markdown/v3/pm/to-mdast';
 import {
-  insertRule, shiftHeading, surround, surroundTag, toggleTaskList, wrapInMath,
+  insertRule, insertTable, shiftHeading, surround, surroundTag, toggleTaskList, wrapInMath,
 } from '../../src/renderer/editor/noto/keymap';
 import type { Command } from 'prosemirror-state';
 
@@ -71,5 +71,34 @@ describe("Typora's block types, on Option and Command", () => {
     expect(insertRule(state, (tr) => { next = state.apply(tr); })).toBe(true);
     expect((next as unknown as EditorState).doc.childCount).toBe(2);
     expect((next as unknown as EditorState).doc.child(1).type.name).toBe('horizontal_rule');
+  });
+});
+
+describe('inserting a table', () => {
+  it('makes one with a header row and the shape asked for', () => {
+    const state = stateFor('one', 2);
+    let next: EditorState | null = null;
+    expect(insertTable(2, 3)(state, (tr) => { next = state.apply(tr); })).toBe(true);
+    // Inserted at the caret, which splits the paragraph it was in.
+    const doc = (next as unknown as EditorState).doc;
+    let table = doc.child(0);
+    doc.forEach((node) => { if (node.type.name === 'table') table = node; });
+    expect(table.type.name).toBe('table');
+    expect(table.childCount).toBe(3);
+    expect(table.child(0).child(0).type.name).toBe('table_header');
+    expect(table.child(1).child(0).type.name).toBe('table_cell');
+    expect(table.child(0).childCount).toBe(3);
+  });
+
+  it('writes as a markdown table', () => {
+    const state = stateFor('one', 2);
+    let next: EditorState | null = null;
+    insertTable(1, 2)(state, (tr) => { next = state.apply(tr); });
+    const doc = (next as unknown as EditorState).doc;
+    let table = doc.child(0);
+    doc.forEach((node) => { if (node.type.name === 'table') table = node; });
+    const markdown = blockToMarkdown(table);
+    expect(markdown.split('\n')).toHaveLength(3);
+    expect(markdown).toContain('| - | - |');
   });
 });

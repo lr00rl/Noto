@@ -32,7 +32,7 @@ import { captureMarkdown, captureTransaction, type CaptureStats, type PristineBl
 import type { NotoEditorPort } from './NotoEditorPort';
 import { createOriginPlugin, getBlockOrigins, rebaseOrigins } from './origin-plugin';
 import { notoInputRules, type InputRuleOptions } from './input-rules';
-import { notoKeymap } from './keymap';
+import { EDITOR_COMMANDS, notoKeymap } from './keymap';
 import { activeNodePlugin } from './active-node-plugin';
 import { alertPlugin } from './alert-plugin';
 import { typoraMarksPlugin } from './typora-marks-plugin';
@@ -246,6 +246,23 @@ export class NotoEditor implements NotoEditorPort {
    * honest outcome: silently splitting the user's block would change the
    * document's structure behind their back.
    */
+  /**
+   * Run one of the block-shaping commands by name.
+   *
+   * The menu and the keyboard reach the same code this way: a menu item that
+   * reimplemented what a binding does would be a second implementation to
+   * keep in step. False when the command has nothing to do where the caret
+   * is, which is what lets the caller say so rather than pretending.
+   */
+  runCommand(name: string): boolean {
+    const view = this.view;
+    const command = EDITOR_COMMANDS[name];
+    if (!view || !command) return false;
+    const ran = command(view.state, view.dispatch, view);
+    if (ran) view.focus();
+    return ran;
+  }
+
   toggleSourceAtSelection(): boolean {
     const view = this.view;
     if (!view) return false;
