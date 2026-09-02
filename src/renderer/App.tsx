@@ -414,8 +414,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     root.style.setProperty('--doc-line-height', `${settings.lineHeight}`);
     root.dataset.widthMode = settings.widthMode;
     root.dataset.codeLineNumbers = settings.codeLineNumbers ? 'on' : 'off';
+    root.dataset.codeIndentGuides = settings.codeIndentGuides ? 'on' : 'off';
     root.dataset.focusMode = settings.focusMode ? 'on' : 'off';
-  }, [settings.fontSize, settings.lineHeight, settings.widthMode, settings.codeLineNumbers,
+  }, [settings.fontSize, settings.lineHeight, settings.widthMode, settings.codeLineNumbers, settings.codeIndentGuides,
     settings.focusMode]);
 
   /**

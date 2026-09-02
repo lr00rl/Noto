@@ -507,6 +507,23 @@ return at a fence's first line. Each is a normalisation rather than a loss,
 and the vault is of two minds about table padding, so there is no form to
 prefer.
 
+## 30. A code block had no indent guides. Closed.
+
+`fence-enhance`, which the author runs in Typora, rules a hairline at each tab
+stop of a line's indentation, and the vault has 285,431 indented lines across
+31,372 fences. They were listed as not ported because each one seemed to need
+an element per line, which a document of ten thousand code lines cannot
+afford.
+
+It does not. The rules are a gradient carried by the line's own leading
+whitespace, which is real text already in the file, so nothing is inserted and
+no element is added. The step is the block's own: the common divisor of the
+indents it actually uses, so a file indented by three is ruled at three. A line
+gets a rule for each step to its left and none at its own, because a rule under
+the first character would underline the code rather than mark the step. They
+are drawn by the syntax highlighter, which already rebuilds only the block that
+changed, so they cost what the highlighting costs and nothing more.
+
 # Faults found on the way
 
 ## 31. A plugin enabled last time did not always come back. Closed.
@@ -533,10 +550,10 @@ Real ports: Title Shift, Markdown Padding. Native equivalents: `wider` is the
 width modes, `tree-guides` is the connector lines and the sticky folders,
 `fuzzy-search` is quick open with content search, `note-assistant` is quick
 open's link mode with wiki-link rendering, `fence-enhance` is the fence gutter
-with its language and copy button, and `trail` is back and forward in the
+with its language, its copy button and its indent guides, and `trail` is back and forward in the
 title bar and the Go menu, three notes each way. Not done: `sidenote`,
 `timeline`, `todo-manager`, `file-tags`, `code-viewer`, `drawio`, and
-`fence-enhance`'s indent guides and tab markers; `recent-files` exists as a
+`fence-enhance`'s tab markers; `recent-files` exists as a
 menu and a status strip rather than as the plugin's behaviour, and
 `remote-control` is infrastructure rather than a feature.
 
