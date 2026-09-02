@@ -1155,7 +1155,8 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       case 'table-row-delete': case 'table-column-delete': case 'table-delete':
       case 'move-up': case 'move-down':
       case 'move-column-left': case 'move-column-right':
-      case 'insert-link':
+      case 'insert-link': case 'clear-format':
+      case 'mark-strong': case 'mark-emphasis': case 'mark-code': case 'mark-strike':
         if (!editorRef.current?.runCommand(event.command)) {
           setLocalMessage('That does not apply where the cursor is.');
         }

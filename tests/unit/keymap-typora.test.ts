@@ -4,7 +4,7 @@ import { splitBlocks } from '../../src/shared/markdown/v3/blocks';
 import { docFromSpans } from '../../src/shared/markdown/v3/pm/from-mdast';
 import { blockToMarkdown } from '../../src/shared/markdown/v3/pm/to-mdast';
 import {
-  insertRule, insertTable, shiftHeading, surround, surroundTag, toggleTaskList, wrapInMath,
+  clearFormat, insertRule, insertTable, shiftHeading, surround, surroundTag, toggleTaskList, wrapInMath,
 } from '../../src/renderer/editor/noto/keymap';
 import type { Command } from 'prosemirror-state';
 
@@ -101,5 +101,29 @@ describe('inserting a table', () => {
     expect(markdown.split('\n')).toHaveLength(3);
     // The delimiter row is written the way a person writes one.
     expect(markdown).toContain('| --- | --- |');
+  });
+});
+
+describe('clearing the formatting', () => {
+  it('takes every inline mark off the words and leaves the words', () => {
+    const source = 'plain **bold** and *italic* and `code` here';
+    const state = EditorState.create({ doc: docFromSpans(splitBlocks(source).spans) });
+    const whole = state.apply(state.tr.setSelection(
+      TextSelection.create(state.doc, 1, state.doc.firstChild!.nodeSize - 1),
+    ));
+    expect(run(whole, clearFormat)).toBe('plain bold and italic and code here');
+  });
+
+  it('leaves the block type alone, which is a different command', () => {
+    const source = '# A **bold** heading';
+    const state = EditorState.create({ doc: docFromSpans(splitBlocks(source).spans) });
+    const whole = state.apply(state.tr.setSelection(
+      TextSelection.create(state.doc, 1, state.doc.firstChild!.nodeSize - 1),
+    ));
+    expect(run(whole, clearFormat)).toBe('# A bold heading');
+  });
+
+  it('declines with nothing selected, so a stray key cannot strip a paragraph', () => {
+    expect(run(stateFor('**bold** text', 3), clearFormat)).toBeNull();
   });
 });
