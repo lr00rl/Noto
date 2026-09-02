@@ -57,3 +57,37 @@ window furniture. `shot-noto.mjs` renders Noto at a given size and rail width.
 
 Typora is driven with one window open, since several windows share one
 sidecar session and the claim does not follow focus in its WebView.
+
+## What this run did
+
+Worked through in order, each slice verified and merged on its own branch.
+
+The instrument first: the remote control plugin kept one Typora session and
+forgot it the moment that socket closed, and it started its sidecar with no
+parent to watch, so the process outlived every Typora it served. Fixed in the
+author's own plugin repository, which made live measurement possible.
+
+Then measurement rather than impression. Both editors were asked the same
+question at the same window size and their answers diffed field by field: the
+type scale already matched, and what differed was a reading column 64px too
+wide, three near-miss colours, code painted in status colours instead of the
+theme's five, a tree a size smaller and a third tighter than Typora's, and a
+page whose gutters were short at both ends.
+
+Then the things Typora does that this did not: its keys for the marks
+markdown has no key for, its block types on Option and Command, focus mode and
+typewriter mode, table editing, closing a bracket as it is opened, a menu on a
+right click, indent guides in code.
+
+Then the vault itself, which found the largest faults. Bold beside Chinese was
+not bold, in a quarter of the files. Editing a paragraph escaped every
+underscore in an identifier, turned an alert's marker into plain text, and
+wrapped bare URLs in angle brackets. Re-serializing every block of 400 notes
+put a number on it: 15.2% of blocks came back different, now 9.4%, and what
+remains is normalisation rather than loss.
+
+Speed was measured, not assumed: `docs/performance/large-documents.md`.
+
+Where the record lives: `docs/design/typora-gap.md` for what was found and
+what was done, `docs/design/chrome.md` for the window, `docs/theming.md` for
+what a theme can reach.
