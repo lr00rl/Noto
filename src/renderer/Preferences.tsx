@@ -288,7 +288,7 @@ export function Preferences({
                 <Slider label="Line height" setting="lineHeight" value={settings.lineHeight}
                   format={(value) => value.toFixed(2)} testId="setting-line-height"
                   onChange={(value) => onChange({ lineHeight: Number(value.toFixed(2)) })} />
-                <Choices label="Page width" hint="Cmd+] and Cmd+[ step through these."
+                <Choices label="Page width" hint="Also on the View menu."
                   options={WIDTHS} value={settings.widthMode}
                   onPick={(value) => onChange({ widthMode: value })} testPrefix="width" />
                 <Switch

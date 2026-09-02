@@ -304,6 +304,10 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const [frecency, setFrecency] = useState<FrecencyStoreV1>({});
   /** The size of the document in front, or null before it has been counted. */
   const [count, setCount] = useState<DocumentCount | null>(null);
+  /* Through a ref, as the follow handlers are: a node view is built once for a
+     document and keeps whatever it was given, so a value captured at
+     construction never changes again when the tab in front does. */
+  const countRef = useRef<(documentId: string, next: DocumentCount) => void>(() => {});
 
   const editorsRef = useRef<Map<string, NotoEditor>>(new Map());
   /** Always the editor of the document in front, so call sites stay unchanged. */
@@ -1062,6 +1066,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     followWikiLink(target.replace(/^\.\//, ''));
   }, [followWikiLink]);
   followLinkRef.current = followLink;
+  countRef.current = (documentId, next) => {
+    if (documentId === activeIdRef.current) setCount(next);
+  };
 
   const searchContent = useCallback(async (query: string) => {
     const result = await window.notoWorkspace.searchContent({
@@ -1503,7 +1510,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                 }}
                 onFollowWikiLink={(target) => followWikiLinkRef.current(target)}
                 onFollowLink={(href) => followLinkRef.current(href)}
-                onCountChanged={doc.document.documentId === activeIdRef.current ? setCount : undefined}
+                onCountChanged={(next) => countRef.current(doc.document.documentId, next)}
                 onReady={(editor) => {
                   editorsRef.current.set(doc.document.documentId, editor);
                   if (doc.document.documentId === activeIdRef.current) {

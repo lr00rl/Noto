@@ -114,6 +114,14 @@ export class TableView implements NodeView {
 
   update(node: ProseNode): boolean {
     if (node.type !== this.node.type) return false;
+    /*
+     * A change to the table ends any drag on it. The drag holds an index and a
+     * set of edges measured from the shape the table had when the pointer went
+     * down; against a new shape they name the wrong track, and dropping would
+     * carry the wrong row somewhere nobody asked for. Undo while the pointer
+     * is still held is the way to get here.
+     */
+    if (this.drag && node !== this.node) this.endDrag();
     this.node = node;
     // The shape may have changed under the pointer; the next entry re-measures,
     // and a rail measured for a table that no longer exists would lie.
@@ -251,12 +259,20 @@ export class TableView implements NodeView {
   private readonly onPointerUp = (): void => {
     const drag = this.drag;
     if (!drag) return;
-    if (drag.moved) {
-      if (movesAnything(drag.index, drag.gap)) this.apply(drag.axis, drag.index, drag.gap);
-    } else {
-      this.select(drag.axis, drag.index);
+    /*
+     * The drag is ended whatever happens. Letting a throw out of here left the
+     * window listeners attached and the rail frozen, because the only place
+     * that takes them off is `endDrag`.
+     */
+    try {
+      if (drag.moved) {
+        if (movesAnything(drag.index, drag.gap)) this.apply(drag.axis, drag.index, drag.gap);
+      } else {
+        this.select(drag.axis, drag.index);
+      }
+    } finally {
+      this.endDrag();
     }
-    this.endDrag();
   };
 
   private readonly cancel = (): void => {
@@ -288,6 +304,7 @@ export class TableView implements NodeView {
     const pos = this.getPos();
     if (pos === undefined) return;
     const table = this.node;
+    if (!this.rectangular(table)) return;
     const width = table.child(0).childCount;
     const doc = this.view.state.doc;
     const selection = axis === 'row'
@@ -303,22 +320,36 @@ export class TableView implements NodeView {
     this.view.focus();
   }
 
+  /**
+   * Whether every row has the same cells, which the position arithmetic needs.
+   *
+   * A table pasted from HTML can have a merged cell, and then a row is short
+   * and counting cells off the header runs past its end. The reordering
+   * checked this and the selection did not, so a single click on a handle in
+   * such a table threw out of the pointer handler before the drag was ended,
+   * which left the window listeners attached and the rail frozen for good.
+   */
+  private rectangular(table: ProseNode): boolean {
+    const width = table.child(0).childCount;
+    for (let row = 0; row < table.childCount; row += 1) {
+      if (table.child(row).childCount !== width) return false;
+    }
+    return true;
+  }
+
   /** Rebuild the table with the track carried into its new place. */
   private apply(axis: Axis, from: number, gap: number): void {
     const pos = this.getPos();
     if (pos === undefined) return;
     const table = this.node;
-    const width = table.child(0).childCount;
-    for (let r = 0; r < table.childCount; r += 1) {
-      if (table.child(r).childCount !== width) return;
-    }
+    if (!this.rectangular(table)) return;
 
     const rows: ProseNode[] = [];
     if (axis === 'row') {
       const order = reorder(table.childCount, from, gap);
       for (const index of order) rows.push(table.child(index));
     } else {
-      const order = reorder(width, from, gap);
+      const order = reorder(table.child(0).childCount, from, gap);
       for (let r = 0; r < table.childCount; r += 1) {
         const line = table.child(r);
         rows.push(line.copy(Fragment.fromArray(order.map((i) => line.child(i)))));

@@ -147,6 +147,31 @@ test.describe('taking hold of a table', () => {
     }
   });
 
+  test('survives a table whose rows are not all the same width', async () => {
+    const { app, page } = await launch('ragged');
+    try {
+      // A merged cell only arrives by pasting HTML, and then counting cells off
+      // the header runs past the end of a short row. Clicking a handle used to
+      // throw out of the pointer handler before the drag was ended, which left
+      // the window listeners attached and the rail frozen for good.
+      await page.evaluate(() => {
+        const row = document.querySelector('.ProseMirror tr:last-child');
+        row?.lastElementChild?.remove();
+      });
+      await table(page).locator('table').hover();
+      const handle = table(page).locator('.noto-table-rail-rows .noto-table-handle').first();
+      await handle.click();
+
+      // Still alive: the rails redraw on the next pass of the pointer.
+      await page.mouse.move(0, 0);
+      await table(page).locator('table').hover();
+      await expect(handle).toBeVisible();
+      await expect(page.locator('.noto-table-rails[data-dragging]')).toHaveCount(0);
+    } finally {
+      await app.close();
+    }
+  });
+
   test('selects the whole row when the handle is clicked rather than dragged', async () => {
     const { app, page } = await launch('select');
     try {

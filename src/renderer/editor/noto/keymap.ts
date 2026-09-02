@@ -354,9 +354,18 @@ export const EDITOR_COMMANDS: Readonly<Record<string, Command>> = {
   'block-alert-caution': insertAlert('CAUTION'),
 };
 
-export function notoKeymap({ mac }: { mac: boolean }): Plugin[] {
+/**
+ * Every chord the editor answers to.
+ *
+ * Exported so a test can set it beside the application menu's accelerators.
+ * The two lists collided once: the menu gave Command and a bracket to the page
+ * width while these gave the same pair to list indentation, and a native
+ * accelerator is handled before the document ever sees the key, so indenting a
+ * list item from the keyboard did nothing at all.
+ */
+export function notoBindings({ mac }: { mac: boolean }): Record<string, Command> {
   const mod = mac ? 'Meta' : 'Ctrl';
-  const bindings: Record<string, Command> = {
+  return {
     [`${mod}-b`]: toggleMark(marks.strong),
     [`${mod}-i`]: toggleMark(marks.emphasis),
     [`${mod}-Shift-x`]: toggleMark(marks.strikethrough),
@@ -415,6 +424,8 @@ export function notoKeymap({ mac }: { mac: boolean }): Plugin[] {
     [`${mod}-]`]: sinkListItem(nodes.list_item),
     [`${mod}-[`]: liftListItem(nodes.list_item),
   };
+}
 
-  return [keymap(bindings), keymap(baseKeymap)];
+export function notoKeymap({ mac }: { mac: boolean }): Plugin[] {
+  return [keymap(notoBindings({ mac })), keymap(baseKeymap)];
 }

@@ -922,6 +922,41 @@ rather than by oversight: it throws away unsaved work, so it needs a
 confirmation and a way to keep the work first, and half of that is worse than
 none of it.
 
+## 51. What three independent reviews found. Four real, two already fixed, one wrong.
+
+Two of the four headline findings had already been fixed by the testing that
+found them first: the link panel taking only the first run of a link, and the
+external link opening a different string from the one it validated. Both are
+above.
+
+Real and now closed. A click on a table rail did not check that every row has
+the same cells, which the reordering did check; a table with a merged cell,
+which only arrives by pasting HTML, threw out of the pointer handler before
+the drag was ended, and the only place that takes the window listeners off is
+that ending. The rail froze for good. Ending the drag is in a `finally` now,
+and the shape check is shared.
+
+Real and now closed. Command and K was given to both the command palette and
+the hyperlink, by me, today. Only one of them could ever fire.
+
+Real and now closed. The page width had Command and a bracket while the editor
+gave the same pair to list indentation. A native accelerator is handled before
+the document sees the key, so a list could not be indented from the keyboard
+at all. Width has no accelerator now, for the same reason Focus and Typewriter
+have none: it is settled once for a session. Two tests guard the class rather
+than the instance, one that no two menu items claim a chord and one that the
+menu leaves the brackets alone.
+
+Real and now closed, though nothing showed it yet: a drag held while the
+document changed under it kept an index measured from the old shape, and the
+count of words was bound to a tab at construction where every other such
+handler goes through a ref.
+
+Wrong, on reading the code: opening several files at once was said to race on
+adopting a folder. It cannot. The claim is the first statement of
+`adoptFolder`, before any await, so the check and the claim are one tick and
+nothing can interleave.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
