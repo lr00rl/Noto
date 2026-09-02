@@ -127,6 +127,11 @@ const VERBATIM_RUN = new RegExp(
   [
     '\\[\\[[^[\\]\\n|]+(?:\\|[^[\\]\\n]*)?\\]\\]',
     '\\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\\]',
+    // `==highlight==`, which the editor draws as a mark. A paragraph opening
+    // with one had its first `=` escaped, because an `=` at the start of a
+    // line can underline a setext heading, and `\\==text==` is no longer a
+    // highlight. The run is only recognised whole, so it cannot mean that.
+    '==[^=\\n]+==',
     `${WORD}+(?:_+${WORD}+)+`,
   ].join('|'),
   'g',
@@ -217,6 +222,29 @@ const bareAutolink: ToMarkdownOptions = {
   },
 };
 
+/**
+ * A hard break written the way the author writes it: two trailing spaces.
+ *
+ * mdast writes a backslash, which is the unambiguous form and the reason it
+ * was chosen. The vault disagrees by a wide margin, 16,328 lines ending in
+ * two spaces against 237 ending in a backslash, so editing one paragraph of
+ * an old note would rewrite every break in it into a form the file has never
+ * used. Both mean the same thing to every parser here, so the file's own
+ * convention wins.
+ *
+ * Only the backslash is rewritten. Everywhere the default handler degrades a
+ * break to a space, inside a setext heading or a table cell where no newline
+ * can go, it keeps doing so.
+ */
+const hardBreakAsTwoSpaces: ToMarkdownOptions = {
+  handlers: {
+    break(node, parent, state, info) {
+      const written = defaultHandlers.break(node, parent, state, info);
+      return written === '\\\n' ? '  \n' : written;
+    },
+  },
+};
+
 const verbatimRunsInText: ToMarkdownOptions = {
   handlers: {
     text(node, _parent, state, info) {
@@ -274,7 +302,7 @@ const serializerOptions: ToMarkdownOptions = {
     // CommonMark's own flanking rules and, believing the run cannot close,
     // escapes the Chinese character after it into a numeric reference.
     cjkFriendlyToMarkdown(),
-    tablesAsTheVaultWritesThem(tildeOnlyInPairs(gfmToMarkdown({ tablePipeAlign: false }))), mathToMarkdown(), frontmatterToMarkdown(), verbatimRunsInText, bareAutolink],
+    tablesAsTheVaultWritesThem(tildeOnlyInPairs(gfmToMarkdown({ tablePipeAlign: false }))), mathToMarkdown(), frontmatterToMarkdown(), verbatimRunsInText, bareAutolink, hardBreakAsTwoSpaces],
 };
 
 /**

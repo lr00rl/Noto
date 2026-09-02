@@ -267,3 +267,24 @@ describe('a table, written back', () => {
     expect(roundTrip(aligned)).toBe(aligned);
   });
 });
+
+describe('a highlight at the head of a paragraph', () => {
+  it('keeps its own marks, which an escape would take away', () => {
+    expect(roundTrip('==自由度== 是这样的')).toBe('==自由度== 是这样的');
+    expect(roundTrip('==key point== and more')).toBe('==key point== and more');
+    // Mid-sentence it never needed help, and still does not.
+    expect(roundTrip('a ==b== c')).toBe('a ==b== c');
+  });
+});
+
+describe('a hard break', () => {
+  it('stays two spaces, the form the vault is written in', () => {
+    expect(roundTrip('one  \ntwo')).toBe('one  \ntwo');
+    expect(roundTrip('- item  \n  more')).toBe('- item  \n  more');
+    expect(roundTrip('> quoted  \n> on')).toBe('> quoted  \n> on');
+  });
+
+  it('is still a backslash where the file already wrote one', () => {
+    expect(roundTrip('one\\\ntwo')).toBe('one  \ntwo');
+  });
+});
