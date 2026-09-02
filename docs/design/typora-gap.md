@@ -846,6 +846,32 @@ the title bar now reads it through a property of its own and the narrow window
 sets that to zero. An `!important` would have worked and would have hidden the
 reason.
 
+## 48. Typing a letter joined every line of the paragraph. Closed.
+
+The worst fault found so far, and it was invisible until the product was
+driven against real notes rather than written ones.
+
+A paragraph the author wrapped by hand is one paragraph holding newlines, and
+the editor draws those newlines as breaks through `white-space: pre-wrap`
+rather than any node of its own. That much worked. But the view reads its own
+DOM back after a keystroke, and it only preserves newlines where the node type
+says its whitespace is `pre`. The paragraph said nothing, so one letter typed
+into a paragraph the author had wrapped over three lines joined all three into
+one, separated by spaces, and the save wrote that.
+
+5,339 of the vault's 7,047 notes hold at least one paragraph broken across
+lines, 341,174 paragraphs in all. Every one of them would have been flattened
+on the first keystroke.
+
+Setting `preserveWhitespace` on the parse rule changed nothing, which is worth
+recording: the flag the view consults is `whitespace` on the node spec, not
+the option on the rule.
+
+Found by a sweep that copies real notes, opens each, types one letter into a
+paragraph and reads the file back, checking that every line the reader did not
+touch survives. Over 127 notes it now reports nothing. Two packaged tests hold
+the line, one of them on a file written with carriage returns.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
