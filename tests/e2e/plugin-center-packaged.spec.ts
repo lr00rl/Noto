@@ -232,11 +232,12 @@ test.describe('plugin center', () => {
       // Enabled persisted, and it still did not activate itself on its own.
       // Main remembered it was enabled, and the shell raised editor.ready when
       // the note's editor came up, so it is running without a button pressed.
-      // A restart under a full suite's load is the slowest thing this app
-      // does: a second packaged instance starts, the plugin host comes up, and
-      // only then does the editor announce itself. Fifteen seconds was enough
-      // alone and not always enough beside twenty other specs.
-      await expect(rendererStatus(secondPage)).toHaveText('Running', { timeout: 40_000 });
+      // Kept tight on purpose. This used to fail about one run in three under
+      // a full suite's load, and the cause was a race rather than slowness:
+      // the editor announced itself only if the plugin snapshots had already
+      // arrived, so whenever they were second the plugin waited for ever. A
+      // generous timeout would hide that coming back.
+      await expect(rendererStatus(secondPage)).toHaveText('Running', { timeout: 20_000 });
     } finally {
       await second.close();
     }

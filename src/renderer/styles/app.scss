@@ -291,7 +291,9 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 /* A press is felt as a small physical give, released on pointer-up. */
 .icon-button { transition-property: background-color, color, scale; transition-duration: var(--motion-micro); transition-timing-function: var(--ease-out); }
 .icon-button:active:not(:disabled) { background: var(--hairline); scale: 0.96; }
-.icon-button[aria-pressed='true'],
+.icon-button[aria-pressed='true'] { color: var(--ink); }
+/* A menu that is open is a different thing from a mode that is on: the button
+   is holding a surface below it, and the fill is what joins the two. */
 .icon-button[aria-expanded='true'] { background: var(--raised); color: var(--ink); }
 /* Save is the exception: it is drawn only when it is the thing to do, so it is
    allowed to say so. */
@@ -687,13 +689,25 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   display: grid;
   grid-template-columns: 172px minmax(0, 1fr);
   width: min(720px, 100%);
-  height: min(560px, 100%);
+  /* As tall as what is in it, up to what the window can hold. A fixed height
+     left the shortest section with a void under its last control and the
+     footnote pinned to an edge it had nothing to do with, so the panel looked
+     to have been sized for some other section. */
+  height: auto;
+  max-height: min(560px, 100%);
   overflow: hidden;
   border: 1px solid var(--hairline);
   border-radius: 10px;
   background: var(--paper);
   box-shadow: 0 18px 48px -12px color-mix(in srgb, var(--ink) 34%, transparent);
 }
+
+/* The dialog takes focus so the keys belong to it rather than to the document
+   behind the scrim. It is a container and not a control, and a ring drawn
+   around the whole panel says nothing about where the next key will go. The
+   controls inside it still ring, which is where the question is asked. */
+.pref-dialog:focus,
+.pref-dialog:focus-visible { outline: none; }
 
 .pref-sections {
   display: flex;
@@ -1670,6 +1684,9 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: var(--hairline); border-radius: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
+/* Where the two bars meet. Left alone it paints an opaque square in the
+   corner of the pane, which reads as something that failed to draw. */
+::-webkit-scrollbar-corner { background: transparent; }
 
 /* The path is in the title bar; the strip does not say it twice. */
 .status-path { display: none; }

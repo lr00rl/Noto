@@ -408,3 +408,15 @@
 :root[data-focus-mode='on'] .ProseMirror > .noto-active-block {
   transition: opacity var(--motion-medium) var(--ease-out);
 }
+
+/* A filled block keeps its shape when it is dimmed, so a quote or a callout
+   still reads as a solid rectangle while the prose around it has nearly gone,
+   and the eye lands on the box rather than on the paragraph being written.
+   The author's own theme answers this the same way: in focus mode a callout
+   loses its fill and its rule goes quiet. */
+:root[data-focus-mode='on'] .ProseMirror > :is(blockquote, pre, .noto-alert) {
+  background: none;
+}
+:root[data-focus-mode='on'] .ProseMirror > :is(blockquote, .noto-alert):not(.noto-active-block) {
+  border-left-color: var(--hairline);
+}

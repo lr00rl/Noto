@@ -225,10 +225,12 @@
 
 .ProseMirror .noto-frontmatter,
 .ProseMirror .noto-html-block {
-  border-left: 2px solid var(--hairline);
+  /* Typora's own metadata block, measured: no rule, the raised fill, a 6px
+     radius and even padding all round. The rule down the left made it read as
+     a quotation of something rather than as the note's own header. */
   background: var(--raised);
-  padding: 12px 16px;
-  border-radius: 4px;
+  padding: 16px;
+  border-radius: 6px;
   color: var(--muted);
   font: 0.85em/1.55 tokens.$mono;
   white-space: pre-wrap;
@@ -945,7 +947,7 @@
      guide-line schemes, the one that answers "which branch am I in" without
      a single extra element. */
   background-image:
-    linear-gradient(var(--accent), var(--accent)),
+    linear-gradient(var(--tree-accent), var(--tree-accent)),
     linear-gradient(var(--tree-line), var(--tree-line));
   background-size: 1px var(--path-stop, 0px), 1px 100%;
   background-repeat: no-repeat;
@@ -998,7 +1000,7 @@
    weight rather than on its place in the file. */
 .tree-level:not(.is-root) > .tree-node.tree-node:has(> .tree-on-path)::before,
 .tree-level:not(.is-root) > .tree-node.tree-node-active::before {
-  border-color: var(--accent);
+  border-color: var(--tree-accent);
 }
 
 /* The folder's own row, at the head of the tree. Not a button: there is
@@ -1078,8 +1080,8 @@
   width: var(--tree-indent);
   height: 14px;
   background: none;
-  border-left: 1px solid var(--accent);
-  border-bottom: 1px solid var(--accent);
+  border-left: 1px solid var(--tree-accent);
+  border-bottom: 1px solid var(--tree-accent);
   border-bottom-left-radius: 6px;
   pointer-events: none;
 }
