@@ -64,6 +64,14 @@ export interface NotoEditorOptions extends InputRuleOptions {
   /** Fired for every transaction that changed the document. */
   readonly onDocumentChanged?: () => void;
   readonly onError?: (message: string) => void;
+  /**
+   * The index of the top level block the caret is in, when it changes.
+   *
+   * The outline uses it to say which heading you are under, which is the one
+   * question a list of headings is asked while you are writing rather than
+   * navigating.
+   */
+  readonly onActiveBlockChanged?: (index: number) => void;
   /** Cmd or Ctrl clicking a `[[wiki link]]`. Absent means links stay inert. */
   readonly onFollowWikiLink?: (target: string) => void;
   /** Where relative images resolve from, and whether web images load. */
@@ -76,6 +84,7 @@ export class NotoEditor implements NotoEditorPort {
   private smartTypography = false;
   private typewriter = false;
   private autoPair = true;
+  private activeBlock = -1;
   private imageContext: ImageContext;
   /** The pictures on screen, so a changed context can redraw them and nothing else. */
   private readonly imageViews = new Set<Refreshable>();
@@ -161,12 +170,24 @@ export class NotoEditor implements NotoEditorPort {
     const view = this.view;
     if (!view) return;
     view.updateState(view.state.apply(transaction));
+    this.reportActiveBlock();
     if (!transaction.docChanged) return;
     this.refreshDirty();
     // Every change, not only the transition into dirty. Automatic saving has to
     // debounce against typing, and a flag that flips once at the first
     // keystroke cannot tell it when typing stopped.
     this.options.onDocumentChanged?.();
+  }
+
+  /** Told only when it changes: this runs on every transaction, typing included. */
+  private reportActiveBlock(): void {
+    const view = this.view;
+    if (!view || !this.options.onActiveBlockChanged) return;
+    const { $from } = view.state.selection;
+    const index = $from.index(0);
+    if (index === this.activeBlock) return;
+    this.activeBlock = index;
+    this.options.onActiveBlockChanged(index);
   }
 
   private refreshDirty(): void {

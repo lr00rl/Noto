@@ -167,6 +167,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   /** Bumped to re-read a stylesheet whose contents changed but whose path did not. */
   const [themeReload, setThemeReload] = useState(0);
   const [themeProblem, setThemeProblem] = useState('');
+  const [activeBlock, setActiveBlock] = useState(-1);
   const [pluginSnapshots, setPluginSnapshots] = useState<PluginLifecycleSnapshot[]>([]);
   const pluginSnapshotsRef = useRef(pluginSnapshots);
   pluginSnapshotsRef.current = pluginSnapshots;
@@ -1223,6 +1224,20 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     }), [pluginSnapshots]);
 
   const outline = useMemo(() => (document ? outlineOf(document.text) : []), [document]);
+  /**
+   * The heading the caret is under, which is the one question a list of
+   * headings is asked while you are writing rather than navigating. The
+   * nearest heading at or before the block, since a paragraph belongs to the
+   * heading above it.
+   */
+  const currentHeading = useMemo(() => {
+    let found = -1;
+    for (const entry of outline) {
+      if (entry.blockIndex <= activeBlock) found = entry.blockIndex;
+      else break;
+    }
+    return found;
+  }, [outline, activeBlock]);
 
   const actions = state === 'Opening' || state === 'No document'
     ? []
@@ -1366,6 +1381,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
             width={settings.railWidth}
             onResize={(railWidth) => changeSettings({ railWidth })}
             outline={outline}
+            currentHeading={currentHeading}
             onGoToBlock={(blockIndex) => editorRef.current?.focusBlock(blockIndex)}
             tree={{
               vaultMenu: (
@@ -1434,6 +1450,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                 remoteImages={settings.remoteImages}
                 typewriterMode={settings.typewriterMode}
                 autoPair={settings.autoPair}
+                onActiveBlockChanged={setActiveBlock}
                 onDirtyChange={(dirty) => onDocumentDirtyChange(doc.document.documentId, dirty)}
                 onDocumentChanged={() => {
                   if (doc.document.documentId === activeIdRef.current) bumpTyping();

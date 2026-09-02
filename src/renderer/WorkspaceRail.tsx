@@ -29,6 +29,8 @@ export interface WorkspaceRailProps {
   readonly onResize: (width: number) => void;
   readonly outline: readonly OutlineEntry[];
   readonly onGoToBlock: (blockIndex: number) => void;
+  /** The heading the caret is under, so the outline can say where you are. */
+  readonly currentHeading?: number;
   readonly tree: FileTreeProps;
   /** Opens quick open. Search is a first-class way into a vault, not a fallback. */
   readonly onSearch: () => void;
@@ -66,10 +68,11 @@ function Tab({ id, current, onSelect, children, testId }: {
  * corner. Sharing the `tree-level` and `tree-node` classes is deliberate, so the
  * two trees in the rail cannot drift into looking like different products.
  */
-function OutlineLevel({ nodes, root, onGoToBlock }: {
+function OutlineLevel({ nodes, root, onGoToBlock, current }: {
   nodes: readonly OutlineNode[];
   root?: boolean;
   onGoToBlock: (blockIndex: number) => void;
+  current?: number;
 }) {
   return (
     <div className={root ? 'tree-level is-root' : 'tree-level'}>
@@ -77,14 +80,15 @@ function OutlineLevel({ nodes, root, onGoToBlock }: {
         <div className="tree-node" key={node.blockIndex}>
           <button
             type="button"
-            className={`tree-row outline-entry depth-${node.depth}`}
+            className={`tree-row outline-entry depth-${node.depth}${node.blockIndex === current ? ' is-current' : ''}`}
+            aria-current={node.blockIndex === current ? 'true' : undefined}
             title={node.text}
             onClick={() => onGoToBlock(node.blockIndex)}
           >
             <span className="tree-name">{node.text}</span>
           </button>
           {node.children.length > 0 && (
-            <OutlineLevel nodes={node.children} onGoToBlock={onGoToBlock} />
+            <OutlineLevel nodes={node.children} onGoToBlock={onGoToBlock} current={current} />
           )}
         </div>
       ))}
@@ -106,7 +110,7 @@ const INDICATOR: Record<RailView, { left: string; width: string }> = {
 };
 
 export function WorkspaceRail({
-  view, onView, width, onResize, outline, onGoToBlock, tree, onSearch,
+  view, onView, width, onResize, outline, onGoToBlock, currentHeading, tree, onSearch,
 }: WorkspaceRailProps) {
   const railRef = useRef<HTMLElement>(null);
 
@@ -189,7 +193,7 @@ export function WorkspaceRail({
               ? <p className="rail-empty">This document has no headings.</p>
               : (
                 <nav className="outline-body">
-                  <OutlineLevel nodes={nestOutline(outline)} root onGoToBlock={onGoToBlock} />
+                  <OutlineLevel nodes={nestOutline(outline)} root onGoToBlock={onGoToBlock} current={currentHeading} />
                 </nav>
               )}
           </div>

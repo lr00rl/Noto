@@ -1621,3 +1621,14 @@
 /* The theme's callout box: the block radius and a little more room around. */
 .ProseMirror .noto-alert { border-radius: 6px; }
 .ProseMirror > .noto-alert { margin: 0.9em 0; }
+
+/* The heading the caret is under. A list of headings is asked one question
+   while somebody is writing rather than navigating, which is where am I, and
+   this is the answer: the same warm grey the current file gets in the tree,
+   and the name in ink rather than in the muted tier. */
+.outline-entry.is-current {
+  color: var(--ink);
+  font-weight: 500;
+  background: var(--surface-active);
+}
+.outline-entry.is-current:hover { background: var(--surface-active); }
