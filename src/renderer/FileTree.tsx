@@ -52,14 +52,17 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
   }, [root, load]);
 
   /*
-   * Which open folders are stuck to the top.
+   * Which rows are stuck to the top.
    *
-   * An open folder's row is sticky, so while you scroll through its contents
-   * the row holds at the top and the rows of its open ancestors stack above
-   * it, each one a row lower than the last. That is what the stylesheet does
-   * on its own. What it cannot do is tell a row that is stuck from one that is
-   * merely open, and only the stuck one should carry the rule that separates
-   * it from the rows sliding under it.
+   * The path to the current file is sticky: each of its open ancestors holds
+   * a row below its parent while the contents scroll past, and the file's own
+   * row holds beneath them, which is the rule in the author's Typora theme.
+   * Other open folders scroll like anything else, so the top of the rail
+   * always reads as "where the file you are in lives" and never as a stack of
+   * every folder you happened to open. That much is the stylesheet's. What it
+   * cannot do is tell a row that is stuck from one merely resting in place,
+   * and only the stuck one should carry the rule that separates it from the
+   * rows sliding under it.
    *
    * A stuck row is one the browser has displaced from the top of its own
    * node, so the test is the distance between the two, read on scroll and
@@ -74,10 +77,21 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
     let frame = 0;
     const mark = () => {
       frame = 0;
-      for (const row of body.querySelectorAll<HTMLElement>('.tree-directory[aria-expanded="true"], .tree-vault-row')) {
+      // An ancestor's row is stuck when it sits below the top of its own node.
+      for (const row of body.querySelectorAll<HTMLElement>('.tree-directory.tree-on-path[aria-expanded="true"]')) {
         const node = row.parentElement;
         if (!node) continue;
         row.toggleAttribute('data-stuck', row.getBoundingClientRect().top - node.getBoundingClientRect().top > 0.5);
+      }
+      // The current file's node is the sticky thing, since a leaf's row fills
+      // its node and would have no room to hold. It is stuck when it sits
+      // below where its previous sibling ends, or below the top of its level.
+      for (const node of body.querySelectorAll<HTMLElement>('.tree-node-active')) {
+        const previous = node.previousElementSibling;
+        const resting = previous
+          ? previous.getBoundingClientRect().bottom
+          : node.parentElement?.getBoundingClientRect().top ?? 0;
+        node.toggleAttribute('data-stuck', node.getBoundingClientRect().top - resting > 0.5);
       }
     };
     const onScroll = () => { if (frame === 0) frame = requestAnimationFrame(mark); };
@@ -87,7 +101,7 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
       scroller.removeEventListener('scroll', onScroll);
       if (frame !== 0) cancelAnimationFrame(frame);
     };
-  }, [children, expanded, root]);
+  }, [children, expanded, root, activePath]);
 
   if (!root) {
     return (
@@ -135,11 +149,15 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
         {entries.map((entry) => {
           if (entry.kind === 'directory') {
             const isOpen = expanded.has(entry.path);
+            // On the path to the current file, which is what earns a row its
+            // place at the top of the rail while its contents scroll.
+            const onPath = activePath !== null
+              && (activePath.startsWith(`${entry.path}/`) || activePath.startsWith(`${entry.path}\\`));
             return (
               <div className="tree-node" key={entry.path}>
                 <button
                   type="button"
-                  className="tree-row tree-directory"
+                  className={onPath ? 'tree-row tree-directory tree-on-path' : 'tree-row tree-directory'}
                   data-testid="tree-directory"
                   data-depth={depth}
                   title={entry.name}
@@ -157,7 +175,7 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
 
           const isActive = entry.path === activePath;
           return (
-            <div className="tree-node" key={entry.path}>
+            <div className={isActive ? 'tree-node tree-node-active' : 'tree-node'} key={entry.path}>
               <button
                 type="button"
                 className={isActive ? 'tree-row tree-file tree-file-active' : 'tree-row tree-file'}
