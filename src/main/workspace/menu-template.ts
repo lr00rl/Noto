@@ -174,6 +174,19 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       command('Unordered List', 'CmdOrCtrl+Alt+U', 'block-bullet-list'),
       command('Task List', 'CmdOrCtrl+Alt+X', 'block-task-list'),
       command('Horizontal Line', 'CmdOrCtrl+Alt+-', 'block-rule'),
+      {
+        // The five GitHub alerts, which the author's notes use and which the
+        // editor already draws. Switching kinds replaces the marker rather
+        // than adding a second one, so these behave as one setting.
+        label: 'Callout',
+        submenu: [
+          command('Note', undefined, 'block-alert-note'),
+          command('Tip', undefined, 'block-alert-tip'),
+          command('Important', undefined, 'block-alert-important'),
+          command('Warning', undefined, 'block-alert-warning'),
+          command('Caution', undefined, 'block-alert-caution'),
+        ],
+      },
     ],
   };
 
