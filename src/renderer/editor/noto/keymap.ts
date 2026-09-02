@@ -22,7 +22,17 @@ import {
 } from 'prosemirror-commands';
 import { liftListItem, sinkListItem, splitListItem, wrapInList } from 'prosemirror-schema-list';
 import { redo, undo } from 'prosemirror-history';
-import { goToNextCell } from 'prosemirror-tables';
+import {
+  addColumnAfter,
+  addColumnBefore,
+  addRowAfter,
+  addRowBefore,
+  deleteColumn,
+  deleteRow,
+  deleteTable,
+  goToNextCell,
+  isInTable,
+} from 'prosemirror-tables';
 import { TextSelection, type Command, type Plugin } from 'prosemirror-state';
 import { notoSchema } from '../../../shared/markdown/v3/pm/schema';
 
@@ -141,6 +151,34 @@ export const toggleTaskList: Command = (state, dispatch) => {
   return wrapInList(nodes.bullet_list)(state, dispatch);
 };
 
+/**
+ * Tab out of the last cell makes a row, which is what every table editor does
+ * and the only way a table grows without leaving the keyboard. Tried after
+ * moving between cells, so it only fires where there is nowhere left to go.
+ */
+export const nextCellOrRow: Command = (state, dispatch, view) => {
+  if (goToNextCell(1)(state, dispatch, view)) return true;
+  if (!isInTable(state)) return false;
+  return addRowAfter(state, dispatch)
+    // The caret follows into the row that was just made.
+    && goToNextCell(1)(view?.state ?? state, dispatch, view);
+};
+
+/** A table of the given shape, with a header row, where the caret is. */
+export function insertTable(rows: number, columns: number): Command {
+  return (state, dispatch) => {
+    if (!state.selection.$from.parent.isTextblock) return false;
+    if (dispatch) {
+      const cell = (type: typeof nodes.table_cell) => type.createAndFill()!;
+      const header = nodes.table_row.create(null, Array.from({ length: columns }, () => cell(nodes.table_header)));
+      const body = Array.from({ length: rows }, () =>
+        nodes.table_row.create(null, Array.from({ length: columns }, () => cell(nodes.table_cell))));
+      dispatch(state.tr.replaceSelectionWith(nodes.table.create(null, [header, ...body])).scrollIntoView());
+    }
+    return true;
+  };
+}
+
 /** Put a horizontal rule where the caret is, as Typora's Horizontal Line does. */
 export const insertRule: Command = (state, dispatch) => {
   if (!state.selection.$from.parent.isTextblock) return false;
@@ -178,6 +216,41 @@ const enter: Command = chainCommands(
   splitBlock,
 );
 
+/**
+ * Every block-shaping command by name, so a menu can offer what the keyboard
+ * already does. The keys and the menu run the same code rather than two
+ * implementations that drift.
+ */
+export const EDITOR_COMMANDS: Readonly<Record<string, Command>> = {
+  'block-paragraph': setBlockType(nodes.paragraph),
+  'block-heading-1': setBlockType(nodes.heading, { level: 1 }),
+  'block-heading-2': setBlockType(nodes.heading, { level: 2 }),
+  'block-heading-3': setBlockType(nodes.heading, { level: 3 }),
+  'block-heading-4': setBlockType(nodes.heading, { level: 4 }),
+  'block-heading-5': setBlockType(nodes.heading, { level: 5 }),
+  'block-heading-6': setBlockType(nodes.heading, { level: 6 }),
+  'block-heading-up': shiftHeading(true),
+  'block-heading-down': shiftHeading(false),
+  'block-code': setBlockType(nodes.code_block),
+  'block-math': setBlockType(nodes.math_block),
+  'block-quote': wrapIn(nodes.blockquote),
+  'block-ordered-list': wrapInList(nodes.ordered_list),
+  'block-bullet-list': wrapInList(nodes.bullet_list),
+  'block-task-list': toggleTaskList,
+  'block-rule': insertRule,
+  'mark-underline': surroundTag('u'),
+  'mark-highlight': surround('==', '=='),
+  'mark-math': wrapInMath,
+  'table-insert': insertTable(2, 3),
+  'table-row-above': addRowBefore,
+  'table-row-below': addRowAfter,
+  'table-column-before': addColumnBefore,
+  'table-column-after': addColumnAfter,
+  'table-row-delete': deleteRow,
+  'table-column-delete': deleteColumn,
+  'table-delete': deleteTable,
+};
+
 export function notoKeymap({ mac }: { mac: boolean }): Plugin[] {
   const mod = mac ? 'Meta' : 'Ctrl';
   const bindings: Record<string, Command> = {
@@ -201,6 +274,7 @@ export function notoKeymap({ mac }: { mac: boolean }): Plugin[] {
     [`${mod}-Alt-u`]: wrapInList(nodes.bullet_list),
     [`${mod}-Alt-x`]: toggleTaskList,
     [`${mod}-Alt--`]: insertRule,
+    [`${mod}-Alt-t`]: insertTable(2, 3),
     // Typora's own bindings for the marks markdown has no key for, so a hand
     // that learned them there does not have to learn them again. Its inline
     // code, strike and maths are on Control rather than Command.
@@ -224,7 +298,7 @@ export function notoKeymap({ mac }: { mac: boolean }): Plugin[] {
     'Shift-Enter': insertHardBreak,
     [`${mod}-Enter`]: insertHardBreak,
 
-    Tab: chainCommands(goToNextCell(1), sinkListItem(nodes.list_item)),
+    Tab: chainCommands(nextCellOrRow, sinkListItem(nodes.list_item)),
     'Shift-Tab': chainCommands(goToNextCell(-1), liftListItem(nodes.list_item)),
     [`${mod}-]`]: sinkListItem(nodes.list_item),
     [`${mod}-[`]: liftListItem(nodes.list_item),

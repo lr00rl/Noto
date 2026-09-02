@@ -1140,6 +1140,21 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         setPrefs((current) => ({ ...current, open: false }));
         setPaletteOpen((current) => !current);
         break;
+      // Every block and table command runs the editor's own code, so the menu
+      // and the keyboard never drift apart.
+      case 'block-paragraph': case 'block-heading-1': case 'block-heading-2':
+      case 'block-heading-3': case 'block-heading-4': case 'block-heading-5':
+      case 'block-heading-6': case 'block-heading-up': case 'block-heading-down':
+      case 'block-code': case 'block-math': case 'block-quote':
+      case 'block-ordered-list': case 'block-bullet-list': case 'block-task-list':
+      case 'block-rule': case 'mark-underline': case 'mark-highlight': case 'mark-math':
+      case 'table-insert': case 'table-row-above': case 'table-row-below':
+      case 'table-column-before': case 'table-column-after':
+      case 'table-row-delete': case 'table-column-delete': case 'table-delete':
+        if (!editorRef.current?.runCommand(event.command)) {
+          setLocalMessage('That does not apply where the cursor is.');
+        }
+        break;
       case 'toggle-focus-mode':
         changeSettings({ focusMode: !settings.focusMode });
         break;

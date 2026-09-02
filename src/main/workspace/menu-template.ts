@@ -126,6 +126,55 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
     ],
   };
 
+  /**
+   * Typora's Paragraph menu, so the block shapes are somewhere a hand can find
+   * them. Every item runs the same editor command its shortcut runs, and the
+   * shortcuts are Typora's own.
+   */
+  const paragraphMenu: MenuItemConstructorOptions = {
+    label: '&Paragraph',
+    submenu: [
+      command('Heading 1', 'CmdOrCtrl+1', 'block-heading-1'),
+      command('Heading 2', 'CmdOrCtrl+2', 'block-heading-2'),
+      command('Heading 3', 'CmdOrCtrl+3', 'block-heading-3'),
+      command('Heading 4', 'CmdOrCtrl+4', 'block-heading-4'),
+      command('Heading 5', 'CmdOrCtrl+5', 'block-heading-5'),
+      command('Heading 6', 'CmdOrCtrl+6', 'block-heading-6'),
+      command('Paragraph', 'CmdOrCtrl+0', 'block-paragraph'),
+      { type: 'separator' },
+      command('Increase Heading Level', 'CmdOrCtrl+=', 'block-heading-up'),
+      command('Decrease Heading Level', 'CmdOrCtrl+-', 'block-heading-down'),
+      { type: 'separator' },
+      {
+        label: 'Table',
+        submenu: [
+          command('Insert Table', 'CmdOrCtrl+Alt+T', 'table-insert'),
+          { type: 'separator' },
+          command('Add Row Above', undefined, 'table-row-above'),
+          command('Add Row Below', undefined, 'table-row-below'),
+          command('Add Column Before', undefined, 'table-column-before'),
+          command('Add Column After', undefined, 'table-column-after'),
+          { type: 'separator' },
+          command('Delete Row', undefined, 'table-row-delete'),
+          command('Delete Column', undefined, 'table-column-delete'),
+          command('Delete Table', undefined, 'table-delete'),
+        ],
+      },
+      { type: 'separator' },
+      command('Code Fences', 'CmdOrCtrl+Alt+C', 'block-code'),
+      command('Math Block', 'CmdOrCtrl+Alt+B', 'block-math'),
+      command('Quote', 'CmdOrCtrl+Alt+Q', 'block-quote'),
+      command('Ordered List', 'CmdOrCtrl+Alt+O', 'block-ordered-list'),
+      command('Unordered List', 'CmdOrCtrl+Alt+U', 'block-bullet-list'),
+      command('Task List', 'CmdOrCtrl+Alt+X', 'block-task-list'),
+      command('Horizontal Line', 'CmdOrCtrl+Alt+-', 'block-rule'),
+      { type: 'separator' },
+      command('Underline', 'CmdOrCtrl+U', 'mark-underline'),
+      command('Highlight', 'CmdOrCtrl+Shift+H', 'mark-highlight'),
+      command('Inline Math', 'Control+M', 'mark-math'),
+    ],
+  };
+
   const viewMenu: MenuItemConstructorOptions = {
     label: '&View',
     submenu: [
@@ -208,6 +257,7 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       : []),
     fileMenu,
     editMenu,
+    paragraphMenu,
     viewMenu,
     goMenu,
     windowMenu,

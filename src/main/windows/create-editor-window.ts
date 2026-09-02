@@ -3,6 +3,7 @@ import { BrowserWindow } from 'electron';
 import { summarizeUntrustedText, type StructuredLogger } from '../logger';
 import { isAllowedRendererUrl } from '../protocol/register-app-protocol';
 import { classifyRendererConsoleMessage } from './classify-renderer-console-message';
+import { installEditorContextMenu } from './editor-context-menu';
 
 export interface RendererConsoleState {
   errors: number;
@@ -36,6 +37,7 @@ export function createEditorWindow(
     },
   });
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  installEditorContextMenu(window);
   window.webContents.on('will-frame-navigate', (event) => {
     if (!isAllowedRendererUrl(event.url)) {
       event.preventDefault();
