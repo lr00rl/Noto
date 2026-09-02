@@ -120,7 +120,9 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       command('Find and Replace…', 'CmdOrCtrl+Alt+F', 'find-replace'),
       // The name every editor gives this, so nobody has to look for it.
       command('Find in Notes…', 'CmdOrCtrl+Shift+F', 'search-content'),
-      command('Command Palette…', 'CmdOrCtrl+K', 'command-palette'),
+      // Command and K belongs to the hyperlink, in Typora and in every editor
+      // that has both. The palette takes the other near universal chord.
+      command('Command Palette…', 'CmdOrCtrl+Shift+P', 'command-palette'),
       { type: 'separator' },
       command('Settings…', 'CmdOrCtrl+,', 'settings'),
     ],
@@ -230,8 +232,15 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       // The writing width, stepped from the keyboard. The setting is a slider
       // in preferences; these are the same value under the fingers, which is
       // where you actually want it while a paragraph is refusing to sit right.
-      command('Wider', 'CmdOrCtrl+]', 'widen'),
-      command('Narrower', 'CmdOrCtrl+[', 'narrow'),
+      /*
+       * No accelerator, for the same reason Focus and Typewriter have none:
+       * the width is settled once for a session, not reached for mid sentence.
+       * These had Command and a bracket, which the editor also gives to list
+       * indentation, and a native accelerator is handled before the document
+       * sees the key, so indenting a list item did nothing at all.
+       */
+      command('Wider', undefined, 'widen'),
+      command('Narrower', undefined, 'narrow'),
       { type: 'separator' },
       // Zoom sits on Shift as it does in Typora, which leaves plain Command
       // with the plus and the minus for walking a block up and down the
