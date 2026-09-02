@@ -50,6 +50,15 @@ export class WorkspaceSession {
   private activePath: string | null = null;
   /** The folder shown in the sidebar, and the boundary for every listing. */
   private folderRoot: string | null = null;
+
+  /**
+   * Whether the reader asked for the current folder.
+   *
+   * Remembered rather than passed each time, because the state is re-sent to a
+   * renderer that has just finished loading, and a replay that forgot this
+   * would leave the rail shut on a folder the reader opened by name.
+   */
+  private folderChosen = false;
   private indexCache: { root: string; reply: WorkspaceIndexReplyV1 } | null = null;
 
   constructor(
@@ -146,6 +155,17 @@ export class WorkspaceSession {
 
     this.documents.set(resolved, { store, opened });
     this.activePath = resolved;
+    /*
+     * A note opened on its own brings its folder with it.
+     *
+     * Without this, opening a file from Finder left the workspace with no
+     * folder at all: the tree was empty and quick open answered "no folder is
+     * open, so there is nothing to search yet" while the title bar was showing
+     * the folder's name. Typora does the same, mounting the file's own
+     * directory. A folder the reader chose is never replaced, because moving
+     * somebody's sidebar out from under them is not what opening a file means.
+     */
+    if (this.folderRoot === null) await this.adoptFolder(path.dirname(resolved), false);
     await this.recent.remember(opened.path);
     this.logger.log('workspace_document_opened', {
       hasRecovery: opened.recovery !== null,
@@ -263,8 +283,9 @@ export class WorkspaceSession {
     return this.adoptFolder(resolved);
   }
 
-  private async adoptFolder(root: string): Promise<WorkspaceFolderEventV1> {
+  private async adoptFolder(root: string, chosen = true): Promise<WorkspaceFolderEventV1> {
     this.folderRoot = root;
+    this.folderChosen = chosen;
     // A new folder invalidates the old index rather than serving it stale.
     this.indexCache = null;
     await this.recentFolders?.remember(root);
@@ -340,6 +361,7 @@ export class WorkspaceSession {
       version: NOTO_WORKSPACE_VERSION,
       root: this.folderRoot,
       name: this.folderRoot ? path.basename(this.folderRoot) : null,
+      chosen: this.folderChosen,
     };
   }
 

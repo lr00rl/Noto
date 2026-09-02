@@ -72,20 +72,40 @@ async function launch(name: string): Promise<Workspace> {
 }
 
 test.describe('workspace file tree', () => {
-  test('is hidden until asked for, then shows the chosen folder', async () => {
+  test('is hidden until asked for, then shows the folder the note came from', async () => {
     const { app, page, folder } = await launch('show');
     try {
       await expect(page.getByTestId('file-tree')).toBeHidden();
 
       await invokeMenu(app, 'toggle-sidebar');
       await expect(page.getByTestId('file-tree')).toBeVisible();
-      // With no folder chosen it offers to open one rather than sitting blank.
-      await expect(page.getByTestId('choose-folder')).toBeVisible();
-
-      await chooseFolder(app, folder);
-      // The folder names itself on the tree's own first row.
+      // The note was opened on its own and brought its folder with it, so the
+      // tree has something to show without being asked a second time.
       await expect(page.getByTestId('tree-vault')).toContainText('notes');
       await expect(page.getByTestId('tree-file')).toHaveCount(2);
+
+      // Choosing a folder still works, and lands on the same one.
+      await chooseFolder(app, folder);
+      await expect(page.getByTestId('tree-vault')).toContainText('notes');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('offers to open a folder when there is no note to take one from', async () => {
+    const workspace = path.join(resultRoot, 'empty');
+    await rm(workspace, { recursive: true, force: true });
+    await mkdir(path.join(workspace, 'user-data'), { recursive: true });
+    const app = await electron.launch({
+      executablePath: packagedExecutable(),
+      args: [`--user-data-dir=${path.join(workspace, 'user-data')}`],
+    });
+    try {
+      const page = await app.firstWindow();
+      await page.waitForSelector('[data-testid="empty-state"]', { state: 'visible', timeout: 30_000 });
+      await page.setViewportSize({ width: 1400, height: 900 });
+      await invokeMenu(app, 'toggle-sidebar');
+      await expect(page.getByTestId('choose-folder')).toBeVisible();
     } finally {
       await app.close();
     }
