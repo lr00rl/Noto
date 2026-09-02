@@ -1679,9 +1679,10 @@
 }
 
 .noto-table-rail-columns .noto-table-handle {
-  /* Clear of the strong rule above the header: two horizontal lines any closer
-     together read as one doubled border rather than a rail and a table. */
-  bottom: 12px;
+  /* Inside the header's own top padding rather than above the table. Above it,
+     the rail collided with whatever the block before happened to be, which for
+     a table inside a quote is a line of text a few pixels away. */
+  top: 4px;
   height: 3px;
   cursor: grab;
 }

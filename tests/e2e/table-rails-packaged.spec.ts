@@ -14,6 +14,13 @@ const NOTE = [
   '| four | five | six |',
   '| seven | eight | nine |',
   '',
+  '> A quoted table, which the vault does have.',
+  '>',
+  '> | q1 | q2 |',
+  '> | --- | --- |',
+  '> | alpha | beta |',
+  '> | gamma | delta |',
+  '',
 ].join('\n');
 
 async function launch(name: string): Promise<{ app: ElectronApplication; page: Page }> {
@@ -32,15 +39,18 @@ async function launch(name: string): Promise<{ app: ElectronApplication; page: P
   return { app, page };
 }
 
+/** The note has two tables; every helper below works on the first. */
+const table = (page: Page) => page.locator('.noto-table-frame').first();
+
 /** Put the pointer over the table so the rails are measured and drawn. */
 async function hoverTable(page: Page): Promise<void> {
-  await page.locator('.ProseMirror table').hover();
-  await expect(page.locator('.noto-table-rail-rows .noto-table-handle').first()).toBeVisible();
+  await table(page).locator('table').hover();
+  await expect(table(page).locator('.noto-table-rail-rows .noto-table-handle').first()).toBeVisible();
 }
 
 /** The first cell of every body row, in the order they are drawn. */
 async function firstColumn(page: Page): Promise<string[]> {
-  return page.locator('.ProseMirror tr td:first-child').allInnerTexts();
+  return table(page).locator('tr td:first-child').allInnerTexts();
 }
 
 async function dragHandle(page: Page, handle: ReturnType<Page['locator']>, dy: number, dx = 0): Promise<void> {
@@ -62,8 +72,8 @@ test.describe('taking hold of a table', () => {
     try {
       await hoverTable(page);
       // Three body rows, and the header is not one of them.
-      await expect(page.locator('.noto-table-rail-rows .noto-table-handle')).toHaveCount(3);
-      await expect(page.locator('.noto-table-rail-columns .noto-table-handle')).toHaveCount(3);
+      await expect(table(page).locator('.noto-table-rail-rows .noto-table-handle')).toHaveCount(3);
+      await expect(table(page).locator('.noto-table-rail-columns .noto-table-handle')).toHaveCount(3);
       await page.screenshot({ path: path.join(resultRoot, 'rails.png') });
     } finally {
       await app.close();
@@ -76,9 +86,9 @@ test.describe('taking hold of a table', () => {
       await hoverTable(page);
       expect(await firstColumn(page)).toEqual(['one', 'four', 'seven']);
 
-      const rows = page.locator('.ProseMirror tr');
+      const rows = table(page).locator('tr');
       const height = (await rows.nth(1).boundingBox())!.height;
-      await dragHandle(page, page.locator('.noto-table-rail-rows .noto-table-handle').first(), height * 2.5);
+      await dragHandle(page, table(page).locator('.noto-table-rail-rows .noto-table-handle').first(), height * 2.5);
       expect(await firstColumn(page)).toEqual(['four', 'seven', 'one']);
     } finally {
       await app.close();
@@ -89,11 +99,11 @@ test.describe('taking hold of a table', () => {
     const { app, page } = await launch('drag-column');
     try {
       await hoverTable(page);
-      const width = (await page.locator('.ProseMirror th').first().boundingBox())!.width;
-      await dragHandle(page, page.locator('.noto-table-rail-columns .noto-table-handle').first(), 0, width * 1.6);
+      const width = (await table(page).locator('th').first().boundingBox())!.width;
+      await dragHandle(page, table(page).locator('.noto-table-rail-columns .noto-table-handle').first(), 0, width * 1.6);
 
-      await expect(page.locator('.ProseMirror th').first()).toHaveText('head b');
-      await expect(page.locator('.ProseMirror tr').nth(1).locator('td').first()).toHaveText('two');
+      await expect(table(page).locator('th').first()).toHaveText('head b');
+      await expect(table(page).locator('tr').nth(1).locator('td').first()).toHaveText('two');
     } finally {
       await app.close();
     }
@@ -103,17 +113,35 @@ test.describe('taking hold of a table', () => {
     const { app, page } = await launch('escape');
     try {
       await hoverTable(page);
-      const handle = page.locator('.noto-table-rail-rows .noto-table-handle').first();
+      const handle = table(page).locator('.noto-table-rail-rows .noto-table-handle').first();
       const box = (await handle.boundingBox())!;
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
       await page.mouse.down();
       await page.mouse.move(box.x + box.width / 2, box.y + 90);
-      await expect(page.locator('.noto-table-drop')).toBeVisible();
+      await expect(table(page).locator('.noto-table-drop')).toBeVisible();
 
       await page.keyboard.press('Escape');
-      await expect(page.locator('.noto-table-drop')).toBeHidden();
+      await expect(table(page).locator('.noto-table-drop')).toBeHidden();
       await page.mouse.up();
       expect(await firstColumn(page)).toEqual(['one', 'four', 'seven']);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('works the same for a table nested inside a quote', async () => {
+    const { app, page } = await launch('nested');
+    try {
+      const quoted = page.locator('blockquote .noto-table-frame');
+      await quoted.locator('table').hover();
+      const handles = quoted.locator('.noto-table-rail-rows .noto-table-handle');
+      await expect(handles).toHaveCount(2);
+
+      const rows = quoted.locator('tr');
+      const height = (await rows.nth(1).boundingBox())!.height;
+      await dragHandle(page, handles.first(), height * 1.5);
+      await expect(quoted.locator('tr td:first-child').first()).toHaveText('gamma');
+      await page.screenshot({ path: path.join(resultRoot, 'nested.png') });
     } finally {
       await app.close();
     }
@@ -123,8 +151,8 @@ test.describe('taking hold of a table', () => {
     const { app, page } = await launch('select');
     try {
       await hoverTable(page);
-      await page.locator('.noto-table-rail-rows .noto-table-handle').first().click();
-      await expect(page.locator('.ProseMirror tr').nth(1).locator('.selectedCell')).toHaveCount(3);
+      await table(page).locator('.noto-table-rail-rows .noto-table-handle').first().click();
+      await expect(table(page).locator('tr').nth(1).locator('.selectedCell')).toHaveCount(3);
     } finally {
       await app.close();
     }
