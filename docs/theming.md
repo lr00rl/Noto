@@ -94,7 +94,9 @@ either, and should keep the `min()` shape if it replaces `--measure` outright.
 ```
 
 The prose face, the interface face and the monospace face are set in the
-stylesheet rather than as properties. To change them, set `font-family` on
+stylesheet rather than as properties. The prose stack is the author's Typora
+stack face for face, so a machine missing the first one falls back the way
+Typora would. To change them, set `font-family` on
 `.ProseMirror` for the document and on `body` for the chrome.
 
 ## What the document is made of
