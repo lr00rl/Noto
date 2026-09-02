@@ -581,7 +581,10 @@ export class FileTruthStoreV1 {
   private conflict(attemptId: string, stage: FileTruthStageV1, current: FileFingerprintV1 | null): FileTruthExternalConflictV1 {
     this.state = 'conflict';
     return { version: 1, status: 'external-conflict', attemptId, safeStage: stage, dirtyPreserved: true,
-      message: 'The file changed on disk. The original was not overwritten. Review the disk version or save a copy.',
+      // Says only what the window can actually do. It used to end "review the
+      // disk version or save a copy", and saving a copy is the one of those
+      // two the window offers; reviewing it means leaving for another program.
+      message: 'The file changed on disk, so it was not overwritten. Your work is still here. Save a copy to keep it.',
       acceptedFingerprint: this.acceptedFingerprint!, currentFingerprint: current };
   }
 
