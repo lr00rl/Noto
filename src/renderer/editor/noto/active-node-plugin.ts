@@ -110,6 +110,19 @@ function delimiter(text: string): HTMLElement {
   return element;
 }
 
+/**
+ * A link whose text is its own address, written without any delimiters.
+ *
+ * The file holds the URL and nothing else, so revealing `[url](url)` around it
+ * would show the reader syntax their file does not contain and offer them an
+ * edit that would change it into a different construct.
+ */
+function isBareLink(state: EditorState, range: MarkRange): boolean {
+  if (range.mark.type.name !== 'link') return false;
+  const href = String(range.mark.attrs.href ?? '');
+  return href !== '' && state.doc.textBetween(range.from, range.to) === href;
+}
+
 /** The smallest range, so emphasis inside strong reveals the emphasis alone. */
 export function innermostRange(ranges: readonly MarkRange[]): MarkRange | null {
   return ranges.reduce<MarkRange | null>(
@@ -176,7 +189,7 @@ function activeDecorations(state: EditorState): DecorationSet {
     // The innermost: the smallest range wins, so emphasis inside strong reveals
     // the emphasis and leaves the strong alone.
     const innermost = innermostRange(ranges);
-    if (innermost) {
+    if (innermost && !isBareLink(state, innermost)) {
       const spec = DELIMITERS[innermost.mark.type.name];
       decorations.push(
         // `ignoreSelection` keeps the caret out of the widget entirely, so

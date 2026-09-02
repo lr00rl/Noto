@@ -205,3 +205,23 @@ describe('a newline inside a paragraph', () => {
     expect(doc.firstChild!.textContent).toBe('one');
   });
 });
+
+describe('a URL written on its own', () => {
+  it('stays written on its own', () => {
+    expect(roundTrip('See https://example.com/a here.')).toBe('See https://example.com/a here.');
+    expect(roundTrip('- https://example.com/a')).toBe('- https://example.com/a');
+    expect(roundTrip('https://example.com/a?q=1&r=2')).toBe('https://example.com/a?q=1&r=2');
+  });
+
+  it('leaves a link that says something else alone', () => {
+    expect(roundTrip('[the docs](https://example.com/a)')).toBe('[the docs](https://example.com/a)');
+    expect(roundTrip('[x](https://example.com "T")')).toBe('[x](https://example.com "T")');
+  });
+
+  it('keeps the brackets where a bare URL would come back shorter', () => {
+    // GFM trims a trailing full stop off a bare URL, so this one has to keep
+    // its brackets or the address loses a character on the way back in.
+    expect(roundTrip('<https://example.com/a.>')).toBe('<https://example.com/a.>');
+    expect(roundTrip('<mailto:someone@example.com>')).toBe('<mailto:someone@example.com>');
+  });
+});

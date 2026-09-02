@@ -8,7 +8,7 @@
  */
 
 import { fromMarkdown } from 'mdast-util-from-markdown';
-import { toMarkdown, type Options as ToMarkdownOptions } from 'mdast-util-to-markdown';
+import { defaultHandlers, toMarkdown, type Options as ToMarkdownOptions } from 'mdast-util-to-markdown';
 import { gfm } from 'micromark-extension-gfm';
 import { gfmFromMarkdown, gfmToMarkdown } from 'mdast-util-gfm';
 import { math } from 'micromark-extension-math';
@@ -78,6 +78,41 @@ function tildeOnlyInPairs(extension: ToMarkdownOptions): ToMarkdownOptions {
 
 const WIKI_LINK_RUN = /\[\[[^[\]\n|]+(?:\|[^[\]\n]*)?\]\]/g;
 
+/**
+ * A URL written on its own stays written on its own.
+ *
+ * The serializer writes any link whose text is its own address as `<url>`,
+ * which is correct markdown and not what these files say. The author's vault
+ * holds 6,200 bare URLs against 145 in angle brackets, so re-serializing an
+ * edited paragraph put brackets around six thousand addresses that never had
+ * them, for a construct that appears in ordinary prose all the time.
+ *
+ * Only where it is unambiguous. The address has to be http or https, hold no
+ * whitespace or angle brackets, and not end in punctuation, because GFM's own
+ * autolink rule trims a trailing full stop or bracket off the end of a bare
+ * URL and the address would come back shorter than it went in. Anything else
+ * falls through to the serializer's own handler.
+ */
+const BARE_URL = /^https?:\/\/[^\s<>]*[^\s<>.,:;!?)\]]$/;
+
+const bareAutolink: ToMarkdownOptions = {
+  handlers: {
+    link(node, parent, state, info) {
+      const [only] = node.children;
+      if (
+        node.children.length === 1
+        && only?.type === 'text'
+        && only.value === node.url
+        && (node.title === null || node.title === undefined)
+        && BARE_URL.test(node.url)
+      ) {
+        return node.url;
+      }
+      return defaultHandlers.link(node, parent, state, info);
+    },
+  },
+};
+
 const wikiLinkSafeText: ToMarkdownOptions = {
   handlers: {
     text(node, _parent, state, info) {
@@ -128,7 +163,7 @@ const serializerOptions: ToMarkdownOptions = {
   rule: '-',
   ruleSpaces: false,
   tightDefinitions: true,
-  extensions: [tildeOnlyInPairs(gfmToMarkdown()), mathToMarkdown(), frontmatterToMarkdown(), wikiLinkSafeText],
+  extensions: [tildeOnlyInPairs(gfmToMarkdown()), mathToMarkdown(), frontmatterToMarkdown(), wikiLinkSafeText, bareAutolink],
 };
 
 /**

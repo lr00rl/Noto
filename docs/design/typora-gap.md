@@ -422,6 +422,25 @@ resolving a paragraph to the heading above it.
 The editor reports the top level block the caret is in whenever it changes,
 which is a thing worth having anyway and cost one comparison per transaction.
 
+## 5x. A bare URL was not left as one. Closed.
+
+Found by rendering real notes rather than a made-up one. Two faults, both on a
+construct the vault uses 6,200 times.
+
+Editing any paragraph holding a bare URL wrote it back as `<url>`. That is the
+serializer's own default for a link whose text is its address, and it is
+correct markdown, but it is not what these files say: 6,200 bare against 145
+in angle brackets. A bare URL is written bare now, and only where that is
+unambiguous, since GFM trims a trailing full stop or bracket off a bare
+address and one that ends in punctuation has to keep its brackets or come back
+a character shorter.
+
+The other fault was on screen. Putting the caret in a paragraph reveals the
+markdown of the inline thing it is in, and a bare URL was revealed as
+`[url](url)`, showing syntax the file does not contain and inviting an edit
+that would turn it into a different construct. A link whose text is its own
+address now reveals nothing, because there is nothing to reveal.
+
 ## 5k. A line the author broke is now drawn broken. Closed.
 
 CommonMark reads a single newline inside a paragraph as a space, and so did
