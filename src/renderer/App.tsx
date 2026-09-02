@@ -18,7 +18,7 @@ import type {
 import type {
   RecentFileV1, WorkspaceIndexEntryV1, WorkspaceTabV1,
 } from '../shared/workspace/v1/contracts';
-import { QuickOpen } from './QuickOpen';
+import { QuickOpen, type QuickOpenMode } from './QuickOpen';
 import {
   pruneStore, recordOpen, searchBoost, type FrecencyStoreV1,
 } from '../shared/search/v1/frecency';
@@ -198,7 +198,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   settingsRef.current = settings;
 
   const [folder, setFolder] = useState<{ root: string | null; name: string | null }>({ root: null, name: null });
-  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickOpen, setQuickOpen] = useState<{ open: boolean; mode: QuickOpenMode }>(
+    { open: false, mode: 'name' },
+  );
   const [recentFolders, setRecentFolders] = useState<readonly RecentFileV1[]>([]);
   const [folderMenu, setFolderMenu] = useState(false);
   /* The editor is constructed once per document and keeps the callbacks it was
@@ -206,6 +208,8 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
      or it answers with whatever that state was at construction. Following a
      link resolved against an empty index for exactly this reason. */
   const followWikiLinkRef = useRef<(target: string) => void>(() => {});
+  /** A content-search query waiting for its document to arrive. */
+  const pendingMatchRef = useRef<string | null>(null);
   const ensureFileIndexRef = useRef<() => Promise<void>>(async () => {});
   const refreshRecentFoldersRef = useRef<() => void>(() => {});
   const [fileIndex, setFileIndex] = useState<{
@@ -239,7 +243,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       ? { open: false, section }
       : { open: true, section }));
   }, []);
-  const [find, setFind] = useState<{ open: boolean; replace: boolean }>({ open: false, replace: false });
+  const [find, setFind] = useState<{ open: boolean; replace: boolean; query?: string }>(
+    { open: false, replace: false },
+  );
   const cleanStateRef = useRef<'Opened' | 'Saved'>('Opened');
   const dirtyDocumentIds = useMemo(
     () => new Set([...docs.values()].filter((doc) => doc.dirty).map((doc) => doc.document.documentId)),
@@ -874,6 +880,32 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   }, [fileIndex.entries, frecency, openPath]);
   followWikiLinkRef.current = followWikiLink;
 
+  const searchContent = useCallback(async (query: string) => {
+    const result = await window.notoWorkspace.searchContent({
+      version: 1, requestId: rid('search-content'), query,
+    });
+    return result.ok
+      ? { matches: result.value.matches, truncated: result.value.truncated, timedOut: result.value.timedOut }
+      : null;
+  }, []);
+
+  /**
+   * Open a note at what was found in it.
+   *
+   * The editor's own find is reused rather than a second way of locating text:
+   * it already highlights every occurrence and scrolls the first into view, and
+   * two mechanisms for "show me this string" would eventually disagree. It runs
+   * after the document has actually been adopted, since searching a document
+   * that has not arrived finds nothing.
+   */
+  const openMatch = useCallback((filePath: string, query: string) => {
+    // Recorded before the open, not after it. The document is adopted through
+    // an event rather than through the reply, so the editor can be mounted and
+    // asking for a pending query before the promise this awaits has settled.
+    pendingMatchRef.current = query;
+    void openPath(filePath);
+  }, [openPath]);
+
   /** The link text for a note, relative to the one being edited. */
   const insertWikiLink = useCallback((entry: WorkspaceIndexEntryV1) => {
     const editor = editorRef.current;
@@ -945,7 +977,12 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         // command palette dismisses it.
         setPrefs((current) => ({ ...current, open: false }));
         void ensureFileIndex();
-        setQuickOpen((current) => !current);
+        setQuickOpen((current) => ({ open: !(current.open && current.mode === 'name'), mode: 'name' }));
+        break;
+      case 'search-content':
+        setPrefs((current) => ({ ...current, open: false }));
+        void ensureFileIndex();
+        setQuickOpen((current) => ({ open: !(current.open && current.mode === 'content'), mode: 'content' }));
         break;
       case 'command-palette':
         // Preferences is modal, so leaving it open would put its scrim over the
@@ -1170,6 +1207,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
           <FindBar
             open={find.open}
             showReplace={find.replace}
+            initialQuery={find.query}
             onSearch={(options) => editorRef.current?.search(options) ?? { matches: 0, active: -1 }}
             onGo={(direction) => editorRef.current?.goToMatch(direction) ?? { matches: 0, active: -1 }}
             onReplace={(replacement, scope) => editorRef.current?.replace(replacement, scope) ?? 0}
@@ -1208,6 +1246,12 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                   if (doc.document.documentId === activeIdRef.current) {
                     editorRef.current = editor;
                     pluginClientRef.current?.attachAdapter(editor);
+                    // A content result was what opened this document, so show
+                    // the reader what they searched for rather than the top of
+                    // a file they now have to scan by eye.
+                    const pending = pendingMatchRef.current;
+                    pendingMatchRef.current = null;
+                    if (pending) setFind({ open: true, replace: false, query: pending });
                   }
                 }}
                 onTeardown={(editor) => {
@@ -1252,14 +1296,18 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       </div>
 
       <QuickOpen
-        open={quickOpen}
+        open={quickOpen.open}
+        mode={quickOpen.mode}
+        onMode={(mode) => setQuickOpen({ open: true, mode })}
+        onSearchContent={searchContent}
+        onOpenMatch={openMatch}
         entries={fileIndex.entries}
         frecency={frecency}
         truncated={fileIndex.truncated}
         canInsertLink={document !== null}
         onOpenFile={(filePath) => void openPath(filePath)}
         onInsertLink={insertWikiLink}
-        onClose={() => { setQuickOpen(false); editorRef.current?.focus(); }}
+        onClose={() => { setQuickOpen((current) => ({ ...current, open: false })); editorRef.current?.focus(); }}
       />
 
       {paletteOpen && (

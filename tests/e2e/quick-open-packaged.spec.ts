@@ -146,6 +146,63 @@ test.describe('quick open', () => {
   });
 });
 
+test.describe('searching inside notes', () => {
+  test('finds a note by its contents and opens it at the match', async () => {
+    const { app, page } = await launch('content');
+    try {
+      await invokeMenu(app, 'search-content');
+      await expect(page.getByTestId('quick-open')).toBeVisible();
+      await expect(page.getByTestId('quick-mode')).toHaveText('In notes');
+
+      // A word that appears in one note's body and in no note's name.
+      await page.getByTestId('quick-input').fill('Detail');
+      await expect(page.getByTestId('quick-match')).toHaveCount(1);
+      const match = page.getByTestId('quick-match').first();
+      await expect(match).toContainText('deep-dive.md');
+      // The line it was found on is shown, which is the reason to search bodies.
+      await expect(match.locator('.quick-line-text')).toContainText('Detail.');
+
+      await page.keyboard.press('Enter');
+      await expect(page.getByTestId('quick-open')).toBeHidden();
+      await expect(page.locator('.canvas-slot:not([hidden]) .ProseMirror h1')).toHaveText('Deep dive');
+      // The note opens with the query already found, not at the top of a file
+      // the reader then has to scan by eye.
+      await expect(page.getByTestId('find-input')).toHaveValue('Detail');
+      await expect(page.getByTestId('find-status')).toHaveText('1 of 1');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('switches between searching names and searching bodies with Tab', async () => {
+    const { app, page } = await launch('content-tab');
+    try {
+      await invokeMenu(app, 'quick-open');
+      await expect(page.getByTestId('quick-mode')).toHaveText('Names');
+      await page.getByTestId('quick-input').fill('Detail');
+      // Nothing is named that, so the name search finds nothing.
+      await expect(page.getByTestId('quick-result')).toHaveCount(0);
+
+      await page.keyboard.press('Tab');
+      await expect(page.getByTestId('quick-mode')).toHaveText('In notes');
+      await expect(page.getByTestId('quick-match')).toHaveCount(1);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('says so when nothing contains the query', async () => {
+    const { app, page } = await launch('content-empty');
+    try {
+      await invokeMenu(app, 'search-content');
+      await page.getByTestId('quick-input').fill('zzzznothinghere');
+      await expect(page.getByTestId('quick-open')).toContainText('No note contains that.');
+    } finally {
+      await app.close();
+    }
+  });
+});
+
 test.describe('reveal in the file manager', () => {
   /**
    * The real call opens Finder, which would leave windows all over the machine

@@ -6,11 +6,15 @@
  * drift into disagreeing about what a valid message is.
  */
 
-import { WORKSPACE_MENU_COMMANDS } from './contracts';
+import { MAX_CONTENT_QUERY, WORKSPACE_MENU_COMMANDS } from './contracts';
 import type {
   RecentFileV1,
   WorkspaceIndexEntryV1,
   WorkspaceIndexReplyV1,
+  WorkspaceContentLineV1,
+  WorkspaceContentMatchV1,
+  WorkspaceContentReplyV1,
+  WorkspaceContentRequestV1,
   WorkspaceRevealReplyV1,
   WorkspaceRevealRequestV1,
   WorkspaceRevealTargetV1,
@@ -204,3 +208,36 @@ export function isWorkspaceRevealReplyV1(value: unknown): value is WorkspaceReve
 export const isWorkspaceRevealResultV1 = (
   value: unknown, id: string,
 ): value is WorkspaceResultV1<WorkspaceRevealReplyV1> => isResult(value, id, isWorkspaceRevealReplyV1);
+
+export function isWorkspaceContentRequestV1(value: unknown): value is WorkspaceContentRequestV1 {
+  return record(value) && exact(value, ['version', 'requestId', 'query'])
+    && value.version === 1
+    && typeof value.requestId === 'string' && requestId.test(value.requestId)
+    && typeof value.query === 'string' && value.query.length <= MAX_CONTENT_QUERY;
+}
+
+function isContentLineV1(value: unknown): value is WorkspaceContentLineV1 {
+  return record(value) && exact(value, ['line', 'lineNumber', 'column'])
+    && typeof value.line === 'string'
+    && Number.isSafeInteger(value.lineNumber) && Number.isSafeInteger(value.column);
+}
+
+function isContentMatchV1(value: unknown): value is WorkspaceContentMatchV1 {
+  return record(value) && exact(value, ['path', 'name', 'relativePath', 'occurrences', 'lines'])
+    && typeof value.path === 'string' && value.path.length > 0
+    && typeof value.name === 'string' && typeof value.relativePath === 'string'
+    && Number.isSafeInteger(value.occurrences)
+    && Array.isArray(value.lines) && value.lines.every(isContentLineV1);
+}
+
+export function isWorkspaceContentReplyV1(value: unknown): value is WorkspaceContentReplyV1 {
+  return record(value) && exact(value, ['version', 'matches', 'scanned', 'truncated', 'timedOut'])
+    && value.version === 1
+    && Number.isSafeInteger(value.scanned)
+    && typeof value.truncated === 'boolean' && typeof value.timedOut === 'boolean'
+    && Array.isArray(value.matches) && value.matches.every(isContentMatchV1);
+}
+
+export const isWorkspaceContentResultV1 = (
+  value: unknown, id: string,
+): value is WorkspaceResultV1<WorkspaceContentReplyV1> => isResult(value, id, isWorkspaceContentReplyV1);

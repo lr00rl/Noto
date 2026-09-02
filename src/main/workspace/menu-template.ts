@@ -115,6 +115,8 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       { type: 'separator' },
       command('Find…', 'CmdOrCtrl+F', 'find'),
       command('Find and Replace…', 'CmdOrCtrl+Alt+F', 'find-replace'),
+      // The name every editor gives this, so nobody has to look for it.
+      command('Find in Notes…', 'CmdOrCtrl+Shift+F', 'search-content'),
       command('Command Palette…', 'CmdOrCtrl+K', 'command-palette'),
       { type: 'separator' },
       command('Settings…', 'CmdOrCtrl+,', 'settings'),

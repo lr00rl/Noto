@@ -88,6 +88,14 @@ Wiki links render inline wherever they appear, and `Cmd+click` follows one.
 The links are decorations rather than a node type, so they cannot reach the
 saved bytes: `[[a note]]` is ordinary text in the file, exactly as you typed it.
 
+`Cmd+Shift+F` searches inside the notes rather than across their names, and
+`Tab` switches between the two without leaving the box. A content result shows
+the lines it was found on, and opening one lands on the match with the find bar
+already carrying the query. The scan reads the folder on demand rather than
+keeping an index: on a vault of 7,066 notes and 82.5 MB it takes about 1.3
+seconds cold and 274 ms once the operating system has the files cached, which is
+what the adaptive debounce is for.
+
 The rail's footer names the open folder and holds what acts on it: open
 another, reveal it in the file manager, refresh, and the folders you opened
 before. `Cmd+Shift+R` reveals the current note instead.

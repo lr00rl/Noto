@@ -35,6 +35,7 @@ export const WORKSPACE_CHANNELS = {
   recentFolders: 'noto:v1:workspace:recent-folders',
   openRecentFolder: 'noto:v1:workspace:open-recent-folder',
   reveal: 'noto:v1:workspace:reveal',
+  searchContent: 'noto:v1:workspace:search-content',
 } as const;
 
 /** One entry in the workspace tree. */
@@ -150,6 +151,7 @@ export const WORKSPACE_MENU_COMMANDS = [
   'narrow',
   'quick-open',
   'reveal-document',
+  'search-content',
 ] as const;
 
 export type WorkspaceMenuCommandV1 = typeof WORKSPACE_MENU_COMMANDS[number];
@@ -174,6 +176,42 @@ export interface WorkspaceRevealReplyV1 {
   /** False when there was nothing of that kind to show. */
   readonly revealed: boolean;
 }
+
+/** One line of a file that holds the query. */
+export interface WorkspaceContentLineV1 {
+  readonly line: string;
+  readonly lineNumber: number;
+  /** Where the query starts within `line`, for highlighting. */
+  readonly column: number;
+}
+
+/** One note containing the query, with a few of the lines that do. */
+export interface WorkspaceContentMatchV1 {
+  readonly path: string;
+  readonly name: string;
+  readonly relativePath: string;
+  /** Times the query appears in the whole file, which is what ranks it. */
+  readonly occurrences: number;
+  readonly lines: readonly WorkspaceContentLineV1[];
+}
+
+export interface WorkspaceContentRequestV1 extends WorkspaceRequestV1 {
+  readonly query: string;
+}
+
+export interface WorkspaceContentReplyV1 {
+  readonly version: typeof NOTO_WORKSPACE_VERSION;
+  readonly matches: readonly WorkspaceContentMatchV1[];
+  /** Files actually read, so the box can say how much it looked at. */
+  readonly scanned: number;
+  /** More files matched than are reported. */
+  readonly truncated: boolean;
+  /** The scan hit its time budget and stopped early. */
+  readonly timedOut: boolean;
+}
+
+/** The longest a query may be. Past this it is not a search, it is a paste. */
+export const MAX_CONTENT_QUERY = 200;
 
 /** One openable file, as the search index carries it. */
 export interface WorkspaceIndexEntryV1 {
@@ -227,4 +265,5 @@ export interface NotoWorkspaceApiV1 {
   recentFolders(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceRecentReplyV1>>;
   openRecentFolder(request: WorkspaceOpenPathRequestV1): Promise<WorkspaceResultV1<WorkspaceFolderEventV1>>;
   reveal(request: WorkspaceRevealRequestV1): Promise<WorkspaceResultV1<WorkspaceRevealReplyV1>>;
+  searchContent(request: WorkspaceContentRequestV1): Promise<WorkspaceResultV1<WorkspaceContentReplyV1>>;
 }
