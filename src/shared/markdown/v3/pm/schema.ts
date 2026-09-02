@@ -101,16 +101,29 @@ const nodes: Record<string, NodeSpec> = {
     group: 'block',
     content: 'list_item+',
     attrs: { spread: { default: false } },
-    parseDOM: [{ tag: 'ul' }],
-    toDOM: () => ['ul', 0],
+    // Read back as well as written, since copy and paste go through the DOM:
+    // a loose list pasted without it would land tight.
+    parseDOM: [{ tag: 'ul', getAttrs: (dom) => ({ spread: (dom as HTMLElement).hasAttribute('data-spread') }) }],
+    // A loose list is drawn with space inside its items and a tight one
+    // without, which the stylesheet can only do if the DOM says which it is.
+    toDOM: (node) => ['ul', node.attrs.spread ? { 'data-spread': '' } : {}, 0],
   },
 
   ordered_list: {
     group: 'block',
     content: 'list_item+',
     attrs: { start: { default: 1 }, spread: { default: false } },
-    parseDOM: [{ tag: 'ol' }],
-    toDOM: (node) => ['ol', node.attrs.start === 1 ? {} : { start: node.attrs.start }, 0],
+    parseDOM: [{
+      tag: 'ol',
+      getAttrs: (dom) => ({
+        start: Number((dom as HTMLElement).getAttribute('start') ?? 1) || 1,
+        spread: (dom as HTMLElement).hasAttribute('data-spread'),
+      }),
+    }],
+    toDOM: (node) => ['ol', {
+      ...(node.attrs.start === 1 ? {} : { start: node.attrs.start }),
+      ...(node.attrs.spread ? { 'data-spread': '' } : {}),
+    }, 0],
   },
 
   /**

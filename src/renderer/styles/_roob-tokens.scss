@@ -40,6 +40,15 @@
   /* Tree connectors. Low enough that a deep tree reads as texture rather than
      as a diagram, which is the difference between a guide and a grid. */
   --tree-line: rgb(52 49 46 / 0.18);
+  /* Document tiers the author's theme distinguishes and the chrome does not:
+     headings, bold and the first column of a table sit a step darker than
+     body ink; a table's outer rules a step darker than a hairline; inline
+     code in its own warm tint with a fill, so an identifier has an edge in a
+     sentence. Layered like the rest, so a custom stylesheet can retune them. */
+  --ink-strong: #232120;
+  --line-strong: #C9C3BB;
+  --code-ink: #8E4F37;
+  --code-fill: #EEECE8;
 }
 
 :root[data-theme='dark'] {
@@ -60,6 +69,12 @@
   --focus: #F1EEE8;
   --scrim: rgb(0 0 0 / 0.52);
   --tree-line: rgb(241 238 232 / 0.14);
+  --ink-strong: #F1EEE8;
+  /* A clear step above the dark hairline, or the table's outer rules vanish
+     into the paper at night. */
+  --line-strong: #5C584F;
+  --code-ink: #D9A98C;
+  --code-fill: #2A2926;
 }
 
 }

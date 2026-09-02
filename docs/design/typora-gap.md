@@ -37,26 +37,34 @@ than markdown images, and those render as the opaque HTML block they are in.
 Recognising an `<img>` inside inline or block HTML is a separate pass over a
 different node type, and it is listed below with the plugins.
 
-## 2. The prose is a size louder than the theme, and headings do not scale
+## 2. The prose was a size louder than the theme, and headings did not scale. Closed.
 
 The author's theme sets a 16px body at 1.58 leading with headings in em, so
 `h1` is 1.84em, `h2` 1.48em, `h3` 1.24em, weight 600, and they follow the body.
-Noto sets an 18px body at 1.62 with headings in pixels: 34, 27, 22, fixed. Two
-consequences. Every heading is a step louder relative to its paragraph than the
-theme the author reads all day. And the text size setting added last week moves
-the body and leaves the headings where they were, because a pixel does not know
-what an em is. Headings move to em, at the theme's ratios.
+Noto set an 18px body at 1.62 with headings in pixels: 34, 27, 22, fixed. Two
+consequences. Every heading was a step louder relative to its paragraph than
+the theme the author reads all day. And the text size setting moved the body
+and left the headings where they were, because a pixel does not know what an
+em is.
 
-The theme's measure is 860px at 16px, about 54em. Noto's default of 66ch in an
-18px serif is close; the difference in feel comes from the scale above, not the
-width.
+Now the default is the theme's 16px at 1.58, the headings are the theme's em
+ratios with its margins scaled by the document size rather than the root, and
+the block rhythm is its 0.74em above and below, collapsing. Bold is 600 in the
+strong ink tier, links are in the accent with the underline held to a third,
+lists have the theme's indent and a muted marker, and a loose list is drawn
+with room inside its items while a tight one is not, which needed the parser's
+`spread` flag to reach the DOM. The reading column is 860px, which is the
+theme's width at this size.
 
-## 3. Tables draw every cell border
+## 3. Tables drew every cell border. Closed.
 
 The theme draws horizontal rules only: a strong rule above the header and below
 the table, a lighter rule between rows, no vertical lines at all, and no
-alternating fill. Noto draws a 1px border on every cell. In the author's own
-screenshot the table is the most visible difference between the two windows.
+alternating fill. Noto drew a 1px border on every cell. In the author's own
+screenshot the table was the most visible difference between the two windows.
+Noto now draws the theme's rules, in the prose face at 0.92em with lining
+tabular figures, and the first column in the strong ink tier as the theme has
+it.
 
 ## 4. Code blocks have no line numbers
 
@@ -72,11 +80,14 @@ them. Noto's rows are text and a twisty. With the connector lines in place the
 tree is legible without them, but they are what makes a row of names read as
 files rather than as an outline.
 
-## 6. Inline code is bare
+## 6. Inline code was bare. Closed.
 
 The theme gives inline code a border, a fill, a small radius and `0.9em`. Noto
-sets a monospace face at 14px and nothing else, so `A400_Languages` sits in a
-sentence with no edge. Small, but it is in nearly every paragraph of this vault.
+set a monospace face at 14px and nothing else, so `A400_Languages` sat in a
+sentence with no edge. Small, but it is in nearly every paragraph of this
+vault. Inline code now has the theme's hairline, fill, radius and its own warm
+ink, at 0.9em of the prose so it follows the size setting; a fence has the
+same hairline and no edge on the code inside it, since the fence is the edge.
 
 ## 7. Plugins: eight of sixteen, in some form
 
@@ -102,6 +113,6 @@ a plugin model Typora does not have.
 Images first, because the gap was functional and a third of the vault was
 behind it; done, bar the HTML `<img>` remainder. Then the prose scale, tables
 and inline code together, since they are one stylesheet and one pass with the
-theme open beside it. Then line numbers and tree icons, which are each a
+theme open beside it; done. Then line numbers and tree icons, which are each a
 morning. Then `<img>` inside HTML, which is the last of the pictures. The
 remaining plugins after that, in the order the author names them.
