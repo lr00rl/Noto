@@ -142,20 +142,23 @@
   color: var(--ink);
 }
 
+/* A formula is prose, not an exhibit. Typora gives a block of one no box at
+   all: it is centred on the page at the body's own size with room above and
+   below, and nothing is drawn around it. A rule and a fill made every formula
+   in a document read as a quotation from somewhere else. */
 .ProseMirror .noto-math-block {
-  border-left: 2px solid var(--hairline);
-  background: var(--raised);
-  padding: 12px 16px;
-  border-radius: 4px;
-  font-size: 0.9em;
+  margin: 1em 0;
+  padding: 0;
+  background: none;
+  font-size: 1em;
+  text-align: center;
   white-space: pre-wrap;
 }
 
 .ProseMirror .noto-math-inline {
-  border-radius: 3px;
-  background: var(--raised);
-  padding: 0 4px;
-  font-size: 0.92em;
+  padding: 0;
+  background: none;
+  font-size: 1em;
 }
 
 /* Alerts ------------------------------------------------------------------ */
@@ -482,6 +485,11 @@
 .ProseMirror .noto-fence-lang {
   width: auto;
   min-width: 0;
+  /* The field is sized in characters through its __TEXT	__DATA	__OBJC	others	dec	hex attribute, which
+     governs the content box. With the app's border-box default the padding
+     and border ate into that width and clipped the last letter of every
+     language long enough to matter, so  read as . */
+  box-sizing: content-box;
   border: 1px solid transparent;
   border-radius: 3px;
   background: transparent;

@@ -21,7 +21,6 @@ const RAIL_MIN = SETTING_RANGES.railWidth.min;
 const RAIL_MAX = SETTING_RANGES.railWidth.max;
 
 export interface WorkspaceRailProps {
-  readonly footer: ReactNode;
   readonly view: RailView;
   readonly onView: (view: RailView) => void;
   readonly width: number;
@@ -107,7 +106,7 @@ const INDICATOR: Record<RailView, { left: string; width: string }> = {
 };
 
 export function WorkspaceRail({
-  footer, view, onView, width, onResize, outline, onGoToBlock, tree, onSearch,
+  view, onView, width, onResize, outline, onGoToBlock, tree, onSearch,
 }: WorkspaceRailProps) {
   const railRef = useRef<HTMLElement>(null);
 
@@ -196,7 +195,6 @@ export function WorkspaceRail({
           </div>
         )}
 
-      {footer}
 
       <div
         className="rail-resize"

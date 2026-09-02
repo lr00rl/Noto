@@ -259,6 +259,26 @@ The keyboard's focus ring was drawn in near-black ink, which on a bordered
 control read as a second border or as something being wrong. It is the accent
 now, which is the one thing this interface uses to say where you are.
 
+## 5n. Three bars of furniture where Typora has one. Closed.
+
+Typora spends the top 28px of its window on the file's name and draws nothing
+else: no bar down the side of the rail, no strip along the foot. This had
+three. The rail carried a footer naming the folder, which the tree's own
+first row already names, with the folder's actions behind it; those actions
+now live on that first row, as a quiet ellipsis that comes up when the
+pointer is on it, which is where an action belongs, on the thing it acts on.
+The foot of the window carried a sentence that was always there, and a
+promise that is always on screen stops being read; it is said when it
+changes and fades. The title bar is 32 rather than 38.
+
+## 5o. A formula was drawn as an exhibit. Closed.
+
+Typora gives a block of maths no box at all: centred on the page at the
+body's own size, with room above and below and nothing drawn around it. This
+put a rule and a fill and a smaller size around every one, so a document of
+working read as a document of quotations. Inline maths was boxed too, and set
+smaller than the sentence holding it.
+
 ## 5k. A line the author broke is now drawn broken. Closed.
 
 CommonMark reads a single newline inside a paragraph as a space, and so did

@@ -43,7 +43,8 @@ test.describe('the rail tree', () => {
     const { app, page } = await launch('cli');
     try {
       const vaultRow = page.getByTestId('tree-vault');
-      await expect(vaultRow).toHaveText('vault');
+      // The name, not the row: the row also carries the folder's action menu.
+      await expect(vaultRow.locator('.tree-name')).toHaveText('vault');
       // The first level hangs from the folder's row like every deeper level:
       // it is a connected level, not the bare root list it used to be.
       const firstLevel = page.locator('.tree-vault > .tree-level');

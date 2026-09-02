@@ -1289,23 +1289,6 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
               void ensureFileIndex();
               setQuickOpen({ open: true, mode: 'name' });
             }}
-            footer={(
-              <RailFooter
-                folderName={folder.name}
-                folderPath={folder.root}
-                recentFolders={recentFolders}
-                open={folderMenu}
-                onToggle={() => setFolderMenu((current) => !current)}
-                onClose={() => setFolderMenu(false)}
-                onChooseFolder={chooseFolder}
-                onOpenRecentFolder={openRecentFolder}
-                onRefresh={() => { void ensureFileIndex(); setFolder((current) => ({ ...current })); }}
-                fileManagerName={fileManagerName}
-                onReveal={() => { void window.notoWorkspace.reveal({
-                  version: 1, requestId: rid('reveal'), target: 'folder',
-                }); }}
-              />
-            )}
             view={rail.view}
             onView={(view) => setRail({ open: true, view })}
             width={settings.railWidth}
@@ -1313,6 +1296,23 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
             outline={outline}
             onGoToBlock={(blockIndex) => editorRef.current?.focusBlock(blockIndex)}
             tree={{
+              vaultMenu: (
+                <RailFooter
+                  folderName={folder.name}
+                  folderPath={folder.root}
+                  recentFolders={recentFolders}
+                  open={folderMenu}
+                  onToggle={() => setFolderMenu((current) => !current)}
+                  onClose={() => setFolderMenu(false)}
+                  onChooseFolder={chooseFolder}
+                  onOpenRecentFolder={openRecentFolder}
+                  onRefresh={() => { void ensureFileIndex(); setFolder((current) => ({ ...current })); }}
+                  fileManagerName={fileManagerName}
+                  onReveal={() => { void window.notoWorkspace.reveal({
+                    version: 1, requestId: rid('reveal'), target: 'folder',
+                  }); }}
+                />
+              ),
               root: folder.root,
               rootName: folder.name,
               activePath: opened?.path ?? null,
@@ -1503,7 +1503,11 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
               once: the dot on the name, the word beside the actions, and this.
               What this line adds is the fidelity promise, which nothing else
               says. */}
-          <span className={notice ? 'status-message is-notice' : 'status-message'}
+          {/* Keyed on what it says, so React remounts the line whenever the
+              message changes and the fade starts again. The line says its
+              piece and then recedes: a promise that is always on screen stops
+              being read, and the window is quieter for its absence. */}
+          <span key={notice ?? state} className={notice ? 'status-message is-notice' : 'status-message'}
             data-testid={notice ? 'status-notice' : undefined} aria-live="polite">
             {notice ?? (state === 'Opened' ? 'Exact source preserved' : state === 'Saved' ? 'Exact source saved' : '')}
           </span>
