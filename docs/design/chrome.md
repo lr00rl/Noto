@@ -119,6 +119,10 @@ broken.
 
 Tree rows are 26px, which is the density a four-level tree needs. No background
 at rest, `--raised` on hover, and the current file gets a tint plus the spine.
+Every row carries a glyph, a folder or a file, drawn inline in the title bar's
+stroke style in the muted tier; they are what makes a column of names read as
+files rather than as an outline, and a file row carries the twisty's width as
+a spacer so the glyphs of one level line up.
 The previous build drew a filled rounded rectangle in accent tint around the
 current file and every open folder, so a third of the tree was orange.
 

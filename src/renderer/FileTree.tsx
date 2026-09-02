@@ -101,6 +101,7 @@ export function FileTree({ root, activePath, list, onOpenFile, onChooseFolder }:
                   onClick={() => toggle(entry.path)}
                 >
                   <span className={isOpen ? 'tree-twisty tree-twisty-open' : 'tree-twisty'} aria-hidden="true" />
+                  <FolderGlyph open={isOpen} />
                   <span className="tree-name">{entry.name}</span>
                 </button>
                 {isOpen && renderLevel(entry.path, depth + 1)}
@@ -120,6 +121,8 @@ export function FileTree({ root, activePath, list, onOpenFile, onChooseFolder }:
                 aria-current={isActive ? 'true' : undefined}
                 onClick={() => onOpenFile(entry.path)}
               >
+                <span className="tree-twisty tree-twisty-blank" aria-hidden="true" />
+                <FileGlyph />
                 <span className="tree-name">{entry.name}</span>
               </button>
             </div>
@@ -134,5 +137,30 @@ export function FileTree({ root, activePath, list, onOpenFile, onChooseFolder }:
       {failed && <p role="alert" className="tree-error">{failed}</p>}
       <nav className="tree-body">{renderLevel(root, 0)}</nav>
     </div>
+  );
+}
+
+/*
+ * The glyphs that make a row of names read as files rather than as an
+ * outline. Drawn inline in the title bar's stroke style, so they inherit the
+ * row's colour and need no asset; a folder shows a lifted flap when it is
+ * open, which repeats what the twisty says in a second place so the eye can
+ * take either.
+ */
+function FolderGlyph({ open }: { open: boolean }) {
+  return (
+    <svg className="tree-glyph" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M1.75 4.5a1 1 0 0 1 1-1h3.1l1.5 1.5h5.9a1 1 0 0 1 1 1v6.25a1 1 0 0 1-1 1h-10.5a1 1 0 0 1-1-1z" />
+      {open && <path d="M1.75 7.25h12.5" />}
+    </svg>
+  );
+}
+
+function FileGlyph() {
+  return (
+    <svg className="tree-glyph" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M4.25 1.75h5l3 3v9.5h-8z" />
+      <path d="M9.25 1.75v3h3" />
+    </svg>
   );
 }

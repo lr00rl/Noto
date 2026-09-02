@@ -83,12 +83,15 @@ the author's Typora is set. The plugin's indent guides and tab markers are not
 ported; each needs a per-line element inside the fence, which the editor does
 not have, and they are listed with the plugins below.
 
-## 5. The file tree has no icons
+## 5. The file tree had no icons. Closed.
 
 Typora prefixes every row with a file or folder glyph; the author's tree shows
-them. Noto's rows are text and a twisty. With the connector lines in place the
-tree is legible without them, but they are what makes a row of names read as
-files rather than as an outline.
+them. Noto's rows were text and a twisty. With the connector lines in place the
+tree was legible without them, but they are what makes a row of names read as
+files rather than as an outline. Every row now carries one, drawn inline in
+the title bar's stroke style in the muted tier, a folder's flap lifting when
+it is open; a file row carries the twisty's width as a spacer so the glyphs of
+one level form a column.
 
 ## 6. Inline code was bare. Closed.
 
@@ -123,7 +126,7 @@ a plugin model Typora does not have.
 Images first, because the gap was functional and a third of the vault was
 behind it; done, bar the HTML `<img>` remainder. Then the prose scale, tables
 and inline code together, since they are one stylesheet and one pass with the
-theme open beside it; done. Then line numbers, done, and tree icons. Then
+theme open beside it; done. Then line numbers and tree icons; both done. Then
 `<img>` inside HTML, which is the last of the pictures. The remaining plugins
 after that, in the order the author names them, with `fence-enhance`'s indent
 guides and tab markers among them.

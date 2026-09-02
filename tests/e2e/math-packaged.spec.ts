@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, test, _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
-import { packagedExecutable } from './packaged-app';
+import { packagedExecutable, placeCaret } from './packaged-app';
 
 const resultRoot = path.join(process.cwd(), 'test-results', 'math');
 
@@ -92,7 +92,7 @@ test.describe('math', () => {
       await expect(page.locator('.noto-math-block')).toHaveClass(/noto-math-editing/);
 
       // Move the caret into ordinary prose.
-      await page.locator('.ProseMirror p').last().click();
+      await placeCaret(page, page.locator('.ProseMirror p').last());
       await expect(page.locator('.noto-math-block')).not.toHaveClass(/noto-math-editing/);
       await expect(page.locator('.noto-math-block .katex')).toHaveCount(1);
     } finally {
@@ -117,7 +117,7 @@ test.describe('math', () => {
     const { app, page, file } = await launch('fidelity');
     try {
       // Make one unrelated edit so there is something to save.
-      await page.locator('.ProseMirror p').last().click();
+      await placeCaret(page, page.locator('.ProseMirror p').last());
       await page.keyboard.type('!');
       await page.getByTestId('save-button').click();
       await expect(page.getByTestId('file-state')).toHaveText('Saved', { timeout: 15_000 });

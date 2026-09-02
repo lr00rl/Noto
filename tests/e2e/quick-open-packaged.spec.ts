@@ -10,7 +10,7 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, test, _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
-import { packagedExecutable } from './packaged-app';
+import { packagedExecutable, placeCaret } from './packaged-app';
 
 const resultRoot = path.join(process.cwd(), 'test-results', 'quick-open');
 
@@ -106,7 +106,7 @@ test.describe('quick open', () => {
     const { app, page, folder } = await launch('link');
     try {
       // Put the caret at the end of the body before linking.
-      await page.locator('.canvas-slot:not([hidden]) .ProseMirror p').first().click();
+      await placeCaret(page, page.locator('.canvas-slot:not([hidden]) .ProseMirror p').first());
       await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End');
 
       await invokeMenu(app, 'quick-open');
