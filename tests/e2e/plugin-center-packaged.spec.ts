@@ -43,9 +43,21 @@ async function launch(name: string): Promise<RunningApp & { file: string }> {
   return { app, page, issues, file };
 }
 
+/**
+ * The centre is an index and a detail: one plugin shows at a time, and the
+ * detail is reached by picking the plugin's row.
+ */
+async function pickPlugin(page: Page, name: string) {
+  await page.locator('.plugin-pick', { hasText: name }).click();
+  const detail = page.locator('.plugin-detail', { hasText: name });
+  await expect(detail).toBeVisible();
+  return detail;
+}
+
 async function openPluginCenter(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.getByTestId('plugin-toggle').click();
+  await pickPlugin(page, 'Semantic Focus');
   await expect(page.getByTestId('renderer-plugin-state')).toBeVisible();
 }
 
@@ -66,8 +78,9 @@ test.describe('plugin center', () => {
       await openPluginCenter(page);
       // Default deny: a freshly installed plugin must not be running.
       await expect(rendererStatus(page)).toHaveText('Disabled');
-      await expect(page.getByTestId('filesystem-plugin-lifecycle')).toHaveText('Disabled');
       await expect(primaryButton(page, 'renderer-plugin-state')).toHaveText('Enable');
+      await pickPlugin(page, 'Fixture Reader');
+      await expect(page.getByTestId('filesystem-plugin-lifecycle')).toHaveText('Disabled');
       expect(issues).toEqual([]);
     } finally {
       await app.close();
@@ -134,7 +147,7 @@ test.describe('plugin center', () => {
       await page.getByTestId('plugin-toggle').click();
 
       // Enable, then activate. The section is found by the plugin's own name.
-      const section = page.locator('.plugin-section', { hasText: 'Title Shift' });
+      const section = await pickPlugin(page, 'Title Shift');
       await section.locator('button.plugin-primary').click();
       await section.locator('button.plugin-primary').click();
       await expect(page.locator('.ProseMirror')).toBeVisible();
@@ -174,7 +187,7 @@ test.describe('plugin center', () => {
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.getByTestId('plugin-toggle').click();
 
-      const section = page.locator('.plugin-section', { hasText: 'Markdown Padding' });
+      const section = await pickPlugin(page, 'Markdown Padding');
       await section.locator('button.plugin-primary').click();
       await section.locator('button.plugin-primary').click();
 
@@ -248,7 +261,7 @@ test.describe('plugin hotkeys', () => {
       await page.setViewportSize({ width: 1280, height: 900 });
 
       await page.getByTestId('plugin-toggle').click();
-      const section = page.locator('.plugin-section', { hasText: 'Title Shift' });
+      const section = await pickPlugin(page, 'Title Shift');
       await section.locator('button.plugin-primary').click();
       await section.locator('button.plugin-primary').click();
       // Preferences is modal, so it is dismissed rather than toggled off from

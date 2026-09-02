@@ -173,6 +173,12 @@ examples, one per runtime kind, kept so that a plugin author has a working
 plugin of each shape to read and so the capability broker has something that
 exercises it.
 
+Writing one is described in [docs/plugins.md](docs/plugins.md), which also
+says plainly where the model stops today: plugins ship inside the
+application, and the sandboxed runtime for third-party code is built but not
+yet opened. Theming, which needs no plugin at all, is one CSS file named in
+Preferences; [docs/theming.md](docs/theming.md) lists what it can reach.
+
 ## Building and verifying
 
 ```sh

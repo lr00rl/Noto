@@ -895,51 +895,160 @@ button:disabled { color: var(--muted); opacity: 0.7; }
    the right at its natural width. It was four full-width `Enable` slabs under
    four paragraphs of capability jargon, which read as a debug console. */
 
-.plugin-list { min-width: 0; }
-
-.plugin-section {
+/* An index and a detail. The index is the narrow column a reader scans, one
+   row per plugin with a dot for its state, in the same voice as the
+   preferences nav beside it; the detail is one plugin at a time. */
+.plugin-center {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 4px 18px;
+  grid-template-columns: 188px minmax(0, 1fr);
+  gap: 0 26px;
   min-width: 0;
-  padding: 13px 0;
-  overflow-wrap: anywhere;
+  min-height: 300px;
 }
 
-.plugin-name-row {
-  grid-column: 1;
+.plugin-index {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+  padding-right: 12px;
+  border-right: 1px solid var(--hairline);
 }
 
-.plugin-name-row strong { font-size: 13px; font-weight: 600; }
+.plugin-index-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
 
-.plugin-status {
-  grid-column: 2;
-  grid-row: 1;
-  margin: 0;
-  justify-self: end;
+.plugin-index-group .pref-group-label { margin: 0 0 4px 8px; }
+
+.plugin-pick {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 26px;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
   color: var(--muted);
-  font-size: 11px;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover { background: var(--raised); color: var(--ink); }
+  &.is-current { color: var(--ink); background: color-mix(in srgb, var(--ink) 7%, transparent); }
+  /* The spine, as everywhere else: the one mark for where you are. */
+  &.is-current::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--accent);
+  }
+}
+
+.plugin-pick-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* Filled when running, a ring when enabled and waiting, faint when off, and
+   the danger colour when it failed: the one glance the index has to give. */
+.plugin-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--hairline);
+  background: transparent;
+
+  &[data-state='ready'] { border-color: var(--ink); }
+  &[data-state='on'] { border-color: var(--ink); background: var(--ink); }
+  &[data-state='failed'] { border-color: var(--danger); background: var(--danger); }
+}
+
+.plugin-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 2px 0 13px;
+  overflow-wrap: anywhere;
+}
+
+.plugin-detail-head {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.plugin-name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.plugin-name-row strong { font-size: 15px; font-weight: 600; }
+
+.plugin-kind {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.plugin-state-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 4px;
+  padding: 9px 0;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.plugin-status {
+  margin: 0;
+  color: var(--ink);
+  font-size: 12.5px;
+}
+
 .plugin-scope {
-  grid-column: 1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.plugin-example-note { font-size: 11.5px; }
+
+.plugin-commands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
   margin: 0;
   color: var(--muted);
   font-size: 11.5px;
-  line-height: 1.45;
+  line-height: 1.5;
+}
+
+.plugin-commands-label {
+  color: var(--ink);
+  font-weight: 500;
 }
 
 .plugin-primary {
-  grid-column: 2;
-  grid-row: 2;
-  justify-self: end;
-  align-self: center;
+  flex: 0 0 auto;
   min-height: 26px;
   border-color: var(--hairline);
   background: transparent;
@@ -955,7 +1064,6 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 .plugin-list button:disabled { color: var(--ink); opacity: 0.45; }
 
 .setting-row {
-  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -966,7 +1074,6 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 .setting-row input { accent-color: var(--ink); }
 
 .plugin-operation-message {
-  grid-column: 1 / -1;
   margin: 0;
   min-height: 17px;
   color: var(--danger);
@@ -993,7 +1100,6 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 
 .plugin-diagnostics,
 .plugin-evidence {
-  grid-column: 1 / -1;
   margin-top: 8px;
   color: var(--muted);
   font-size: 11.5px;

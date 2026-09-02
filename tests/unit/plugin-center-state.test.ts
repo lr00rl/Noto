@@ -281,8 +281,9 @@ describe('plugin center interaction and production structure', () => {
     // modality and the focus trap. A second trap inside it fought the first.
     expect(center).not.toMatch(/role=\{modal|aria-modal=\{modal/);
     expect(app).toContain('<Preferences');
-    expect(center).toContain('aria-busy={pendingAction.renderer !== null}');
-    expect(center).toContain('aria-busy={pendingAction.filesystem !== null}');
+    // One detail at a time, busy while an action of its own kind is pending.
+    expect(center).toContain('aria-busy={pending}');
+    expect(center).toContain('pendingAction[selected.section] !== null');
     expect(center).toContain("action === 'disable' || action === 'retry-cleanup'");
     expect(center).toContain("action === 'retry-cleanup'");
     expect(center).toContain('Restart service (revokes current access)');
@@ -291,26 +292,23 @@ describe('plugin center interaction and production structure', () => {
     expect(center).toContain('aria-atomic="true"');
     expect(center).not.toContain('waitingForPush');
     expect(center).toContain('<summary>Diagnostics</summary>');
-    const rendererSummary = center.slice(
-      center.indexOf('data-testid="renderer-plugin-state"'),
-      center.indexOf('<details className="plugin-diagnostics">'),
-    );
-    const filesystemSummary = center.slice(
-      center.indexOf('data-testid="service-state"'),
-      center.indexOf('<details className="plugin-diagnostics">', center.indexOf('data-testid="service-state"')),
-    );
-    expect(rendererSummary).not.toContain('rendererProofManifest.version');
-    expect(filesystemSummary).not.toContain('filesystemProofManifest.version');
-    expect(center).toContain('Version {rendererProofManifest.version}');
-    expect(center).toContain('Version {filesystemProofManifest.version}');
+    // The version lines live under Diagnostics, never in the summary above it.
+    const firstDiagnostics = center.indexOf('<details className="plugin-diagnostics">');
+    expect(firstDiagnostics).toBeGreaterThan(0);
+    expect(center.indexOf('Version {rendererProofManifest.version}')).toBeGreaterThan(firstDiagnostics);
+    expect(center.indexOf('Version {filesystemProofManifest.version}')).toBeGreaterThan(firstDiagnostics);
   });
 
   it('keeps plugin chrome neutral and reachable', async () => {
     const css = await readFile(new URL('../../src/renderer/styles/app.scss', import.meta.url), 'utf8');
-    const pluginChrome = css.slice(css.indexOf('.plugin-list {'), css.indexOf('.search-field'));
-    // The accent marks where you are and nothing else, so a list of plugins
-    // never reaches for it. Tone is carried by the warning and danger rails.
-    expect(pluginChrome).not.toMatch(/var\(--accent\)|gradient|box-shadow|backdrop-filter/);
+    const pluginChrome = css.slice(css.indexOf('.plugin-center {'), css.indexOf('.search-field'));
+    // The accent marks where you are and nothing else. In the plugin chrome
+    // that is exactly one rule, the spine on the selected row of the index,
+    // the same mark the preferences nav beside it uses. Tone is carried by
+    // the warning and danger rails.
+    expect(pluginChrome).not.toMatch(/gradient|box-shadow|backdrop-filter/);
+    expect(pluginChrome.match(/var\(--accent\)/g) ?? []).toHaveLength(1);
+    expect(pluginChrome).toMatch(/\.is-current::before \{[^}]*var\(--accent\)/s);
     expect(pluginChrome).toContain('border-color: var(--hairline);');
     expect(pluginChrome).toContain('background: transparent;');
     expect(pluginChrome).not.toMatch(/\.plugin-primary[^}]*background:\s*var\(--ink\)/s);
