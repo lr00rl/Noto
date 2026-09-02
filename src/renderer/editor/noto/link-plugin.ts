@@ -28,7 +28,16 @@ export interface LinkTarget {
 
 export const linkEditorKey = new PluginKey<LinkTarget | null>('noto-link-editor');
 
-/** The whole run of the link mark under `pos`, or null. */
+/**
+ * The whole run of one link mark under `pos`, or null.
+ *
+ * A link's text is one text node only while nothing else marks part of it.
+ * `[**bold** and plain](url)` is two nodes, both carrying the link, and the
+ * first attempt returned the first of them: changing the address would have
+ * rewritten half the link and split it in the file. So the run is widened
+ * across every neighbour carrying the same link, compared by value, which
+ * keeps two adjacent but different links apart.
+ */
 export function linkAround(state: EditorState, pos: number): LinkTarget | null {
   const $pos = state.doc.resolve(pos);
   const parent = $pos.parent;
@@ -36,22 +45,34 @@ export function linkAround(state: EditorState, pos: number): LinkTarget | null {
   const start = $pos.start();
   const index = $pos.parentOffset;
 
-  let target: LinkTarget | null = null;
-  parent.forEach((child, childOffset) => {
-    if (target) return;
-    const mark = child.marks.find((candidate) => candidate.type === notoSchema.marks.link);
-    if (!mark) return;
-    // The caret counts as inside when it touches either edge, so a link can be
-    // reached without landing exactly in the middle of it.
-    if (index < childOffset || index > childOffset + child.nodeSize) return;
-    target = {
-      from: start + childOffset,
-      to: start + childOffset + child.nodeSize,
-      href: String(mark.attrs.href ?? ''),
-      existing: true,
-    };
+  const runs: { from: number; to: number; mark: Mark | undefined }[] = [];
+  let offset = 0;
+  parent.forEach((child) => {
+    runs.push({
+      from: offset,
+      to: offset + child.nodeSize,
+      mark: child.marks.find((candidate) => candidate.type === notoSchema.marks.link),
+    });
+    offset += child.nodeSize;
   });
-  return target;
+
+  // The caret counts as inside when it touches either edge, so a link can be
+  // reached without landing exactly in the middle of it.
+  const at = runs.findIndex((run) => run.mark && index >= run.from && index <= run.to);
+  if (at < 0) return null;
+  const mark = runs[at].mark as Mark;
+
+  let first = at;
+  while (first > 0 && runs[first - 1].mark?.eq(mark)) first -= 1;
+  let last = at;
+  while (last + 1 < runs.length && runs[last + 1].mark?.eq(mark)) last += 1;
+
+  return {
+    from: start + runs[first].from,
+    to: start + runs[last].to,
+    href: String(mark.attrs.href ?? ''),
+    existing: true,
+  };
 }
 
 /**

@@ -288,3 +288,27 @@ describe('a hard break', () => {
     expect(roundTrip('one\\\ntwo')).toBe('one  \ntwo');
   });
 });
+
+describe('a link whose text carries another mark', () => {
+  it('comes back as one link, not one per run', () => {
+    // ProseMirror keeps a mark on each text node, so this link is two nodes,
+    // both linked. Written out separately it becomes two links, which the
+    // vault would have suffered 1,491 times.
+    expect(roundTrip('A [**bold** and plain](https://e.com/x) link.'))
+      .toBe('A [**bold** and plain](https://e.com/x) link.');
+    expect(roundTrip('A [*em* and `code`](https://e.com/y) link.'))
+      .toBe('A [*em* and `code`](https://e.com/y) link.');
+    expect(roundTrip('See [`Component` 构造器](https://e.com/z).'))
+      .toBe('See [`Component` 构造器](https://e.com/z).');
+  });
+
+  it('keeps two genuinely different links apart', () => {
+    expect(roundTrip('[one](https://e.com/a)[two](https://e.com/b)'))
+      .toBe('[one](https://e.com/a)[two](https://e.com/b)');
+  });
+
+  it('does the same for a reference link', () => {
+    expect(roundTrip('A [**bold** and plain][ref] link.\n\n[ref]: https://e.com/x'))
+      .toBe('A [**bold** and plain][ref] link.\n\n[ref]: https://e.com/x');
+  });
+});

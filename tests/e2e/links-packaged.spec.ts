@@ -12,6 +12,8 @@ const NOTE = [
   '',
   'Or read [the other one](https://example.com/old) instead.',
   '',
+  'A link whose text is [**partly bold** and partly not](https://example.com/mixed).',
+  '',
   'The note next door is [over here](sibling.md), and the folder below has',
   '[this one](sub/deeper.md).',
   '',
@@ -141,6 +143,24 @@ test.describe('making and changing a link', () => {
       // Nothing was written, so there is nothing to save and no save button.
       await expect(page.getByTestId('save-button')).toBeHidden();
       expect(await readFile(file, 'utf8')).toContain('](https://example.com/old)');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('changes a link whose text carries another mark, whole', async () => {
+    const { app, page, file } = await launch('mixed');
+    try {
+      // The caret goes in the plain half; the bold half must move with it.
+      await placeCaret(page, page.getByText('and partly not'));
+      await invokeMenu(app, 'insert-link');
+      await expect(page.getByTestId('link-input')).toHaveValue('https://example.com/mixed');
+      await page.getByTestId('link-input').fill('https://example.com/whole');
+      await page.keyboard.press('Enter');
+
+      await page.getByTestId('save-button').click();
+      await expect.poll(async () => readFile(file, 'utf8'))
+        .toContain('[**partly bold** and partly not](https://example.com/whole)');
     } finally {
       await app.close();
     }

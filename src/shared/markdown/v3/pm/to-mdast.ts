@@ -124,6 +124,27 @@ function trimTrailingSpace(nodes: PhrasingContent[]): PhrasingContent[] {
   return [...nodes.slice(0, -1), { type: 'text', value: trimmed }];
 }
 
+/**
+ * Whether two links are the same link, and so one node rather than two.
+ *
+ * ProseMirror keeps a mark on each text node, and a link whose text carries
+ * another mark is two text nodes, both linked. Written out separately that is
+ * `[**bold**](u)[ and plain](u)`, two links where the file had one, which the
+ * vault would have suffered 1,491 times. The parser cannot tell that from one
+ * link either, so joining them is what reading the file back does.
+ */
+function sameLink(a: PhrasingContent, b: PhrasingContent): boolean {
+  if (a.type === 'link' && b.type === 'link') {
+    return a.url === b.url && (a.title ?? null) === (b.title ?? null);
+  }
+  if (a.type === 'linkReference' && b.type === 'linkReference') {
+    return a.identifier === b.identifier
+      && (a.label ?? null) === (b.label ?? null)
+      && a.referenceType === b.referenceType;
+  }
+  return false;
+}
+
 /** `**a****b**` must serialize as `**ab**`, so merge siblings of the same shape. */
 function mergeAdjacent(nodes: PhrasingContent[]): PhrasingContent[] {
   const output: PhrasingContent[] = [];
@@ -131,6 +152,11 @@ function mergeAdjacent(nodes: PhrasingContent[]): PhrasingContent[] {
     const previous = output.at(-1);
     if (previous && previous.type === node.type
       && (node.type === 'emphasis' || node.type === 'strong' || node.type === 'delete')
+      && 'children' in previous && 'children' in node) {
+      previous.children = mergeAdjacent([...previous.children, ...node.children]);
+      continue;
+    }
+    if (previous && sameLink(previous, node)
       && 'children' in previous && 'children' in node) {
       previous.children = mergeAdjacent([...previous.children, ...node.children]);
       continue;

@@ -790,6 +790,26 @@ first attempt used a hard break, which since entry 35 is written as two
 trailing spaces, and `> [!NOTE]  ` is not what the marker looks like in
 anybody's note.
 
+## 45. A link with a bold word in it was split in two on save. Closed.
+
+Found while testing the link panel, and older than it. ProseMirror keeps a
+mark on each text node, so `[**bold** and plain](url)` is two text nodes, both
+carrying the link. The serializer merged adjacent emphasis, strong and strike
+siblings and did not merge links, so the pair came back as
+`[**bold**](url)[ and plain](url)`: two links where the file had one. The vault
+holds 1,491 links with a mark inside their text, and every one of them would
+have been split the first time its block was edited.
+
+Adjacent links now join when their address and title match, and reference
+links when their identifier and label match. The parser cannot tell one link
+from two adjacent identical ones either, so joining them is exactly what
+reading the file back does.
+
+The panel had the same fault in a different place: it found the first run of a
+link rather than the whole of it, so changing an address would have rewritten
+half a link. Both are covered by tests, and one of them writes the file and
+reads it back.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
