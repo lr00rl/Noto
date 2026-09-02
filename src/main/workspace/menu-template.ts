@@ -62,12 +62,12 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
   // keystroke, and testing the accelerator instead of the item would prove less.
   const command = (
     label: string,
-    accelerator: string,
+    accelerator: string | undefined,
     value: WorkspaceMenuCommandV1,
   ): MenuItemConstructorOptions => ({
     id: value,
     label,
-    accelerator,
+    ...(accelerator === undefined ? {} : { accelerator }),
     click: () => sendCommand(value),
   });
 
@@ -132,6 +132,12 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       command('Toggle Sidebar', 'CmdOrCtrl+Shift+L', 'toggle-sidebar'),
       command('Toggle Outline', 'CmdOrCtrl+Shift+O', 'toggle-outline'),
       command('Toggle Source Mode', 'CmdOrCtrl+/', 'toggle-source'),
+      { type: 'separator' },
+      // Typora's two writing modes. It gives neither a shortcut, and neither
+      // wants one: they are settled once for a session, not reached for mid
+      // sentence.
+      command('Focus Mode', undefined, 'toggle-focus-mode'),
+      command('Typewriter Mode', undefined, 'toggle-typewriter'),
       { type: 'separator' },
       // The writing width, stepped from the keyboard. The setting is a slider
       // in preferences; these are the same value under the fingers, which is

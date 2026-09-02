@@ -395,3 +395,16 @@
 .ProseMirror::selection {
   background: color-mix(in srgb, var(--accent) 18%, transparent);
 }
+
+/* Focus mode, as Typora has it: everything but the block being written
+   recedes. Not hidden and not blurred, only quieter, so the shape of the page
+   is still there to navigate by and the eye is drawn to one paragraph. The
+   block under the caret is already marked for the syntax reveal, so nothing
+   new has to be tracked to know which one it is. */
+:root[data-focus-mode='on'] .ProseMirror > *:not(.noto-active-block) {
+  opacity: 0.32;
+  transition: opacity var(--motion-medium) var(--ease-out);
+}
+:root[data-focus-mode='on'] .ProseMirror > .noto-active-block {
+  transition: opacity var(--motion-medium) var(--ease-out);
+}

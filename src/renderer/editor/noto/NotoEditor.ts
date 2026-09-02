@@ -36,6 +36,7 @@ import { notoKeymap } from './keymap';
 import { activeNodePlugin } from './active-node-plugin';
 import { alertPlugin } from './alert-plugin';
 import { typoraMarksPlugin } from './typora-marks-plugin';
+import { typewriterPlugin } from './typewriter-plugin';
 import { mathEditingPlugin, mathNodeViews } from './math-view';
 import { fenceNodeViews } from './fence-view';
 import type { ImageContext } from './image-source';
@@ -72,6 +73,7 @@ export class NotoEditor implements NotoEditorPort {
   private view: EditorView | null = null;
   private document: NotoDocumentWire;
   private smartTypography = false;
+  private typewriter = false;
   private imageContext: ImageContext;
   /** The pictures on screen, so a changed context can redraw them and nothing else. */
   private readonly imageViews = new Set<Refreshable>();
@@ -121,6 +123,7 @@ export class NotoEditor implements NotoEditorPort {
       gapCursor(),
       alertPlugin(),
       typoraMarksPlugin(),
+      typewriterPlugin(() => this.typewriter),
       columnResizing(),
       tableEditing(),
       activeNodePlugin(),
@@ -345,7 +348,15 @@ export class NotoEditor implements NotoEditorPort {
    * them that. Spell checking is a view property, and smart typography is read
    * by the input rules on each keystroke, so both take effect at once.
    */
-  applySettings(settings: { spellCheck?: boolean; smartTypography?: boolean; remoteImages?: boolean }): void {
+  applySettings(settings: {
+    spellCheck?: boolean;
+    smartTypography?: boolean;
+    remoteImages?: boolean;
+    typewriterMode?: boolean;
+  }): void {
+    if (settings.typewriterMode !== undefined) {
+      this.typewriter = settings.typewriterMode;
+    }
     if (settings.smartTypography !== undefined) {
       this.smartTypography = settings.smartTypography;
     }

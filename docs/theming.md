@@ -133,6 +133,10 @@ want:
 - Task list items are `li.noto-task-item` with `data-checked`; the box is drawn
   with `::before` and `::after`.
 
+Focus mode is `data-focus-mode="on"` on the root, and quietens
+`.ProseMirror > *:not(.noto-active-block)`. A theme that wants a different
+treatment, a blur or a colour rather than an opacity, overrides that one rule.
+
 Selectors here are stable for the life of a major version. Anything without a
 `noto-` prefix, such as ProseMirror's own classes, is not something a theme
 should depend on.

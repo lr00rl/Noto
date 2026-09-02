@@ -19,6 +19,8 @@ export interface NotoCanvasProps {
   /** Where the document lives, so its relative images know where to start. */
   readonly documentPath: string | null;
   readonly remoteImages?: boolean;
+  /** Keep the line being written at the middle of the window. */
+  readonly typewriterMode?: boolean;
   readonly onDirtyChange: (dirty: boolean) => void;
   readonly onDocumentChanged?: () => void;
   readonly onFollowWikiLink?: (target: string) => void;
@@ -34,6 +36,7 @@ export function NotoCanvas({
   spellCheck,
   documentPath,
   remoteImages,
+  typewriterMode,
   onDirtyChange,
   onDocumentChanged,
   onFollowWikiLink,
@@ -85,8 +88,8 @@ export function NotoCanvas({
   // Settings reach the running editor rather than rebuilding it, so changing a
   // preference never costs the user their undo history or cursor.
   useEffect(() => {
-    editorRef.current?.applySettings({ smartTypography, spellCheck, remoteImages });
-  }, [smartTypography, spellCheck, remoteImages]);
+    editorRef.current?.applySettings({ smartTypography, spellCheck, remoteImages, typewriterMode });
+  }, [smartTypography, spellCheck, remoteImages, typewriterMode]);
 
   return <div ref={hostRef} className="noto-editor-host" data-testid="noto-editor" />;
 }

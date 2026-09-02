@@ -366,7 +366,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     root.style.setProperty('--doc-line-height', `${settings.lineHeight}`);
     root.dataset.widthMode = settings.widthMode;
     root.dataset.codeLineNumbers = settings.codeLineNumbers ? 'on' : 'off';
-  }, [settings.fontSize, settings.lineHeight, settings.widthMode, settings.codeLineNumbers]);
+    root.dataset.focusMode = settings.focusMode ? 'on' : 'off';
+  }, [settings.fontSize, settings.lineHeight, settings.widthMode, settings.codeLineNumbers,
+    settings.focusMode]);
 
   /**
    * The user's own stylesheet, layered over the theme.
@@ -1089,6 +1091,12 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         setPrefs((current) => ({ ...current, open: false }));
         setPaletteOpen((current) => !current);
         break;
+      case 'toggle-focus-mode':
+        changeSettings({ focusMode: !settings.focusMode });
+        break;
+      case 'toggle-typewriter':
+        changeSettings({ typewriterMode: !settings.typewriterMode });
+        break;
       case 'toggle-outline':
         toggleRail('outline');
         break;
@@ -1360,6 +1368,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                 spellCheck={settings.spellCheck}
                 documentPath={doc.opened.path}
                 remoteImages={settings.remoteImages}
+                typewriterMode={settings.typewriterMode}
                 onDirtyChange={(dirty) => onDocumentDirtyChange(doc.document.documentId, dirty)}
                 onDocumentChanged={() => {
                   if (doc.document.documentId === activeIdRef.current) bumpTyping();

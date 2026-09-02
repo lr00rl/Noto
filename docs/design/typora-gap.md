@@ -303,6 +303,24 @@ goes in as inline HTML nodes and maths as a maths node, so each is what it
 says it is and survives the round trip. Highlight is plain `==`, which needs
 no escaping and so can be exactly the characters the file will hold.
 
+## 5q. Typora's two writing modes were missing. Closed.
+
+Focus mode and typewriter mode are in Typora's View menu and are part of what
+people mean when they say they write in Typora. Focus mode quietens every
+block but the one the caret is in; the block is already marked for the syntax
+reveal, so knowing which one it is costs nothing, and it recedes rather than
+disappearing so the shape of the page is still there to navigate by.
+Typewriter mode keeps the line being written at 42% of the way down the pane
+and moves the page under it. It only ever acts on a caret, never on a range,
+because a page sliding under a drag is unusable, and it moves the page at
+once rather than animating, since it runs on every keystroke that changes the
+line and an animation would spend its time chasing the last one.
+
+Both are settings, so they are remembered, and both are in the View menu
+where Typora keeps them. Neither has a shortcut, which is also Typora's
+choice: they are settled once for a session rather than reached for mid
+sentence.
+
 ## 5k. A line the author broke is now drawn broken. Closed.
 
 CommonMark reads a single newline inside a paragraph as a space, and so did
