@@ -144,6 +144,16 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
     ],
   };
 
+  /* Where you were, and where you were going. The trail is three notes each
+     way, from the author's plugin; the chord is the one it used. */
+  const goMenu: MenuItemConstructorOptions = {
+    label: '&Go',
+    submenu: [
+      command('Back', 'CmdOrCtrl+Alt+Left', 'navigate-back'),
+      command('Forward', 'CmdOrCtrl+Alt+Right', 'navigate-forward'),
+    ],
+  };
+
   const windowMenu: MenuItemConstructorOptions = {
     label: '&Window',
     submenu: mac
@@ -186,6 +196,7 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
     fileMenu,
     editMenu,
     viewMenu,
+    goMenu,
     windowMenu,
     helpMenu,
   ];

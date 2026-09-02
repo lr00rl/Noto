@@ -24,9 +24,14 @@ export function adaptTrustedPlugin(plugin: TrustedPlugin) {
         registerCommand: (id, execute) => context.registerCommand(id, () => execute()),
         registerHotkey: (keys, execute) => context.registerHotkey(keys, () => execute()),
         registerDisposer: (disposer) => context.registerDisposer(disposer),
-        // Routed through the host so a notice is attributed to its plugin and
-        // disappears with it, rather than outliving the lease that raised it.
-        notice: () => context.onCommand(),
+        // Counted through the host so a notice is attributed to its plugin,
+        // and shown by the shell in the status line for a moment. An event
+        // rather than a host method: the shell is the one thing that knows
+        // where a message goes, and the host keeps to leases and generations.
+        notice: (message) => {
+          context.onCommand();
+          window.dispatchEvent(new CustomEvent('noto:notice', { detail: message }));
+        },
       };
       return plugin.activate(trustedContext);
     },

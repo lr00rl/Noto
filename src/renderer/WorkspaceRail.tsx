@@ -31,6 +31,8 @@ export interface WorkspaceRailProps {
   readonly outline: readonly OutlineEntry[];
   readonly onGoToBlock: (blockIndex: number) => void;
   readonly tree: FileTreeProps;
+  /** Opens quick open. Search is a first-class way into a vault, not a fallback. */
+  readonly onSearch: () => void;
 }
 
 function Tab({ id, current, onSelect, children, testId }: {
@@ -105,7 +107,7 @@ const INDICATOR: Record<RailView, { left: string; width: string }> = {
 };
 
 export function WorkspaceRail({
-  footer, view, onView, width, onResize, outline, onGoToBlock, tree,
+  footer, view, onView, width, onResize, outline, onGoToBlock, tree, onSearch,
 }: WorkspaceRailProps) {
   const railRef = useRef<HTMLElement>(null);
 
@@ -166,6 +168,13 @@ export function WorkspaceRail({
       >
         <Tab id="files" current={view} onSelect={onView} testId="rail-files">Files</Tab>
         <Tab id="outline" current={view} onSelect={onView} testId="outline-toggle">Outline</Tab>
+        <button type="button" className="icon-button rail-search" data-testid="rail-search"
+          aria-label="Quick open" title="Quick open (⌘P)" onClick={onSearch}>
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="7" cy="7" r="4.25" />
+            <path d="m10.25 10.25 3.5 3.5" />
+          </svg>
+        </button>
       </div>
 
       {view === 'files'

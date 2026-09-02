@@ -155,6 +155,8 @@ export const WORKSPACE_MENU_COMMANDS = [
   'quick-open',
   'reveal-document',
   'search-content',
+  'navigate-back',
+  'navigate-forward',
 ] as const;
 
 export type WorkspaceMenuCommandV1 = typeof WORKSPACE_MENU_COMMANDS[number];
