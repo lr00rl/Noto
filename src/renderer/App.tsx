@@ -284,6 +284,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
      or it answers with whatever that state was at construction. Following a
      link resolved against an empty index for exactly this reason. */
   const followWikiLinkRef = useRef<(target: string) => void>(() => {});
+  const followLinkRef = useRef<(href: string) => void>(() => {});
   /** A content-search query waiting for its document to arrive. */
   const pendingMatchRef = useRef<string | null>(null);
   const ensureFileIndexRef = useRef<() => Promise<void>>(async () => {});
@@ -1024,6 +1025,41 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   }, [fileIndex.entries, frecency, openPath]);
   followWikiLinkRef.current = followWikiLink;
 
+  /**
+   * Follow an ordinary `[text](address)` link.
+   *
+   * A page on the web goes to the browser, through main, which checks the
+   * scheme again before handing anything to the operating system. Anything
+   * else is treated as a note in this folder and resolved the way a wiki link
+   * is, by relative path and then by name, so `./chapters/one.md` and `one.md`
+   * both land. An address with a fragment loses it: nothing here scrolls to a
+   * heading yet, and opening the right note is most of the way there.
+   */
+  const followLink = useCallback((href: string) => {
+    if (/^[a-z][a-z0-9+.-]*:/i.test(href)) {
+      void window.notoWorkspace.openExternal({
+        version: 1, requestId: rid('open-external'), url: href,
+      }).then((result) => {
+        if (result.ok && result.value.opened) return;
+        setLocalMessage('That link is not one Noto opens.');
+      });
+      return;
+    }
+    const withoutFragment = href.split('#')[0];
+    if (withoutFragment.length === 0) {
+      setLocalMessage('A link to a place inside this note is not followed yet.');
+      return;
+    }
+    let target = withoutFragment;
+    try {
+      target = decodeURIComponent(withoutFragment);
+    } catch {
+      // A malformed escape is not worth refusing over; the raw text may match.
+    }
+    followWikiLink(target.replace(/^\.\//, ''));
+  }, [followWikiLink]);
+  followLinkRef.current = followLink;
+
   const searchContent = useCallback(async (query: string) => {
     const result = await window.notoWorkspace.searchContent({
       version: 1, requestId: rid('search-content'), query,
@@ -1461,6 +1497,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                   if (doc.document.documentId === activeIdRef.current) bumpTyping();
                 }}
                 onFollowWikiLink={(target) => followWikiLinkRef.current(target)}
+                onFollowLink={(href) => followLinkRef.current(href)}
                 onReady={(editor) => {
                   editorsRef.current.set(doc.document.documentId, editor);
                   if (doc.document.documentId === activeIdRef.current) {

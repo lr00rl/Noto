@@ -38,6 +38,7 @@ export const WORKSPACE_CHANNELS = {
   recentFolders: 'noto:v1:workspace:recent-folders',
   openRecentFolder: 'noto:v1:workspace:open-recent-folder',
   reveal: 'noto:v1:workspace:reveal',
+  openExternal: 'noto:v1:workspace:open-external',
   searchContent: 'noto:v1:workspace:search-content',
 } as const;
 
@@ -227,6 +228,25 @@ export interface WorkspaceRevealReplyV1 {
   readonly revealed: boolean;
 }
 
+/**
+ * A link the reader followed out of a note.
+ *
+ * The scheme is checked here and again in main. The renderer is the least
+ * trusted side of this application and the URL comes out of somebody's file,
+ * so `shell.openExternal` must never see a string this side has only glanced
+ * at: it hands the URL to the operating system, which will open far more than
+ * a browser if the scheme asks it to.
+ */
+export interface WorkspaceOpenExternalRequestV1 extends WorkspaceRequestV1 {
+  readonly url: string;
+}
+
+export interface WorkspaceOpenExternalReplyV1 {
+  readonly version: typeof NOTO_WORKSPACE_VERSION;
+  /** False when the scheme was not one this opens. */
+  readonly opened: boolean;
+}
+
 /** One line of a file that holds the query. */
 export interface WorkspaceContentLineV1 {
   readonly line: string;
@@ -316,5 +336,6 @@ export interface NotoWorkspaceApiV1 {
   openRecentFolder(request: WorkspaceOpenPathRequestV1): Promise<WorkspaceResultV1<WorkspaceFolderEventV1>>;
   folder(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceFolderEventV1>>;
   reveal(request: WorkspaceRevealRequestV1): Promise<WorkspaceResultV1<WorkspaceRevealReplyV1>>;
+  openExternal(request: WorkspaceOpenExternalRequestV1): Promise<WorkspaceResultV1<WorkspaceOpenExternalReplyV1>>;
   searchContent(request: WorkspaceContentRequestV1): Promise<WorkspaceResultV1<WorkspaceContentReplyV1>>;
 }

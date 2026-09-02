@@ -83,6 +83,8 @@ import type {
   WorkspaceContentReplyV1,
   WorkspaceContentRequestV1,
   WorkspaceRevealReplyV1,
+  WorkspaceOpenExternalReplyV1,
+  WorkspaceOpenExternalRequestV1,
   WorkspaceRevealRequestV1,
   WorkspaceSaveAsReplyV1,
 } from '../shared/workspace/v1/contracts';
@@ -105,6 +107,8 @@ import {
   isWorkspaceIndexResultV1,
   isWorkspaceContentRequestV1,
   isWorkspaceContentResultV1,
+  isWorkspaceOpenExternalRequestV1,
+  isWorkspaceOpenExternalResultV1,
   isWorkspaceRevealRequestV1,
   isWorkspaceRevealResultV1,
   isWorkspaceSaveAsResultV1,
@@ -317,6 +321,9 @@ const workspaceApi: NotoWorkspaceApiV1 = Object.freeze({
   reveal: (request: WorkspaceRevealRequestV1) => isWorkspaceRevealRequestV1(request)
     ? invokeWorkspace<WorkspaceRevealReplyV1>(WORKSPACE_CHANNELS.reveal, request, request.requestId, isWorkspaceRevealResultV1)
     : Promise.resolve(rejectedWorkspace<WorkspaceRevealReplyV1>('invalid', 'Invalid reveal request')),
+  openExternal: (request: WorkspaceOpenExternalRequestV1) => isWorkspaceOpenExternalRequestV1(request)
+    ? invokeWorkspace<WorkspaceOpenExternalReplyV1>(WORKSPACE_CHANNELS.openExternal, request, request.requestId, isWorkspaceOpenExternalResultV1)
+    : Promise.resolve(rejectedWorkspace<WorkspaceOpenExternalReplyV1>('invalid', 'Invalid external link request')),
   fileIndex: (request: WorkspaceRequestV1) => isWorkspaceRequestV1(request)
     ? invokeWorkspace<WorkspaceIndexReplyV1>(WORKSPACE_CHANNELS.fileIndex, request, request.requestId, isWorkspaceIndexResultV1)
     : Promise.resolve(rejectedWorkspace<WorkspaceIndexReplyV1>('invalid', 'Invalid file index request')),

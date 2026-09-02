@@ -28,6 +28,7 @@ export interface NotoCanvasProps {
   readonly onDirtyChange: (dirty: boolean) => void;
   readonly onDocumentChanged?: () => void;
   readonly onFollowWikiLink?: (target: string) => void;
+  readonly onFollowLink?: (href: string) => void;
   readonly onReady: (editor: NotoEditor) => void;
   readonly onTeardown: (editor: NotoEditor) => void;
   readonly onError: (message: string) => void;
@@ -46,6 +47,7 @@ export function NotoCanvas({
   onDirtyChange,
   onDocumentChanged,
   onFollowWikiLink,
+  onFollowLink,
   onReady,
   onTeardown,
   onError,
@@ -68,6 +70,7 @@ export function NotoCanvas({
         onDirtyChange,
         onDocumentChanged,
         onFollowWikiLink,
+        onFollowLink,
         onError,
       });
     } catch (error) {

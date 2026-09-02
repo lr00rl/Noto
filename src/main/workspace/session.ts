@@ -15,11 +15,13 @@ import path from 'node:path';
 import { stat } from 'node:fs/promises';
 import { BrowserWindow, dialog, shell } from 'electron';
 import type { FileTruthOpenReplyV1 } from '../../shared/file-truth/v1/contracts';
+import { isOpenableExternalUrl } from '../../shared/workspace/v1/validate';
 import {
   NOTO_WORKSPACE_VERSION,
   WORKSPACE_CHANNELS,
   type WorkspaceTabV1,
   type WorkspaceFolderEventV1,
+  type WorkspaceOpenExternalReplyV1,
 } from '../../shared/workspace/v1/contracts';
 import type {
   WorkspaceContentReplyV1, WorkspaceIndexReplyV1, WorkspaceRevealReplyV1, WorkspaceRevealTargetV1,
@@ -293,6 +295,27 @@ export class WorkspaceSession {
     const event = this.folderEvent();
     this.send(WORKSPACE_CHANNELS.folderChanged, event);
     return event;
+  }
+
+  /**
+   * Hand a link in a note to the browser.
+   *
+   * The scheme is checked here as well as in the renderer and the preload,
+   * because this is the side that calls `shell.openExternal`, and that hands
+   * the string to the operating system, which will launch a handler for any
+   * scheme the machine knows. The URL came out of somebody's file: it is
+   * exactly the kind of input this boundary exists for. The renderer having
+   * checked it already is not a reason to skip checking it here, it is the
+   * reason there are three checks.
+   */
+  openExternal(url: string): WorkspaceOpenExternalReplyV1 {
+    if (!isOpenableExternalUrl(url)) {
+      this.logger.log('external_link_refused', { length: url.length });
+      return { version: NOTO_WORKSPACE_VERSION, opened: false };
+    }
+    void shell.openExternal(url);
+    this.logger.log('external_link_opened', {});
+    return { version: NOTO_WORKSPACE_VERSION, opened: true };
   }
 
   /**
