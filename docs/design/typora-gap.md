@@ -155,6 +155,26 @@ actually types (`hs`, `rb`, `ps1`, `dockerfile`, `jsonc`, `elisp`) mapped to
 it. `text`, `console` output and the odd `undefined` stay unpainted, which is
 right for them.
 
+## 5h. A mermaid fence showed its source. Closed.
+
+The vault fences 121 mermaid diagrams in 77 notes, flowcharts and sequence
+diagrams above all, and Typora draws every one. Noto showed the source in a
+code box. A mermaid fence is now drawn as its diagram: only the drawing while
+the caret is elsewhere, on the page and not in a box, and the source above
+the drawing in the fence's own box while the caret is in it; a press on the
+drawing puts the caret in the source, and a diagram that cannot be drawn says
+so under where it would be, with the source untouched. The palette is the
+document's, read from the tokens at each drawing, so a theme file and the
+dark theme reach the diagram too.
+
+The drawing happens in a frame sandboxed to nothing. Mermaid writes an SVG
+full of inline styles, which the editor's content security policy refuses,
+and it draws text the reader wrote, which the editor does not run; so the
+frame has no origin, no bridge to main and no way to reach the page that
+holds it, and the only thing that crosses is the source and the palette going
+in and a height or an error coming out. The file keeps its bytes: the drawing
+is a view of the fence, never its content.
+
 ## 6. Inline code was bare. Closed.
 
 The theme gives inline code a border, a fill, a small radius and `0.9em`. Noto

@@ -1,6 +1,33 @@
 {
-  "lockfileSha256": "5c46dae85df503e2d52479894a0c38feb3b8c30f7459121ad6ff040c9529535c",
+  "lockfileSha256": "4e512c9487d433a07e4a1ff606840a6da7a608c176e39553c18d4da50f6d2e24",
   "packages": [
+    {
+      "name": "@antfu/install-pkg",
+      "version": "1.1.0",
+      "license": "MIT",
+      "repository": "git+https://github.com/antfu/install-pkg.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@braintree/sanitize-url",
+      "version": "7.1.2",
+      "license": "MIT",
+      "repository": "git+https://github.com/braintree/sanitize-url.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@chevrotain/types",
+      "version": "11.1.2",
+      "license": "Apache-2.0",
+      "repository": "git://github.com/Chevrotain/chevrotain.git",
+      "noticeFiles": [
+        "LICENSE.txt"
+      ]
+    },
     {
       "name": "@electron-forge/cli",
       "version": "7.11.2",
@@ -288,6 +315,24 @@
       ]
     },
     {
+      "name": "@iconify/types",
+      "version": "2.0.0",
+      "license": "MIT",
+      "repository": "https://github.com/iconify/iconify.git",
+      "noticeFiles": [
+        "license.txt"
+      ]
+    },
+    {
+      "name": "@iconify/utils",
+      "version": "3.1.4",
+      "license": "MIT",
+      "repository": "https://github.com/iconify/iconify.git",
+      "noticeFiles": [
+        "license.txt"
+      ]
+    },
+    {
       "name": "@inquirer/checkbox",
       "version": "3.0.1",
       "license": "MIT",
@@ -493,6 +538,15 @@
       ]
     },
     {
+      "name": "@mermaid-js/parser",
+      "version": "1.2.1",
+      "license": "MIT",
+      "repository": "https://github.com/mermaid-js/mermaid.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "@nodelib/fs.scandir",
       "version": "2.1.5",
       "license": "MIT",
@@ -645,6 +699,285 @@
       ]
     },
     {
+      "name": "@types/d3-array",
+      "version": "3.2.2",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-axis",
+      "version": "3.0.6",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-brush",
+      "version": "3.0.6",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-chord",
+      "version": "3.0.6",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-color",
+      "version": "3.1.3",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-contour",
+      "version": "3.0.6",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-delaunay",
+      "version": "6.0.4",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-dispatch",
+      "version": "3.0.7",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-drag",
+      "version": "3.0.7",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-dsv",
+      "version": "3.0.7",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-ease",
+      "version": "3.0.2",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-fetch",
+      "version": "3.0.7",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-force",
+      "version": "3.0.10",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-format",
+      "version": "3.0.4",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-geo",
+      "version": "3.1.1",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-hierarchy",
+      "version": "3.1.7",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-interpolate",
+      "version": "3.0.4",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-path",
+      "version": "3.1.1",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-polygon",
+      "version": "3.0.2",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-quadtree",
+      "version": "3.0.6",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-random",
+      "version": "3.0.4",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-scale-chromatic",
+      "version": "3.1.0",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-scale",
+      "version": "4.0.9",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-selection",
+      "version": "3.0.11",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-shape",
+      "version": "3.2.0",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-time-format",
+      "version": "4.0.3",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-time",
+      "version": "3.0.4",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-timer",
+      "version": "3.0.2",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-transition",
+      "version": "3.0.9",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3-zoom",
+      "version": "3.0.8",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/d3",
+      "version": "7.4.3",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "@types/debug",
       "version": "4.1.13",
       "license": "MIT",
@@ -674,6 +1007,15 @@
     {
       "name": "@types/fs-extra",
       "version": "9.0.13",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "@types/geojson",
+      "version": "7946.0.16",
       "license": "MIT",
       "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
       "noticeFiles": [
@@ -807,6 +1149,15 @@
       ]
     },
     {
+      "name": "@types/trusted-types",
+      "version": "2.0.7",
+      "license": "MIT",
+      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "@types/unist",
       "version": "3.0.3",
       "license": "MIT",
@@ -841,6 +1192,15 @@
       "noticeFiles": [
         "LICENSE",
         "NOTICE.txt"
+      ]
+    },
+    {
+      "name": "@upsetjs/venn.js",
+      "version": "2.0.0",
+      "license": "MIT",
+      "repository": "https://github.com/upsetjs/venn.js.git",
+      "noticeFiles": [
+        "LICENSE"
       ]
     },
     {
@@ -1608,6 +1968,15 @@
     },
     {
       "name": "commander",
+      "version": "7.2.0",
+      "license": "MIT",
+      "repository": "https://github.com/tj/commander.js.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "commander",
       "version": "8.3.0",
       "license": "MIT",
       "repository": "https://github.com/tj/commander.js.git",
@@ -1645,6 +2014,24 @@
       "version": "2.0.0",
       "license": "MIT",
       "repository": "git://github.com/thlorenz/convert-source-map.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "cose-base",
+      "version": "1.0.3",
+      "license": "MIT",
+      "repository": "git+https://github.com/iVis-at-Bilkent/cose-base.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "cose-base",
+      "version": "2.2.0",
+      "license": "MIT",
+      "repository": "git+https://github.com/iVis-at-Bilkent/cose-base.git",
       "noticeFiles": [
         "LICENSE"
       ]
@@ -1688,6 +2075,366 @@
       "version": "3.2.3",
       "license": "MIT",
       "repository": "https://github.com/frenic/csstype",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "cytoscape-cose-bilkent",
+      "version": "4.1.0",
+      "license": "MIT",
+      "repository": "https://github.com/cytoscape/cytoscape.js-cose-bilkent.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "cytoscape-fcose",
+      "version": "2.2.0",
+      "license": "MIT",
+      "repository": "https://github.com/iVis-at-Bilkent/cytoscape.js-fcose.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "cytoscape",
+      "version": "3.34.2",
+      "license": "MIT",
+      "repository": "https://github.com/cytoscape/cytoscape.js.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-array",
+      "version": "2.12.1",
+      "license": "BSD-3-Clause",
+      "repository": "https://github.com/d3/d3-array.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-array",
+      "version": "3.2.4",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-array.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-axis",
+      "version": "3.0.0",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-axis.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-brush",
+      "version": "3.0.0",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-brush.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-chord",
+      "version": "3.0.1",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-chord.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-color",
+      "version": "3.1.0",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-color.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-contour",
+      "version": "4.0.2",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-contour.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-delaunay",
+      "version": "6.0.4",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-delaunay.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-dispatch",
+      "version": "3.0.1",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-dispatch.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-drag",
+      "version": "3.0.0",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-drag.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-dsv",
+      "version": "3.0.1",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-dsv.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-ease",
+      "version": "3.0.1",
+      "license": "BSD-3-Clause",
+      "repository": "https://github.com/d3/d3-ease.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-fetch",
+      "version": "3.0.1",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-fetch.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-force",
+      "version": "3.0.0",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-force.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-format",
+      "version": "3.1.2",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-format.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-geo",
+      "version": "3.1.1",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-geo.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-hierarchy",
+      "version": "3.1.2",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-hierarchy.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-interpolate",
+      "version": "3.0.1",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-interpolate.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-path",
+      "version": "1.0.9",
+      "license": "BSD-3-Clause",
+      "repository": "https://github.com/d3/d3-path.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-path",
+      "version": "3.1.0",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-path.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-polygon",
+      "version": "3.0.1",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-polygon.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-quadtree",
+      "version": "3.0.1",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-quadtree.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-random",
+      "version": "3.0.1",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-random.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-sankey",
+      "version": "0.12.3",
+      "license": "BSD-3-Clause",
+      "repository": "https://github.com/d3/d3-sankey.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-scale-chromatic",
+      "version": "3.1.0",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-scale-chromatic.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-scale",
+      "version": "4.0.2",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-scale.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-selection",
+      "version": "3.0.0",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-selection.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-shape",
+      "version": "1.3.7",
+      "license": "BSD-3-Clause",
+      "repository": "https://github.com/d3/d3-shape.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-shape",
+      "version": "3.2.0",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-shape.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-time-format",
+      "version": "4.1.0",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-time-format.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-time",
+      "version": "3.1.0",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-time.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-timer",
+      "version": "3.0.1",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-timer.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-transition",
+      "version": "3.0.1",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-transition.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3-zoom",
+      "version": "3.0.0",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3-zoom.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "d3",
+      "version": "7.9.0",
+      "license": "ISC",
+      "repository": "https://github.com/d3/d3.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "dagre-d3-es",
+      "version": "7.0.14",
+      "license": "MIT",
+      "repository": "git+https://github.com/tbo47/dagre-es.git",
+      "noticeFiles": [
+        "LICENSE.md"
+      ]
+    },
+    {
+      "name": "dayjs",
+      "version": "1.11.23",
+      "license": "MIT",
+      "repository": "https://github.com/iamkun/dayjs.git",
       "noticeFiles": [
         "LICENSE"
       ]
@@ -1765,6 +2512,15 @@
       ]
     },
     {
+      "name": "delaunator",
+      "version": "5.1.0",
+      "license": "ISC",
+      "repository": "https://github.com/mapbox/delaunator.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "dequal",
       "version": "2.0.3",
       "license": "MIT",
@@ -1805,6 +2561,15 @@
       "version": "4.2.0",
       "license": "MIT",
       "repository": "https://github.com/gliviu/dir-compare",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "dompurify",
+      "version": "3.4.14",
+      "license": "(MPL-2.0 OR Apache-2.0)",
+      "repository": "git://github.com/cure53/DOMPurify.git",
       "noticeFiles": [
         "LICENSE"
       ]
@@ -1973,6 +2738,16 @@
       ]
     },
     {
+      "name": "es-toolkit",
+      "version": "1.52.0",
+      "license": "MIT",
+      "repository": "https://github.com/toss/es-toolkit.git",
+      "noticeFiles": [
+        "LICENSE",
+        "NOTICE"
+      ]
+    },
+    {
       "name": "es6-error",
       "version": "4.1.1",
       "license": "MIT",
@@ -2124,6 +2899,13 @@
       "noticeFiles": [
         "LICENSE"
       ]
+    },
+    {
+      "name": "fastdom",
+      "version": "1.0.12",
+      "license": "MIT",
+      "repository": "git://github.com/wilsonpage/fastdom.git",
+      "noticeFiles": []
     },
     {
       "name": "fastq",
@@ -2458,6 +3240,15 @@
       ]
     },
     {
+      "name": "hachure-fill",
+      "version": "0.5.2",
+      "license": "MIT",
+      "repository": "git+https://github.com/pshihn/hachure-fill.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "has-flag",
       "version": "4.0.0",
       "license": "MIT",
@@ -2571,6 +3362,15 @@
       ]
     },
     {
+      "name": "import-meta-resolve",
+      "version": "4.2.0",
+      "license": "MIT",
+      "repository": "wooorm/import-meta-resolve",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
       "name": "imurmurhash",
       "version": "0.1.4",
       "license": "MIT",
@@ -2618,6 +3418,24 @@
       "version": "2.0.0",
       "license": "ISC",
       "repository": "git://github.com/isaacs/ini.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "internmap",
+      "version": "1.0.1",
+      "license": "ISC",
+      "repository": "https://github.com/mbostock/internmap.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "internmap",
+      "version": "2.0.3",
+      "license": "ISC",
+      "repository": "https://github.com/mbostock/internmap.git",
       "noticeFiles": [
         "LICENSE"
       ]
@@ -2846,6 +3664,33 @@
       "noticeFiles": []
     },
     {
+      "name": "khroma",
+      "version": "2.1.0",
+      "license": "UNDECLARED",
+      "repository": "github:fabiospampinato/khroma",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
+      "name": "layout-base",
+      "version": "1.0.2",
+      "license": "MIT",
+      "repository": "git+https://github.com/iVis-at-Bilkent/layout-base.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "layout-base",
+      "version": "2.0.1",
+      "license": "MIT",
+      "repository": "git+https://github.com/iVis-at-Bilkent/layout-base.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "lightningcss-darwin-arm64",
       "version": "1.33.0",
       "license": "MPL-2.0",
@@ -2897,6 +3742,15 @@
       "repository": "sindresorhus/locate-path",
       "noticeFiles": [
         "license"
+      ]
+    },
+    {
+      "name": "lodash-es",
+      "version": "4.18.1",
+      "license": "MIT",
+      "repository": "lodash/lodash",
+      "noticeFiles": [
+        "LICENSE"
       ]
     },
     {
@@ -2996,6 +3850,15 @@
       "repository": "wooorm/markdown-table",
       "noticeFiles": [
         "license"
+      ]
+    },
+    {
+      "name": "marked",
+      "version": "16.4.2",
+      "license": "MIT",
+      "repository": "git://github.com/markedjs/marked.git",
+      "noticeFiles": [
+        "LICENSE.md"
       ]
     },
     {
@@ -3147,6 +4010,15 @@
       "version": "1.4.1",
       "license": "MIT",
       "repository": "git@github.com:teambition/merge2.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "mermaid",
+      "version": "11.17.2",
+      "license": "MIT",
+      "repository": "https://github.com/mermaid-js/mermaid",
       "noticeFiles": [
         "LICENSE"
       ]
@@ -3897,6 +4769,15 @@
       ]
     },
     {
+      "name": "package-manager-detector",
+      "version": "1.8.0",
+      "license": "MIT",
+      "repository": "git+https://github.com/antfu-collective/package-manager-detector.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "parse-author",
       "version": "2.0.0",
       "license": "MIT",
@@ -3912,6 +4793,15 @@
       "repository": "sindresorhus/parse-json",
       "noticeFiles": [
         "license"
+      ]
+    },
+    {
+      "name": "path-data-parser",
+      "version": "0.1.0",
+      "license": "MIT",
+      "repository": "git+https://github.com/pshihn/path-data-parser.git",
+      "noticeFiles": [
+        "LICENSE"
       ]
     },
     {
@@ -4065,6 +4955,24 @@
       "version": "3.1.1",
       "license": "MIT",
       "repository": "git://github.com/TooTallNate/node-plist.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "points-on-curve",
+      "version": "0.2.0",
+      "license": "MIT",
+      "repository": "git+https://github.com/pshihn/bezier-points.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "points-on-path",
+      "version": "0.2.1",
+      "license": "MIT",
+      "repository": "git+https://github.com/pshihn/points-on-path.git",
       "noticeFiles": [
         "LICENSE"
       ]
@@ -4473,6 +5381,15 @@
       ]
     },
     {
+      "name": "robust-predicates",
+      "version": "3.0.3",
+      "license": "Unlicense",
+      "repository": "https://github.com/mourner/robust-predicates.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "rolldown",
       "version": "1.2.6",
       "license": "MIT",
@@ -4491,10 +5408,28 @@
       ]
     },
     {
+      "name": "roughjs",
+      "version": "4.6.6",
+      "license": "MIT",
+      "repository": "git+https://github.com/pshihn/rough.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "run-parallel",
       "version": "1.2.0",
       "license": "MIT",
       "repository": "git://github.com/feross/run-parallel.git",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "rw",
+      "version": "1.3.3",
+      "license": "BSD-3-Clause",
+      "repository": "http://github.com/mbostock/rw.git",
       "noticeFiles": [
         "LICENSE"
       ]
@@ -4780,6 +5715,13 @@
       ]
     },
     {
+      "name": "strictdom",
+      "version": "1.0.1",
+      "license": "MIT",
+      "repository": "git://github.com/wilsonpage/strictdom.git",
+      "noticeFiles": []
+    },
+    {
       "name": "string_decoder",
       "version": "1.3.0",
       "license": "MIT",
@@ -4849,6 +5791,15 @@
       "repository": "sindresorhus/strip-outer",
       "noticeFiles": [
         "license"
+      ]
+    },
+    {
+      "name": "stylis",
+      "version": "4.4.0",
+      "license": "MIT",
+      "repository": "https://github.com/thysultan/stylis.js",
+      "noticeFiles": [
+        "LICENSE"
       ]
     },
     {
@@ -5014,6 +5965,15 @@
       "repository": "sindresorhus/trim-repeated",
       "noticeFiles": [
         "license"
+      ]
+    },
+    {
+      "name": "ts-dedent",
+      "version": "2.3.0",
+      "license": "MIT",
+      "repository": "https://github.com/tamino-martinius/node-ts-dedent.git",
+      "noticeFiles": [
+        "LICENSE"
       ]
     },
     {
@@ -5195,6 +6155,15 @@
       "repository": "git://github.com/TooTallNate/util-deprecate.git",
       "noticeFiles": [
         "LICENSE"
+      ]
+    },
+    {
+      "name": "uuid",
+      "version": "14.0.2",
+      "license": "MIT",
+      "repository": "https://github.com/uuidjs/uuid.git",
+      "noticeFiles": [
+        "LICENSE.md"
       ]
     },
     {

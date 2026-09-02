@@ -104,6 +104,11 @@ want:
   `.noto-fence-lang` and `.noto-fence-copy`. The gutter's width is
   `--fence-digits` characters, set per block. Syntax tokens are Prism's
   `.token` classes, coloured from the palette.
+- A mermaid fence carries `data-lang="mermaid"` and holds a `.noto-diagram`
+  with the drawing in `.noto-diagram-frame` and, when it failed, a
+  `.noto-diagram-status`; its `data-state` is `rendering`, `rendered` or
+  `failed`. The drawing takes its colours from the palette tokens above, read
+  each time it is drawn, so a theme file reaches it without styling the frame.
 - A picture is `img.noto-image` inside `.noto-image-frame`; one that could not
   be shown is `.noto-image-placeholder` with a `data-reason`.
 - Tables draw horizontal rules only, from `--line-strong` and a mix of

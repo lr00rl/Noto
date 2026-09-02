@@ -17,6 +17,10 @@ export default defineConfig({
     // the wrong one: the asset is ours and can simply be served from the
     // bundle like the rest.
     assetsInlineLimit: 0,
+    rollupOptions: {
+      // Two pages: the editor, and the frame a diagram is drawn in.
+      input: { main: 'index.html', diagram: 'diagram.html' },
+    },
   },
 });
 

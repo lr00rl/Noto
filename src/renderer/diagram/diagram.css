@@ -1,0 +1,4 @@
+/* The frame is sized by the page that holds it; the drawing fills it. */
+html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
+#diagram { display: block; }
+#diagram > svg { display: block; max-width: 100%; height: auto; }
