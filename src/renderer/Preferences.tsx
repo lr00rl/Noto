@@ -210,11 +210,20 @@ function Switch({ label, hint, checked, onChange, testId }: {
 export function Preferences({
   open, section, onSection, settings, onChange, onClose, plugins, themeProblem, onReloadCss,
 }: PreferencesProps) {
-  const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
 
+  /*
+   * The dialog takes the focus, not the button that closes it.
+   *
+   * Focus has to leave the document behind the scrim, or Escape and Tab go to
+   * the editor. Putting it on Done drew a focus ring around the loudest thing
+   * in the panel the moment it opened, so the eye landed on a button before
+   * the settings. The dialog itself is not a control, so it takes focus
+   * without drawing anything, and the first Tab still reaches Done.
+   */
   useEffect(() => {
     if (!open) return;
-    queueMicrotask(() => closeRef.current?.focus({ preventScroll: true }));
+    queueMicrotask(() => dialogRef.current?.focus({ preventScroll: true }));
   }, [open]);
 
   useEffect(() => {
@@ -234,6 +243,8 @@ export function Preferences({
   return (
     <div className="pref-scrim" data-testid="settings-scrim" onClick={onClose}>
       <section
+        ref={dialogRef}
+        tabIndex={-1}
         className="pref-dialog"
         data-testid="settings-panel"
         role="dialog"
@@ -261,7 +272,7 @@ export function Preferences({
         <div className="pref-body">
           <header className="pref-body-header">
             <h2>{SECTIONS.find((entry) => entry.value === section)?.label}</h2>
-            <button ref={closeRef} type="button" className="pref-close"
+            <button type="button" className="pref-close"
               data-testid="settings-close" aria-label="Close preferences"
               onClick={onClose}>Done</button>
           </header>

@@ -170,6 +170,41 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const [pluginSnapshots, setPluginSnapshots] = useState<PluginLifecycleSnapshot[]>([]);
   const pluginSnapshotsRef = useRef(pluginSnapshots);
   pluginSnapshotsRef.current = pluginSnapshots;
+  /**
+   * Telling the plugin host that an editor exists.
+   *
+   * A plugin restored as enabled sits idle until an editor appears. Two things
+   * have to be true before saying so, an editor being mounted and a snapshot
+   * showing a plugin waiting, and on a restart they arrive independently:
+   * the editor from opening the document, the snapshots from main over IPC.
+   * Announcing only from the editor's side meant that whenever the snapshots
+   * were second, which under load they often are, the plugin stayed at
+   * "waiting for editor" for the life of the window.
+   *
+   * So the editor announces if it can, and arms a one-shot if it cannot. The
+   * one shot is spent on the first snapshot that follows, which is the rest of
+   * the same startup. It is deliberately not left armed: a plugin the reader
+   * enables later is meant to stay idle until they activate it, and an
+   * announcement standing by forever would start it the moment it was enabled.
+   */
+  const awaitingSnapshotsRef = useRef(false);
+  const announceEditorRef = useRef(() => {});
+  announceEditorRef.current = () => {
+    const waiting = pluginSnapshotsRef.current
+      .some((snapshot) => snapshot.desiredEnabled && snapshot.lifecycle === 'enabled-idle');
+    if (!waiting) {
+      // Nothing to tell yet. If the snapshots simply have not landed, the next
+      // batch is this same startup and gets the announcement instead.
+      awaitingSnapshotsRef.current = pluginSnapshotsRef.current.length === 0;
+      return;
+    }
+    awaitingSnapshotsRef.current = false;
+    void window.notoDesktop.plugins.triggerEvent({
+      version: PLUGIN_LIFECYCLE_VERSION,
+      requestId: rid('editor-ready'),
+      event: 'editor.ready',
+    }).catch(() => { /* The plugin center reports lifecycle faults. */ });
+  };
   const [pluginAvailability, setPluginAvailability] = useState<PluginSnapshotAvailability>('loading');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [recent, setRecent] = useState<readonly RecentFileV1[]>([]);
@@ -442,7 +477,18 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   useEffect(() => {
     const client = new RendererPluginClient(pluginHostRef.current!, window.notoDesktop.plugins);
     pluginClientRef.current = client;
-    const stream = createPluginSnapshotStream(setPluginSnapshots);
+    // The snapshots may be the second of the two to arrive, so every update
+    // asks again whether there is now an editor for a waiting plugin.
+    const stream = createPluginSnapshotStream((snapshots) => {
+      setPluginSnapshots(snapshots);
+      pluginSnapshotsRef.current = snapshots;
+      // The editor came up before the snapshots did, so this batch is the one
+      // that gets told. Spent once, whatever it finds.
+      if (awaitingSnapshotsRef.current) {
+        awaitingSnapshotsRef.current = false;
+        announceEditorRef.current();
+      }
+    });
     let active = true;
     let authoritative = false;
     const unsubscribe = window.notoDesktop.plugins.onSnapshots((event) => {
@@ -1379,18 +1425,11 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                   if (doc.document.documentId === activeIdRef.current) {
                     editorRef.current = editor;
                     pluginClientRef.current?.attachAdapter(editor);
-                    // An editor is ready, which is the event enabled plugins
-                    // wait for. Sent only when one is waiting, so a plugin
-                    // already running is not asked to start again each time
-                    // a document opens.
-                    if (pluginSnapshotsRef.current.some((snapshot) => snapshot.desiredEnabled
-                      && snapshot.lifecycle === 'enabled-idle')) {
-                      void window.notoDesktop.plugins.triggerEvent({
-                        version: PLUGIN_LIFECYCLE_VERSION,
-                        requestId: rid('editor-ready'),
-                        event: 'editor.ready',
-                      }).catch(() => { /* The plugin center reports lifecycle faults. */ });
-                    }
+                    // An editor exists now, which is the event enabled
+                    // plugins wait for. Announced by the effect below rather
+                    // than from here, because the editor and the plugin
+                    // snapshots arrive independently and either can be second.
+                    announceEditorRef.current();
                     // A content result was what opened this document, so show
                     // the reader what they searched for rather than the top of
                     // a file they now have to scan by eye.

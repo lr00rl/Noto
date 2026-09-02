@@ -321,6 +321,45 @@ where Typora keeps them. Neither has a shortcut, which is also Typora's
 choice: they are settled once for a session rather than reached for mid
 sentence.
 
+## 5r. A second pass with fresh eyes. Closed.
+
+Six things a reader who had not been staring at it all day picked out.
+Preferences opened with a focus ring around its Done button, so the eye landed
+on a button before the settings; the dialog takes the focus now, which traps
+the keys without drawing anything, and the ring appears when somebody actually
+tabs. The panel was a fixed 560 tall, which left the shortest section a void
+under its last control and a footnote pinned to an edge it had nothing to do
+with; it is as tall as what is in it. The sidebar toggle turned into a filled
+box when the rail was open, making the heaviest mark in the title bar an
+accident of state; a mode that is on says so in colour, as the rail's own tabs
+do, and the fill is kept for a button holding a menu open below it. In the
+dark theme the lit branch was the loudest thing in the window, because the
+same accent carries much further on a near-black rail than on paper; the tree
+has its own accent now, the same hue at 62% in the dark. The scrollbars left
+an opaque square where they met. And focus mode dimmed text but not fills, so
+a quote or a callout still read as a solid rectangle beside a nearly
+vanished paragraph; the author's theme answers this the same way, by taking
+the fill off a callout in focus mode.
+
+Frontmatter, which 3,440 notes in the vault carry, had a rule down its left
+and 12px of padding against Typora's none and 16.
+
+## 5s. A plugin enabled last time did not always come back. Closed.
+
+Found through a test that failed about one run in three under load and passed
+every time on its own, which is the shape of a race rather than of slowness.
+An enabled plugin waits for an editor, and the announcement that one exists
+was made from the editor's side only, guarded by a snapshot of the plugin
+lifecycle. On a restart those two arrive independently, the editor from
+opening the document and the snapshots from main over IPC; whenever the
+snapshots were second, nothing ever announced the editor and the plugin sat at
+"enabled, waiting for editor" for the life of the window.
+
+The editor now announces if it can and arms a one-shot if it cannot, which the
+first snapshot batch of that same startup spends. Deliberately one shot: a
+plugin the reader enables later is meant to stay idle until they activate it,
+and an announcement left standing would start it the moment it was enabled.
+
 ## 5k. A line the author broke is now drawn broken. Closed.
 
 CommonMark reads a single newline inside a paragraph as a space, and so did
