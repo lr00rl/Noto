@@ -6,7 +6,7 @@
    settings file, so they match `DEFAULT_SETTINGS` rather than being arbitrary:
    a mismatch shows as the document reflowing once at launch. */
 :root {
-  --doc-font-size: 16px;
+  --doc-font-size: 15px;
   --doc-line-height: 1.58;
 
   /* The writing column, as a share of the canvas beside the rail.

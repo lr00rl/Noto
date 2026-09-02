@@ -316,6 +316,11 @@ export class WorkspaceSession {
     };
   }
 
+  /** The folder open now, for a renderer that subscribed after it opened. */
+  currentFolder(): WorkspaceFolderEventV1 {
+    return this.folderEvent();
+  }
+
   private folderEvent(): WorkspaceFolderEventV1 {
     return {
       version: NOTO_WORKSPACE_VERSION,

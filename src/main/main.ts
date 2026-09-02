@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { app, BrowserWindow } from 'electron';
 import { FileTruthStoreV1 } from './file-truth/v1/file-truth-store';
@@ -46,7 +47,38 @@ if (explicitUserData) app.setPath('userData', path.resolve(explicitUserData));
 const markdownArgument = (argv: readonly string[]): string | null =>
   argv.find((value) => !value.startsWith('-') && /\.(md|markdown|mdown|mkd|txt)$/i.test(value)) ?? null;
 
-let pendingOpenPath: string | null = argumentValue('open') ?? markdownArgument(process.argv.slice(1));
+const isDirectory = (candidate: string): boolean => {
+  try {
+    return statSync(candidate).isDirectory();
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * A folder named on the command line, as `noto ~/notes`.
+ *
+ * Resolved against the working directory, since that is what a shell means
+ * by a relative path. In development the first argument is the app itself,
+ * which is a directory, so the scan starts after it there.
+ */
+const folderArgument = (argv: readonly string[]): string | null => {
+  for (const value of argv) {
+    if (value.startsWith('-')) continue;
+    const candidate = path.resolve(value);
+    if (isDirectory(candidate)) return candidate;
+  }
+  return null;
+};
+
+const launchArguments = app.isPackaged ? process.argv.slice(1) : process.argv.slice(2);
+const openArgument = argumentValue('open');
+let pendingOpenFolder: string | null = openArgument && isDirectory(openArgument)
+  ? path.resolve(openArgument)
+  : folderArgument(launchArguments);
+let pendingOpenPath: string | null = openArgument && !isDirectory(openArgument)
+  ? openArgument
+  : markdownArgument(launchArguments);
 
 const evidenceDirectory = path.resolve(
   process.env.NTO_EVIDENCE_DIR ?? path.join(app.getPath('userData'), 'evidence'),
@@ -58,6 +90,12 @@ let session: WorkspaceSession | null = null;
 
 app.on('open-file', (event, filePath) => {
   event.preventDefault();
+  // A folder dropped on the dock icon opens as the workspace, not as a file.
+  if (isDirectory(filePath)) {
+    if (session) void session.openFolderPath(filePath).catch(() => logger.log('workspace_open_folder_failed', {}));
+    else pendingOpenFolder = filePath;
+    return;
+  }
   if (session) void session.openPath(filePath).catch((error) => logger.log('workspace_open_file_failed', {
     code: error instanceof Error ? error.message.split(':', 1)[0] : 'OPEN_FAILED',
   }));
@@ -68,6 +106,10 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on('second-instance', (_event, argv) => {
+    const folder = folderArgument(argv.slice(1));
+    if (folder && session) {
+      void session.openFolderPath(folder).catch(() => logger.log('workspace_open_folder_failed', {}));
+    }
     const candidate = markdownArgument(argv);
     if (candidate && session) {
       void session.openPath(candidate).catch((error) => logger.log('workspace_open_file_failed', {
@@ -252,12 +294,17 @@ async function run(): Promise<void> {
   });
   window.webContents.once('destroyed', disposeRendererAuthority);
 
-  // A document named on the command line opens once the renderer can receive it.
-  if (pendingOpenPath) {
+  // A folder or a document named on the command line opens once the renderer
+  // can receive it. The folder first, so a document inside it opens with its
+  // tree already showing.
+  if (pendingOpenFolder || pendingOpenPath) {
+    const folder = pendingOpenFolder;
     const target = pendingOpenPath;
+    pendingOpenFolder = null;
     pendingOpenPath = null;
     window.webContents.once('did-finish-load', () => {
-      void session?.openPath(target).then(refreshMenu).catch(reportOpenFailure);
+      if (folder) void session?.openFolderPath(folder).catch(() => logger.log('workspace_open_folder_failed', {}));
+      if (target) void session?.openPath(target).then(refreshMenu).catch(reportOpenFailure);
     });
   }
 

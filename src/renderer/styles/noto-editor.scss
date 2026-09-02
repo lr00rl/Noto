@@ -569,6 +569,27 @@
 /* The one thing this screen exists to get you to do, so it is the one filled
    control on it. Ink rather than accent: the accent marks where you are, and
    spending it on a button here would make it mean two things. */
+/* Two ways in, the folder first because a vault is what this app is for.
+   The second is quiet: an outline, no fill, the same height. */
+.empty-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.empty-state .empty-actions button:not(.primary) {
+  padding: 8px 16px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover { background: var(--raised); }
+}
+
 .empty-state button.primary {
   margin-top: 6px;
   border: 1px solid var(--ink);
@@ -858,25 +879,37 @@
   pointer-events: none;
 }
 
-.tree-root-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 6px;
-  padding: 2px 6px 6px;
+/* The folder's own row, at the head of the tree. Not a button: there is
+   nothing to open and nothing to fold, so it is set in ink at weight 600 and
+   the pointer stays an arrow. */
+.tree-vault-row {
+  color: var(--ink);
+  font-weight: 600;
+  cursor: default;
+
+  &:hover { background: none; }
 }
 
-.tree-root-name {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
+/* Open folders hold at the top while their contents scroll past, each one a
+   row below its parent, so a deep folder always shows the path you are in.
+   The offset is the row's depth in rows; the panel colour covers the stem
+   and the arms sliding under it. A row that is actually stuck, which the
+   tree marks, gets a rule beneath it; a row that is merely open does not. */
+.tree-directory[aria-expanded='true'],
+.tree-row.tree-vault-row {
+  position: sticky;
+  top: calc(var(--tree-depth, 0) * 26px);
+  z-index: 2;
+  background: var(--panel);
 }
+
+.tree-directory[data-stuck],
+.tree-vault-row[data-stuck] {
+  border-radius: 0;
+  box-shadow: 0 1px 0 var(--line-strong);
+}
+
+.tree-directory[data-stuck]:hover { background: var(--raised); }
 
 .tree-root.is-empty {
   display: flex;
@@ -911,7 +944,7 @@
   min-height: 26px;
   padding: 3px 6px;
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 13px;
   color: var(--ink);
   text-align: left;
   white-space: nowrap;
