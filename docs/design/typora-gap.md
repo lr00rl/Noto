@@ -905,6 +905,23 @@ not its address has to be written out in full. And counting differing lines
 positionally reports two hundred where one blank line was inserted, so the
 count is a multiset now.
 
+## 50. What happens when somebody else edits the note. Tested, and one word fixed.
+
+A vault under version control gets written from outside all the time: a pull,
+a script, another editor. The protection was already there and had no test, so
+it has one now, and it is the highest-stakes path in the product: the save is
+refused, the other change stays on disk untouched, and the reader's work stays
+in the window.
+
+The banner said "review the disk version or save a copy". Saving a copy is the
+one of those two the window offers; reviewing the disk version means leaving
+for another program. It now says what it can do.
+
+Reloading from disk is the missing action, and it is left out on purpose
+rather than by oversight: it throws away unsaved work, so it needs a
+confirmation and a way to keep the work first, and half of that is worse than
+none of it.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
