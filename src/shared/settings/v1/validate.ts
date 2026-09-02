@@ -67,6 +67,9 @@ export function coerceSettings(value: unknown): NotoSettingsV1 {
       : DEFAULT_SETTINGS.smartTypography,
     spellCheck: typeof value.spellCheck === 'boolean' ? value.spellCheck : DEFAULT_SETTINGS.spellCheck,
     remoteImages: typeof value.remoteImages === 'boolean' ? value.remoteImages : DEFAULT_SETTINGS.remoteImages,
+    codeLineNumbers: typeof value.codeLineNumbers === 'boolean'
+      ? value.codeLineNumbers
+      : DEFAULT_SETTINGS.codeLineNumbers,
     sidebarOnLaunch: typeof value.sidebarOnLaunch === 'boolean'
       ? value.sidebarOnLaunch
       : DEFAULT_SETTINGS.sidebarOnLaunch,
@@ -127,6 +130,7 @@ export function isSettingsReplyV1(value: unknown): value is SettingsReplyV1 {
     && typeof settings.smartTypography === 'boolean'
     && typeof settings.spellCheck === 'boolean'
     && typeof settings.remoteImages === 'boolean'
+    && typeof settings.codeLineNumbers === 'boolean'
     && typeof settings.sidebarOnLaunch === 'boolean'
     && typeof settings.autoSave === 'boolean'
     && isCssPath(settings.customCssPath);

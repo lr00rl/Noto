@@ -99,6 +99,14 @@ export interface NotoSettingsV1 {
    * from the open folder and never leave the machine.
    */
   readonly remoteImages: boolean;
+  /**
+   * Number the lines of every code block.
+   *
+   * On by default, as the author's own Typora is set. The gutter is as wide
+   * as each block's line count needs, which is the `fence-enhance` plugin's
+   * rule rather than Typora's fixed width.
+   */
+  readonly codeLineNumbers: boolean;
   /** Show the workspace tree when the app starts. */
   readonly sidebarOnLaunch: boolean;
   /** Width of the navigation rail, in CSS pixels. Dragged, not typed. */
@@ -134,6 +142,7 @@ export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   smartTypography: true,
   spellCheck: true,
   remoteImages: true,
+  codeLineNumbers: true,
   sidebarOnLaunch: false,
   railWidth: 248,
   autoSave: false,

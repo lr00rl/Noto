@@ -308,6 +308,13 @@ export function Preferences({
                   testId="setting-spell-check"
                 />
                 <Switch
+                  label="Line numbers in code blocks"
+                  hint="The gutter is as wide as each block's own line count."
+                  checked={settings.codeLineNumbers}
+                  onChange={(value) => onChange({ codeLineNumbers: value })}
+                  testId="setting-code-line-numbers"
+                />
+                <Switch
                   label="Load images from the web"
                   hint="Every web image in a note is a request to its server. Off shows the image's name in its place. Images in the open folder always show."
                   checked={settings.remoteImages}

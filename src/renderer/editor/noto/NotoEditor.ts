@@ -35,6 +35,7 @@ import { notoInputRules, type InputRuleOptions } from './input-rules';
 import { notoKeymap } from './keymap';
 import { activeNodePlugin } from './active-node-plugin';
 import { mathEditingPlugin, mathNodeViews } from './math-view';
+import { fenceNodeViews } from './fence-view';
 import type { ImageContext } from './image-source';
 import { imageNodeViews, type ImageView } from './image-view';
 import type { SearchOptions } from './search';
@@ -97,7 +98,11 @@ export class NotoEditor implements NotoEditorPort {
   }
 
   private nodeViews() {
-    return { ...mathNodeViews(), ...imageNodeViews(this.imageViews, () => this.imageContext) };
+    return {
+      ...mathNodeViews(),
+      ...fenceNodeViews(),
+      ...imageNodeViews(this.imageViews, () => this.imageContext),
+    };
   }
 
   private plugins(document: NotoDocumentWire): Plugin[] {

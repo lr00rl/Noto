@@ -325,25 +325,62 @@
 
 /* Code blocks ------------------------------------------------------------- */
 
-.ProseMirror pre[data-lang]::after {
-  content: attr(data-lang);
-  position: absolute;
-  top: 6px;
-  right: 10px;
+/* The gutter, from the author's fence-enhance plugin: numbers in the muted
+   tier set right against a rule, as wide as this block's own line count and
+   no wider. Not content: the editor ignores it and a selection never takes
+   it, so copied code is code. */
+.ProseMirror .noto-fence-gutter {
+  min-width: calc(var(--fence-digits, 2) * 1ch);
+  padding: 0.9em 0.7em 0.85em 0.8em;
+  border-right: 1px solid var(--hairline);
   color: var(--muted);
-  font: 10px tokens.$ui;
-  letter-spacing: 0.04em;
+  text-align: right;
+  white-space: pre;
+  opacity: 0.7;
+  user-select: none;
+  cursor: default;
+}
+
+:root[data-code-line-numbers='off'] .ProseMirror .noto-fence-gutter { display: none; }
+
+/* The language and the copy button share a corner, shown while the pointer
+   is over the block or the caret is in it, and never in the way of the code. */
+.ProseMirror .noto-fence-tools {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
   opacity: 0;
   transition: opacity 120ms ease;
 }
 
-.ProseMirror > pre {
-  position: relative;
-}
-
-.ProseMirror > pre.noto-active-block::after {
+.ProseMirror pre:hover .noto-fence-tools,
+.ProseMirror pre.noto-active-block .noto-fence-tools,
+.ProseMirror .noto-fence-tools:focus-within {
   opacity: 1;
 }
+
+.ProseMirror .noto-fence-lang {
+  color: var(--muted);
+  font: 10px tokens.$ui;
+  letter-spacing: 0.04em;
+}
+
+.ProseMirror .noto-fence-copy {
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--muted);
+  padding: 1px 7px 2px;
+  font: 11px tokens.$ui;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.ProseMirror .noto-fence-copy:hover { color: var(--ink); }
+.ProseMirror .noto-fence-copy[data-copied] { color: var(--success); }
 
 /* Code tokens ------------------------------------------------------------- */
 
