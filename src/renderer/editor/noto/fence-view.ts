@@ -18,16 +18,42 @@ import type { Node as ProseNode } from 'prosemirror-model';
 import { TextSelection } from 'prosemirror-state';
 import type { EditorView, NodeView } from 'prosemirror-view';
 import { digitsForLineCount, gutterText, lineCount } from './fence-gutter';
+import { supportedLanguages } from './highlight';
 
 /** How long "Copied" stays before the button says "Copy" again. */
 const COPIED_MS = 1400;
+
+/** The id of the one datalist every fence's language field shares. */
+const LANGUAGE_LIST_ID = 'noto-fence-languages';
+
+/**
+ * The languages offered as you type, made once for the document.
+ *
+ * A native datalist rather than a menu of our own: it is a real completion
+ * control the platform draws, it takes the keyboard, and it costs nothing
+ * per fence. The names are what the highlighter answers to, so choosing one
+ * is choosing colour, not just a label.
+ */
+function languageList(): HTMLDataListElement {
+  const existing = document.getElementById(LANGUAGE_LIST_ID);
+  if (existing instanceof HTMLDataListElement) return existing;
+  const list = document.createElement('datalist');
+  list.id = LANGUAGE_LIST_ID;
+  for (const name of supportedLanguages()) {
+    const option = document.createElement('option');
+    option.value = name;
+    list.append(option);
+  }
+  document.body.append(list);
+  return list;
+}
 
 export class FenceView implements NodeView {
   readonly dom: HTMLElement;
   readonly contentDOM: HTMLElement;
   private readonly gutter: HTMLElement;
   private readonly tools: HTMLElement;
-  private readonly language: HTMLElement;
+  private readonly language: HTMLInputElement;
   private readonly copy: HTMLButtonElement;
   private lines = 0;
   private copiedTimer: ReturnType<typeof setTimeout> | null = null;
@@ -58,8 +84,30 @@ export class FenceView implements NodeView {
     this.tools = document.createElement('div');
     this.tools.className = 'noto-fence-tools';
     this.tools.contentEditable = 'false';
-    this.language = document.createElement('span');
+    // The language is a field, not a label: the reader types it here, with
+    // the highlighter's names offered as they type, and the block takes the
+    // colour of what they chose. Typora puts the same field in the same
+    // corner, which is where a hand that just typed a fence expects it.
+    this.language = document.createElement('input');
     this.language.className = 'noto-fence-lang';
+    this.language.type = 'text';
+    this.language.placeholder = 'language';
+    this.language.spellcheck = false;
+    this.language.autocomplete = 'off';
+    this.language.setAttribute('aria-label', 'Code block language');
+    this.language.setAttribute('list', languageList().id);
+    this.language.addEventListener('change', () => this.commitLanguage());
+    this.language.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        this.commitLanguage();
+        this.view.focus();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        this.language.value = (this.node.attrs.lang as string) || '';
+        this.view.focus();
+      }
+    });
     this.copy = document.createElement('button');
     this.copy.type = 'button';
     this.copy.className = 'noto-fence-copy';
@@ -121,11 +169,24 @@ export class FenceView implements NodeView {
     if (this.copiedTimer !== null) clearTimeout(this.copiedTimer);
   }
 
+  /** Write the field's value into the node, as one undoable change. */
+  private commitLanguage(): void {
+    const lang = this.language.value.trim().toLowerCase();
+    if (lang === ((this.node.attrs.lang as string) || '')) return;
+    const position = this.getPos();
+    if (position === undefined) return;
+    const { state } = this.view;
+    this.view.dispatch(state.tr.setNodeMarkup(position, undefined, { ...this.node.attrs, lang }));
+  }
+
   private render(): void {
     const lang = (this.node.attrs.lang as string) || '';
     if (lang) this.dom.setAttribute('data-lang', lang);
     else this.dom.removeAttribute('data-lang');
-    this.language.textContent = lang;
+    // Not while the reader is typing in it: a redraw mid-word would take
+    // the word away.
+    if (document.activeElement !== this.language) this.language.value = lang;
+    this.language.size = Math.max(6, lang.length + 1);
 
     // Recounted on every update and rewritten only when the count moves, so
     // typing inside a line costs a scan of the text and nothing in the DOM.

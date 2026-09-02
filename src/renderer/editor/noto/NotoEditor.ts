@@ -34,6 +34,8 @@ import { createOriginPlugin, getBlockOrigins, rebaseOrigins } from './origin-plu
 import { notoInputRules, type InputRuleOptions } from './input-rules';
 import { notoKeymap } from './keymap';
 import { activeNodePlugin } from './active-node-plugin';
+import { alertPlugin } from './alert-plugin';
+import { typoraMarksPlugin } from './typora-marks-plugin';
 import { mathEditingPlugin, mathNodeViews } from './math-view';
 import { fenceNodeViews } from './fence-view';
 import type { ImageContext } from './image-source';
@@ -117,6 +119,8 @@ export class NotoEditor implements NotoEditorPort {
       history(),
       dropCursor({ color: 'var(--accent)' }),
       gapCursor(),
+      alertPlugin(),
+      typoraMarksPlugin(),
       columnResizing(),
       tableEditing(),
       activeNodePlugin(),

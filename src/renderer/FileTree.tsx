@@ -48,8 +48,43 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
     setChildren(new Map());
     setExpanded(new Set());
     setFailed(null);
+    childrenRef.current = new Map();
     if (root) void load(root);
   }, [root, load]);
+
+  /*
+   * The tree opens to the current file. A note opened from the command line,
+   * from quick open or through a link is otherwise somewhere under a closed
+   * folder, and a branch cannot light up to a row that is not there. Each
+   * folder between the root and the file is expanded and loaded. A folder the
+   * reader closes afterwards stays closed: this runs when the file changes,
+   * not when the tree does.
+   */
+  const childrenRef = useRef(children);
+  childrenRef.current = children;
+  useEffect(() => {
+    if (!root || !activePath) return;
+    const separator = root.includes('\\') ? '\\' : '/';
+    const prefix = root.endsWith(separator) ? root : `${root}${separator}`;
+    if (!activePath.startsWith(prefix)) return;
+    const ancestors: string[] = [];
+    for (let index = activePath.indexOf(separator, prefix.length); index !== -1; index = activePath.indexOf(separator, index + 1)) {
+      ancestors.push(activePath.slice(0, index));
+    }
+    if (ancestors.length === 0) return;
+    setExpanded((current) => {
+      if (ancestors.every((directory) => current.has(directory))) return current;
+      const next = new Set(current);
+      for (const directory of ancestors) next.add(directory);
+      return next;
+    });
+    for (const directory of ancestors) {
+      if (!childrenRef.current.has(directory)) void load(directory);
+    }
+  }, [root, activePath, load]);
+
+  /** The file last scrolled into view, so a tree change never scrolls the rail again. */
+  const shownRef = useRef<string | null>(null);
 
   /*
    * Which rows are stuck to the top.
@@ -97,6 +132,32 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
     const onScroll = () => { if (frame === 0) frame = requestAnimationFrame(mark); };
     scroller.addEventListener('scroll', onScroll, { passive: true });
     mark();
+    // Bring the current file into view the first time its row exists, and
+    // only then: a folder opening elsewhere must not move the rail.
+    if (activePath !== null && shownRef.current !== activePath) {
+      const node = body.querySelector<HTMLElement>('.tree-node-active');
+      if (node) {
+        shownRef.current = activePath;
+        const rect = node.getBoundingClientRect();
+        const view = scroller.getBoundingClientRect();
+        if (rect.bottom > view.bottom || rect.top < view.top) {
+          scroller.scrollTop += rect.top - view.top - view.height / 2;
+          mark();
+        }
+      }
+    }
+    // Light the branch. Each level along the path to the current file gets
+    // the length of its stem down to the child on that path, and the
+    // stylesheet draws that much of it in the accent. Read once per change
+    // of the tree, not per scroll: the stems do not move when the rail does.
+    for (const level of body.querySelectorAll<HTMLElement>('.tree-level')) {
+      const child = level.querySelector<HTMLElement>(':scope > .tree-node-active, :scope > .tree-node:has(> .tree-on-path)');
+      if (!child) {
+        level.style.removeProperty('--path-stop');
+        continue;
+      }
+      level.style.setProperty('--path-stop', `${child.offsetTop - level.offsetTop + 13}px`);
+    }
     return () => {
       scroller.removeEventListener('scroll', onScroll);
       if (frame !== 0) cancelAnimationFrame(frame);

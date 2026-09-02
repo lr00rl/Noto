@@ -38,6 +38,39 @@ import 'prismjs/components/prism-cpp';
 import 'prismjs/components/prism-sql';
 import 'prismjs/components/prism-diff';
 import 'prismjs/components/prism-toml';
+// The rest follows the languages the author's vault actually fences, by count.
+import 'prismjs/components/prism-haskell';
+import 'prismjs/components/prism-docker';
+import 'prismjs/components/prism-nginx';
+import 'prismjs/components/prism-ini';
+import 'prismjs/components/prism-lua';
+import 'prismjs/components/prism-ruby';
+import 'prismjs/components/prism-markup-templating';
+import 'prismjs/components/prism-php';
+import 'prismjs/components/prism-csharp';
+import 'prismjs/components/prism-powershell';
+import 'prismjs/components/prism-http';
+import 'prismjs/components/prism-vim';
+import 'prismjs/components/prism-makefile';
+import 'prismjs/components/prism-swift';
+import 'prismjs/components/prism-kotlin';
+import 'prismjs/components/prism-scss';
+import 'prismjs/components/prism-lisp';
+import 'prismjs/components/prism-json5';
+import 'prismjs/components/prism-properties';
+import 'prismjs/components/prism-latex';
+import 'prismjs/components/prism-r';
+import 'prismjs/components/prism-perl';
+import 'prismjs/components/prism-regex';
+import 'prismjs/components/prism-elixir';
+import 'prismjs/components/prism-erlang';
+import 'prismjs/components/prism-scala';
+import 'prismjs/components/prism-dart';
+import 'prismjs/components/prism-groovy';
+import 'prismjs/components/prism-zig';
+import 'prismjs/components/prism-protobuf';
+import 'prismjs/components/prism-graphql';
+import 'prismjs/components/prism-objectivec';
 
 export const highlightKey = new PluginKey<DecorationSet>('noto-syntax-highlight');
 
@@ -61,9 +94,27 @@ const ALIASES: Readonly<Record<string, string>> = {
   vue: 'markup',
   md: 'markdown',
   'c++': 'cpp',
-  cs: 'clike',
-  kt: 'clike',
-  swift: 'clike',
+  cs: 'csharp',
+  'c#': 'csharp',
+  kt: 'kotlin',
+  kts: 'kotlin',
+  dockerfile: 'docker',
+  jsonc: 'json',
+  elisp: 'lisp',
+  el: 'lisp',
+  hs: 'haskell',
+  rb: 'ruby',
+  ps1: 'powershell',
+  pwsh: 'powershell',
+  pl: 'perl',
+  tex: 'latex',
+  mk: 'makefile',
+  make: 'makefile',
+  objc: 'objectivec',
+  ex: 'elixir',
+  exs: 'elixir',
+  proto: 'protobuf',
+  gql: 'graphql',
 };
 
 interface TokenRange {
@@ -215,6 +266,9 @@ export function syntaxHighlightPlugin(): Plugin<DecorationSet> {
   });
 }
 
-/** Exposed for tests: how many languages the editor can actually highlight. */
+/** Grammars other grammars are built on; nobody fences code as one of these. */
+const SCAFFOLDING = new Set(['clike', 'markup-templating']);
+
+/** The languages the editor can highlight, which is also what a fence's language field offers. */
 export const supportedLanguages = (): readonly string[] =>
-  Object.keys(Prism.languages).filter((name) => typeof Prism.languages[name] === 'object');
+  Object.keys(Prism.languages).filter((name) => typeof Prism.languages[name] === 'object' && !SCAFFOLDING.has(name));

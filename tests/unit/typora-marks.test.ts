@@ -1,0 +1,35 @@
+import { describe, expect, it } from 'vitest';
+import { typoraMarkRanges } from '../../src/renderer/editor/noto/typora-marks';
+
+const kinds = (text: string) => typoraMarkRanges(text).map((range) => [range.kind, text.slice(range.innerFrom, range.innerTo)]);
+
+describe('Typora inline marks', () => {
+  it('finds a highlight, with the delimiters outside the inner text', () => {
+    const text = 'the ==key point== here';
+    const [range] = typoraMarkRanges(text);
+    expect(range.kind).toBe('highlight');
+    expect(text.slice(range.from, range.to)).toBe('==key point==');
+    expect(text.slice(range.innerFrom, range.innerTo)).toBe('key point');
+  });
+
+  it('finds superscript and subscript, which take no spaces', () => {
+    expect(kinds('x^2^ and H~2~O')).toEqual([['superscript', '2'], ['subscript', '2']]);
+    expect(kinds('a ^ b ^ c')).toEqual([]);
+    expect(kinds('a ~ b ~ c')).toEqual([]);
+  });
+
+  it('leaves strikethrough to the parser', () => {
+    expect(kinds('~~struck~~ text')).toEqual([]);
+    expect(kinds('~~struck~~ and H~2~O')).toEqual([['subscript', '2']]);
+  });
+
+  it('does not nest, and does not cross a line', () => {
+    expect(kinds('==one ^two^ three==')).toEqual([['highlight', 'one ^two^ three']]);
+    expect(kinds('==open\nclose==')).toEqual([]);
+    expect(kinds('a == b == c')).toEqual([['highlight', ' b ']]);
+  });
+
+  it('returns nothing for a run with no marks', () => {
+    expect(typoraMarkRanges('plain text, 3 = 3, a~b')).toEqual([]);
+  });
+});
