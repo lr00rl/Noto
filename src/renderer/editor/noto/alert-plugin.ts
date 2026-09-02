@@ -10,12 +10,14 @@
  * shows and the chip goes, which is the same reveal every other piece of
  * syntax gets.
  *
- * Recomputed on a document or selection change by walking the blockquotes,
- * which a note has a handful of, rather than mapped, which would need a
- * second pass to notice a marker being typed or deleted.
+ * Recomputed on a document or selection change by walking the containers,
+ * rather than mapped, which would need a second pass to notice a marker being
+ * typed or deleted. The walk stops at anything holding text, so it costs the
+ * number of blocks in the file rather than the number of characters.
  */
 
-import { Plugin, PluginKey, type EditorState } from 'prosemirror-state';
+import { Plugin, PluginKey, type EditorState, type Transaction } from 'prosemirror-state';
+import type { Node as ProseNode } from 'prosemirror-model';
 import { Decoration, DecorationSet } from 'prosemirror-view';
 
 export const alertKey = new PluginKey<DecorationSet>('noto-alerts');
@@ -64,16 +66,25 @@ function title(kind: AlertKind): HTMLElement {
   return chip;
 }
 
-export function alertDecorations(state: EditorState): DecorationSet {
+/** Every alert decoration between two document positions. */
+function decorationsIn(state: EditorState, rangeFrom: number, rangeTo: number): Decoration[] {
   const decorations: Decoration[] = [];
   const { from: selectionFrom, to: selectionTo } = state.selection;
 
-  state.doc.descendants((node, position) => {
-    if (node.type.name !== 'blockquote') return true;
+  state.doc.nodesBetween(rangeFrom, rangeTo, (node, position) => {
+    if (node.type.name !== 'blockquote') {
+      /*
+       * Only a container can hold a quote, so the walk stops at anything that
+       * holds text. Without this it descended into every paragraph's inline
+       * content and every character of the document on every keystroke, which
+       * on a forty thousand block file cost most of a second a letter.
+       */
+      return node.isBlock && !node.isTextblock;
+    }
     const first = node.firstChild;
-    if (!first || first.type.name !== 'paragraph') return true;
+    if (!first || first.type.name !== 'paragraph') return false;
     const match = MARKER.exec(first.textContent);
-    if (!match) return true;
+    if (!match) return false;
     const kind = match[1].toLowerCase() as AlertKind;
     const end = position + node.nodeSize;
     const editing = selectionFrom < end && selectionTo > position;
@@ -99,10 +110,70 @@ export function alertDecorations(state: EditorState): DecorationSet {
       ignoreSelection: true,
       key: `noto-alert-${kind}`,
     }));
-    return true;
+    // An alert inside an alert is not a thing, so there is nothing below.
+    return false;
   });
 
-  return DecorationSet.create(state.doc, decorations);
+  return decorations;
+}
+
+export function alertDecorations(state: EditorState): DecorationSet {
+  return DecorationSet.create(state.doc, decorationsIn(state, 0, state.doc.content.size));
+}
+
+/**
+ * The top level blocks a range touches, whole.
+ *
+ * A quote has to be rescanned as a unit, since its marker lives in its first
+ * paragraph and decides the class on the quote itself, so a range that clips
+ * one is widened to the block that holds it.
+ */
+function topLevelRange(doc: ProseNode, from: number, to: number): [number, number] {
+  const size = doc.content.size;
+  const start = doc.resolve(Math.max(0, Math.min(from, size)));
+  const end = doc.resolve(Math.max(0, Math.min(to, size)));
+  return [
+    start.depth === 0 ? start.pos : start.before(1),
+    end.depth === 0 ? end.pos : end.after(1),
+  ];
+}
+
+/**
+ * Only what the transaction touched.
+ *
+ * Rebuilding the whole set on every keystroke cost little in the state and a
+ * great deal in the view: a wholly new set gives ProseMirror nothing to
+ * compare, so it revisits every block in the document. On the eight megabyte
+ * corpus file that was most of a second a letter.
+ */
+function apply(transaction: Transaction, current: DecorationSet, old: EditorState, state: EditorState): DecorationSet {
+  if (!transaction.docChanged && !transaction.selectionSet) return current;
+
+  const ranges: Array<[number, number]> = [];
+  let next = current;
+  if (transaction.docChanged) {
+    next = current.map(transaction.mapping, transaction.doc);
+    transaction.mapping.maps.forEach((map, index) => {
+      const rest = transaction.mapping.slice(index + 1);
+      map.forEach((_oldStart, _oldEnd, newStart, newEnd) => {
+        ranges.push(topLevelRange(state.doc, rest.map(newStart, -1), rest.map(newEnd, 1)));
+      });
+    });
+  }
+  if (transaction.selectionSet) {
+    // Both ends of both selections: a quote loses its editing class as the
+    // caret leaves it just as it gains one as the caret arrives.
+    ranges.push(topLevelRange(state.doc, transaction.mapping.map(old.selection.from, -1), transaction.mapping.map(old.selection.to, 1)));
+    ranges.push(topLevelRange(state.doc, state.selection.from, state.selection.to));
+  }
+
+  for (const [from, to] of ranges) {
+    const stale = next.find(from, to);
+    if (stale.length > 0) next = next.remove(stale);
+    const fresh = decorationsIn(state, from, to);
+    if (fresh.length > 0) next = next.add(state.doc, fresh);
+  }
+  return next;
 }
 
 export function alertPlugin(): Plugin<DecorationSet> {
@@ -110,9 +181,7 @@ export function alertPlugin(): Plugin<DecorationSet> {
     key: alertKey,
     state: {
       init: (_config, state) => alertDecorations(state),
-      apply: (transaction, current, _old, state) => (
-        transaction.docChanged || transaction.selectionSet ? alertDecorations(state) : current
-      ),
+      apply,
     },
     props: {
       decorations: (state) => alertKey.getState(state) ?? null,
