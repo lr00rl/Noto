@@ -99,6 +99,7 @@ describe('inserting a table', () => {
     doc.forEach((node) => { if (node.type.name === 'table') table = node; });
     const markdown = blockToMarkdown(table);
     expect(markdown.split('\n')).toHaveLength(3);
-    expect(markdown).toContain('| - | - |');
+    // The delimiter row is written the way a person writes one.
+    expect(markdown).toContain('| --- | --- |');
   });
 });

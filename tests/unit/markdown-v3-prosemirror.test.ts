@@ -258,3 +258,12 @@ describe('what the serializer must not escape', () => {
     expect(roundTrip('a \\_lonely underscore')).toContain('\\_');
   });
 });
+
+describe('a table, written back', () => {
+  it('keeps the three dashes and the unpadded cells the vault writes', () => {
+    const plain = '| 字段 | 值 |\n| --- | --- |\n| a | 1 |';
+    expect(roundTrip(plain)).toBe(plain);
+    const aligned = '| 左 | 中 | 右 |\n| :--- | :---: | ---: |\n| a | b | c |';
+    expect(roundTrip(aligned)).toBe(aligned);
+  });
+});
