@@ -43,7 +43,8 @@ test.describe('the rail tree', () => {
     const { app, page } = await launch('cli');
     try {
       const vaultRow = page.getByTestId('tree-vault');
-      await expect(vaultRow).toHaveText('vault');
+      // The name, not the row: the row also carries the folder's action menu.
+      await expect(vaultRow.locator('.tree-name')).toHaveText('vault');
       // The first level hangs from the folder's row like every deeper level:
       // it is a connected level, not the bare root list it used to be.
       const firstLevel = page.locator('.tree-vault > .tree-level');
@@ -76,7 +77,8 @@ test.describe('the rail tree', () => {
       await expect(chapters).toHaveCSS('top', '0px');
       // The file's whole node holds, since its row fills the node.
       await expect(firstNode).toHaveCSS('position', 'sticky');
-      await expect(firstNode).toHaveCSS('top', '26px');
+      // One row down, and a row is Typora's 32.
+      await expect(firstNode).toHaveCSS('top', '32px');
       await expect(page.getByTestId('tree-vault')).not.toHaveCSS('position', 'sticky');
       await expect(chapters).not.toHaveAttribute('data-stuck');
 
@@ -90,7 +92,7 @@ test.describe('the rail tree', () => {
         return row.getBoundingClientRect().top - scroller.getBoundingClientRect().top
           - Number.parseFloat(getComputedStyle(scroller).paddingTop);
       });
-      expect(Math.round(offset)).toBe(26);
+      expect(Math.round(offset)).toBe(32);
 
       // A sibling folder opened off the path does not join the stack.
       const drafts = page.getByTestId('tree-directory').filter({ hasText: 'drafts' });

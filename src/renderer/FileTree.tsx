@@ -21,12 +21,20 @@ export interface FileTreeProps {
   readonly list: (directory: string) => Promise<readonly WorkspaceEntryV1[]>;
   readonly onOpenFile: (filePath: string) => void;
   readonly onChooseFolder: () => void;
+  /**
+   * The folder's own actions, drawn on the folder's own row.
+   *
+   * They used to live in a bar along the bottom of the rail, which spent an
+   * edge of the window restating a name the first row of the tree already
+   * gives. An action belongs on the thing it acts on.
+   */
+  readonly vaultMenu?: ReactNode;
 }
 
 /** The height of one row, which the sticky offsets are multiples of. */
-export const TREE_ROW_HEIGHT = 26;
+export const TREE_ROW_HEIGHT = 32;
 
-export function FileTree({ root, rootName, activePath, list, onOpenFile, onChooseFolder }: FileTreeProps) {
+export function FileTree({ root, rootName, activePath, list, onOpenFile, onChooseFolder, vaultMenu }: FileTreeProps) {
   const [children, setChildren] = useState<ReadonlyMap<string, readonly WorkspaceEntryV1[]>>(new Map());
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [failed, setFailed] = useState<string | null>(null);
@@ -156,7 +164,7 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
         level.style.removeProperty('--path-stop');
         continue;
       }
-      level.style.setProperty('--path-stop', `${child.offsetTop - level.offsetTop + 13}px`);
+      level.style.setProperty('--path-stop', `${child.offsetTop - level.offsetTop + TREE_ROW_HEIGHT / 2}px`);
     }
     return () => {
       scroller.removeEventListener('scroll', onScroll);
@@ -271,6 +279,7 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
             <span className="tree-twisty tree-twisty-blank" aria-hidden="true" />
             <FolderGlyph open />
             <span className="tree-name">{vaultName}</span>
+            {vaultMenu}
           </div>
           {renderLevel(root, 1)}
         </div>

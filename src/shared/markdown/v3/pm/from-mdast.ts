@@ -28,19 +28,27 @@ function textNode(value: string, marks: readonly Mark[]): ProseNode[] {
 /**
  * A run of prose, where a newline is a soft wrap rather than content.
  *
- * A single newline inside a markdown paragraph is where the author's editor
- * happened to wrap the source, and CommonMark reads it as a space. Carrying it
- * through verbatim made this editor break its lines in the same places, so a
- * hard-wrapped file showed short ragged lines unrelated to the column width.
+ * A single newline inside a paragraph is kept, and shows as a line break.
  *
- * A deliberate line break is a `break` node and is unaffected.
+ * CommonMark reads it as a space, and this used to as well, on the reasoning
+ * that such a newline is only where the author's editor happened to wrap the
+ * source. That is not true of the documents this editor is for. They are
+ * written in Typora, where Enter starts a paragraph and only Shift+Enter puts
+ * a newline inside one, and Typora draws every one of those as a break. A
+ * census of the author's 7,066 notes found no wrapping convention at all:
+ * lines run from a few characters to nearly three thousand, and 2.7% of
+ * paragraphs hold a newline. Each of those is a break somebody typed on
+ * purpose, and collapsing it both loses the intent and makes this editor
+ * disagree with the one the author reads all day.
  *
- * A paragraph the user edits is therefore rewritten without the source's
- * wrapping. Byte fidelity is unchanged: a block nobody touched is still copied
- * from the original bytes, and only an edited block is serialized afresh.
+ * The text carries the newline and the paragraph is `pre-wrap`, so nothing is
+ * inserted into the document to draw the break. A file hard-wrapped by some
+ * other tool would show its wrapping here, which is the honest reading of
+ * what the file says; if one ever turns up, that wants a setting rather than
+ * a guess at which newlines the author meant.
  */
 function proseText(value: string, marks: readonly Mark[]): ProseNode[] {
-  return textNode(value.replace(/\r?\n/g, ' '), marks);
+  return textNode(value.replace(/\r\n/g, '\n'), marks);
 }
 
 function inlineContent(nodes: readonly PhrasingContent[], marks: readonly Mark[] = []): ProseNode[] {

@@ -88,16 +88,16 @@
 /* Task lists -------------------------------------------------------------- */
 
 .ProseMirror li.noto-task-item {
+  /* The box stands where the bullet would, so a task item lines up with
+     every other item in the list instead of hanging outside it. */
   list-style: none;
-  margin-left: -1.35em;
-  padding-left: 1.35em;
   position: relative;
 }
 
 .ProseMirror li.noto-task-item::before {
   content: '';
   position: absolute;
-  left: 0;
+  left: -1.25em;
   top: 0.45em;
   width: 13px;
   height: 13px;
@@ -106,6 +106,13 @@
   background: transparent;
 }
 
+.ProseMirror li.noto-task-item[data-checked='true'] {
+  color: var(--task-done);
+}
+/* Only a loose item is struck through, which is the theme's own rule: a
+   tight item has no paragraph to strike, and striking the item itself put a
+   line through every task in a list nobody writes that way. */
+.ProseMirror li.noto-task-item[data-checked='true'] > p { text-decoration: line-through; }
 .ProseMirror li.noto-task-item[data-checked='true']::before {
   border-color: var(--accent);
   background: var(--accent);
@@ -114,7 +121,7 @@
 .ProseMirror li.noto-task-item[data-checked='true']::after {
   content: '';
   position: absolute;
-  left: 3.5px;
+  left: calc(-1.25em + 3.5px);
   top: 0.68em;
   width: 6px;
   height: 3px;
@@ -135,20 +142,23 @@
   color: var(--ink);
 }
 
+/* A formula is prose, not an exhibit. Typora gives a block of one no box at
+   all: it is centred on the page at the body's own size with room above and
+   below, and nothing is drawn around it. A rule and a fill made every formula
+   in a document read as a quotation from somewhere else. */
 .ProseMirror .noto-math-block {
-  border-left: 2px solid var(--hairline);
-  background: var(--raised);
-  padding: 12px 16px;
-  border-radius: 4px;
-  font-size: 0.9em;
+  margin: 1em 0;
+  padding: 0;
+  background: none;
+  font-size: 1em;
+  text-align: center;
   white-space: pre-wrap;
 }
 
 .ProseMirror .noto-math-inline {
-  border-radius: 3px;
-  background: var(--raised);
-  padding: 0 4px;
-  font-size: 0.92em;
+  padding: 0;
+  background: none;
+  font-size: 1em;
 }
 
 /* Alerts ------------------------------------------------------------------ */
@@ -182,7 +192,7 @@
 }
 
 .ProseMirror .noto-alert-title {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 5px;
   margin: 0 0 0.25em;
@@ -475,6 +485,11 @@
 .ProseMirror .noto-fence-lang {
   width: auto;
   min-width: 0;
+  /* The field is sized in characters through its __TEXT	__DATA	__OBJC	others	dec	hex attribute, which
+     governs the content box. With the app's border-box default the padding
+     and border ate into that width and clipped the last letter of every
+     language long enough to matter, so  read as . */
+  box-sizing: content-box;
   border: 1px solid transparent;
   border-radius: 3px;
   background: transparent;
@@ -514,53 +529,59 @@
  * colour, and structure stays quiet. A rainbow competes with the prose.
  */
 .ProseMirror pre .token {
+  /* The five colours the author's theme actually gives code, read from its
+     own rules rather than borrowed from a Prism theme: a purple for what the
+     language reserves, a green for text, a warm brown for numbers, a blue for
+     the names a file defines, and the muted tier for comments. Status colours
+     are not used here. A string is not a success, and a tag is not a danger;
+     spending those words on syntax leaves nothing to say when something has
+     actually gone wrong. */
   &.comment,
   &.prolog,
   &.doctype,
-  &.cdata {
-    color: var(--muted);
+  &.cdata,
+  &.meta {
+    color: var(--code-muted);
     font-style: italic;
   }
 
   &.punctuation,
   &.operator,
-  &.entity {
-    color: var(--muted);
+  &.entity,
+  &.variable {
+    color: var(--code-text);
   }
 
   &.keyword,
   &.rule,
   &.important,
-  &.atrule {
-    color: var(--accent);
+  &.atrule,
+  &.atom,
+  &.builtin {
+    color: var(--code-keyword);
   }
 
   &.string,
   &.char,
   &.attr-value,
   &.regex {
-    color: var(--success);
+    color: var(--code-string);
   }
 
   &.number,
-  &.boolean,
-  &.constant,
-  &.symbol {
-    color: var(--warning);
+  &.boolean {
+    color: var(--code-number);
   }
 
   &.function,
   &.class-name,
-  &.builtin {
-    color: var(--ink);
-    font-weight: 600;
-  }
-
+  &.constant,
+  &.symbol,
   &.property,
   &.tag,
   &.attr-name,
   &.selector {
-    color: var(--danger);
+    color: var(--code-symbol);
   }
 
   &.deleted {
@@ -568,7 +589,7 @@
   }
 
   &.inserted {
-    color: var(--success);
+    color: var(--code-string);
   }
 
   &.bold { font-weight: 600; }
@@ -715,9 +736,14 @@
    depth drew the structure twice and disagreed about where it was. */
 .outline-entry {
   color: var(--muted);
-  font-size: 0.8rem;
-  line-height: 1.4;
+  font-size: 13px;
+  line-height: 1.3;
 }
+
+/* A heading list is denser than a file tree, as it is in Typora: it is read
+   in one glance rather than navigated row by row. Every offset the stack
+   uses is a multiple of the row, so setting the row is the whole change. */
+#rail-view-outline { --tree-row: 22px; }
 
 .outline-entry:hover { color: var(--ink); }
 .tree-level.is-root > .tree-node > .outline-entry { color: var(--ink); font-weight: 600; }
@@ -998,7 +1024,7 @@
 .tree-directory.tree-on-path[aria-expanded='true'],
 .tree-node.tree-node-active {
   position: sticky;
-  top: calc((var(--tree-depth, 1) - 1) * 26px);
+  top: calc((var(--tree-depth, 1) - 1) * var(--tree-row));
   z-index: 2;
 }
 
@@ -1037,7 +1063,7 @@
 }
 
 .tree-directory[data-stuck]:hover::before { background: var(--raised); }
-.tree-node-active[data-stuck]::before { background: color-mix(in srgb, var(--ink) 7%, var(--panel)); }
+.tree-node-active[data-stuck]::before { background: var(--surface-active); }
 
 /* The row's own corner of the branch, drawn on the row so it holds while
    the row does; the arm on the node scrolled away with the node. Lit, since
@@ -1076,11 +1102,18 @@
   &:hover { color: var(--ink); text-decoration: underline; }
 }
 
+/* Typora's sidebar row, measured from the running window: 32px tall with
+   its name at 14px on 22. The sticky offsets are multiples of this, so the
+   height lives in one place and nothing can drift out of step with it. */
+:root {
+  --tree-row: 32px;
+}
+
 .tree-body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding-top: 2px;
+  padding-top: 8px;
   /* As wide as its widest row, so the rail scrolls sideways to a long name. */
   width: max-content;
   min-width: 100%;
@@ -1096,15 +1129,17 @@
   gap: 4px;
   width: max-content;
   min-width: 100%;
-  /* The generic button floor is 28px, which would beat the height and put
-     a two-pixel overhang on every stuck row. */
+  /* The generic button floor would beat this height and put an overhang on
+     every stuck row. */
   min-height: 0;
-  height: 26px;
+  height: var(--tree-row);
   padding: 0 6px;
-  /* The body face, as Typora sets its sidebar: the tree reads as part of
-     the same page as the note. */
-  font: 13px/1 tokens.$prose;
-  color: var(--ink);
+  /* The body face at Typora's own sidebar size, so the tree reads as part of
+     the same page as the note rather than as a panel from another program. */
+  font: 14px/22px tokens.$prose;
+  /* Every row is quiet; the one you are in is the only one set in ink. That
+     is Typora's rule, and it is what makes the current file findable. */
+  color: var(--muted);
   text-align: left;
   white-space: nowrap;
   background: none;
@@ -1142,8 +1177,8 @@
 .tree-glyph {
   position: relative;
   flex: 0 0 auto;
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
   fill: none;
   stroke: currentcolor;
   stroke-width: 1.3;
@@ -1171,9 +1206,9 @@
 .tree-file-active {
   color: var(--ink);
   font-weight: 500;
-  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  background: var(--surface-active);
 
-  &:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); }
+  &:hover { background: var(--surface-active); }
 
   &::before {
     content: '';
@@ -1573,7 +1608,13 @@
 
 /* The theme outlines a picture with a hairline drawn inside its edge, so a
    white image on the page still has a boundary. */
-.ProseMirror img.noto-image { outline: 1px solid color-mix(in srgb, var(--ink) 8%, transparent); outline-offset: -1px; }
+/* The theme draws a picture's edge as a hairline inside its own box, so a
+   white image still has a boundary and nothing is added to its size. One
+   edge: a border as well made every picture look like it had a frame. */
+.ProseMirror img.noto-image {
+  outline: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  outline-offset: -1px;
+}
 
 /* The theme's callout box: the block radius and a little more room around. */
 .ProseMirror .noto-alert { border-radius: 6px; }

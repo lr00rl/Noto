@@ -225,6 +225,8 @@ test.describe('reveal in the file manager', () => {
     try {
       await captureReveals(app);
 
+      // The menu lives on the folder's row and shows when the pointer is on it.
+      await page.getByTestId('tree-vault').hover();
       await page.getByTestId('rail-folder-menu').click();
       await page.getByTestId('rail-reveal-folder').click();
       await expect.poll(() => revealed(app)).toEqual([folder]);

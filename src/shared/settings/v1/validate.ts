@@ -70,6 +70,10 @@ export function coerceSettings(value: unknown): NotoSettingsV1 {
     codeLineNumbers: typeof value.codeLineNumbers === 'boolean'
       ? value.codeLineNumbers
       : DEFAULT_SETTINGS.codeLineNumbers,
+    focusMode: typeof value.focusMode === 'boolean' ? value.focusMode : DEFAULT_SETTINGS.focusMode,
+    typewriterMode: typeof value.typewriterMode === 'boolean'
+      ? value.typewriterMode
+      : DEFAULT_SETTINGS.typewriterMode,
     sidebarOnLaunch: typeof value.sidebarOnLaunch === 'boolean'
       ? value.sidebarOnLaunch
       : DEFAULT_SETTINGS.sidebarOnLaunch,
@@ -131,6 +135,8 @@ export function isSettingsReplyV1(value: unknown): value is SettingsReplyV1 {
     && typeof settings.spellCheck === 'boolean'
     && typeof settings.remoteImages === 'boolean'
     && typeof settings.codeLineNumbers === 'boolean'
+    && typeof settings.focusMode === 'boolean'
+    && typeof settings.typewriterMode === 'boolean'
     && typeof settings.sidebarOnLaunch === 'boolean'
     && typeof settings.autoSave === 'boolean'
     && isCssPath(settings.customCssPath);

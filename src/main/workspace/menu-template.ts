@@ -62,12 +62,12 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
   // keystroke, and testing the accelerator instead of the item would prove less.
   const command = (
     label: string,
-    accelerator: string,
+    accelerator: string | undefined,
     value: WorkspaceMenuCommandV1,
   ): MenuItemConstructorOptions => ({
     id: value,
     label,
-    accelerator,
+    ...(accelerator === undefined ? {} : { accelerator }),
     click: () => sendCommand(value),
   });
 
@@ -75,7 +75,10 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
     label: '&File',
     submenu: [
       { id: 'open-dialog', label: 'Open…', accelerator: 'CmdOrCtrl+O', click: () => actions.openDialog() },
-      { id: 'open-folder', label: 'Open Folder…', accelerator: 'CmdOrCtrl+Alt+O', click: () => actions.openFolder() },
+      // Not Option and Command with O: Typora gives that pair to Ordered List,
+      // and a menu accelerator wins over the editor's own keys. Opening a
+      // folder happens once a session; making a list happens all day.
+      { id: 'open-folder', label: 'Open Folder…', accelerator: 'CmdOrCtrl+Alt+Shift+O', click: () => actions.openFolder() },
       // The fastest way into a vault of a few thousand notes, so it sits with
       // the other ways of opening one rather than under a search menu.
       command('Quick Open…', 'CmdOrCtrl+P', 'quick-open'),
@@ -130,15 +133,25 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       command('Toggle Outline', 'CmdOrCtrl+Shift+O', 'toggle-outline'),
       command('Toggle Source Mode', 'CmdOrCtrl+/', 'toggle-source'),
       { type: 'separator' },
+      // Typora's two writing modes. It gives neither a shortcut, and neither
+      // wants one: they are settled once for a session, not reached for mid
+      // sentence.
+      command('Focus Mode', undefined, 'toggle-focus-mode'),
+      command('Typewriter Mode', undefined, 'toggle-typewriter'),
+      { type: 'separator' },
       // The writing width, stepped from the keyboard. The setting is a slider
       // in preferences; these are the same value under the fingers, which is
       // where you actually want it while a paragraph is refusing to sit right.
       command('Wider', 'CmdOrCtrl+]', 'widen'),
       command('Narrower', 'CmdOrCtrl+[', 'narrow'),
       { type: 'separator' },
-      { role: 'resetZoom' },
-      { role: 'zoomIn' },
-      { role: 'zoomOut' },
+      // Zoom sits on Shift as it does in Typora, which leaves plain Command
+      // with the plus and the minus for walking a block up and down the
+      // heading scale. A menu accelerator wins over the editor's own keys, so
+      // leaving zoom on its default would have made those two do nothing.
+      { role: 'resetZoom', accelerator: 'CmdOrCtrl+Shift+0' },
+      { role: 'zoomIn', accelerator: 'CmdOrCtrl+Shift+=' },
+      { role: 'zoomOut', accelerator: 'CmdOrCtrl+Shift+-' },
       { type: 'separator' },
       { role: 'togglefullscreen' },
     ],

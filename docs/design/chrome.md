@@ -327,3 +327,18 @@ Move the document sideways when a panel opens is unavoidable with a rail, but
 nothing else may. Panels do not float over text. Controls do not appear and
 disappear on hover except the tab close. Nothing animates on load. The accent
 never appears twice in one region.
+
+## The furniture, and how little of it there is
+
+Typora spends the top of its window on the file's name and nothing else. Noto
+keeps a title bar of 32px because it has a few controls that must stay
+reachable, and that is the whole of its permanent furniture. The rail has no
+footer: the folder names itself on the tree's first row, and the folder's
+actions are an ellipsis on that row, shown to the pointer and to the keyboard
+and while its own menu is open. The strip along the foot carries the recent
+notes and one line of state, and that line fades once it has been read, so
+the foot is empty at rest.
+
+The title bar carries the rail's ground above the rail and the page's above
+the page, so the divide between the two columns runs from the top of the
+window to the bottom rather than being cut across by a band.

@@ -308,6 +308,20 @@ export function Preferences({
                   testId="setting-spell-check"
                 />
                 <Switch
+                  label="Focus mode"
+                  hint="Everything but the block you are writing recedes."
+                  checked={settings.focusMode}
+                  onChange={(value) => onChange({ focusMode: value })}
+                  testId="setting-focus-mode"
+                />
+                <Switch
+                  label="Typewriter mode"
+                  hint="The line you are writing stays at the middle of the window and the page moves under it."
+                  checked={settings.typewriterMode}
+                  onChange={(value) => onChange({ typewriterMode: value })}
+                  testId="setting-typewriter-mode"
+                />
+                <Switch
                   label="Line numbers in code blocks"
                   hint="The gutter is as wide as each block's own line count."
                   checked={settings.codeLineNumbers}

@@ -147,6 +147,8 @@ export const WORKSPACE_MENU_COMMANDS = [
   'find',
   'find-replace',
   'toggle-source',
+  'toggle-focus-mode',
+  'toggle-typewriter',
   'toggle-outline',
   'command-palette',
   'toggle-sidebar',

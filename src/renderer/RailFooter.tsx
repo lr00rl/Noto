@@ -58,29 +58,29 @@ export function RailFooter({
   const elsewhere = recentFolders.filter((entry) => entry.path !== folderPath).slice(0, 8);
 
   return (
-    <div className="rail-footer" ref={menuRef}>
+    <div className="vault-menu" ref={menuRef}>
       {open && (
-        <div className="rail-menu" role="menu" aria-label="Folder actions" data-testid="rail-menu">
-          <button type="button" role="menuitem" className="rail-menu-item"
+        <div className="vault-menu-list" role="menu" aria-label="Folder actions" data-testid="rail-menu">
+          <button type="button" role="menuitem" className="vault-menu-item"
             data-testid="rail-choose-folder"
             onClick={() => { onClose(); onChooseFolder(); }}>Open folder…</button>
-          <button type="button" role="menuitem" className="rail-menu-item"
+          <button type="button" role="menuitem" className="vault-menu-item"
             data-testid="rail-reveal-folder"
             disabled={folderPath === null}
             onClick={() => { onClose(); onReveal(); }}>Reveal in {fileManagerName}</button>
-          <button type="button" role="menuitem" className="rail-menu-item"
+          <button type="button" role="menuitem" className="vault-menu-item"
             disabled={folderPath === null}
             onClick={() => { onClose(); onRefresh(); }}>Refresh folder</button>
 
           {elsewhere.length > 0 && (
             <>
-              <span className="rail-menu-heading">Recent folders</span>
+              <span className="vault-menu-heading">Recent folders</span>
               {elsewhere.map((entry) => (
                 <button
                   key={entry.path}
                   type="button"
                   role="menuitem"
-                  className="rail-menu-item is-folder"
+                  className="vault-menu-item is-folder"
                   data-testid="rail-recent-folder"
                   title={entry.path}
                   onClick={() => { onClose(); onOpenRecentFolder(entry.path); }}
@@ -95,15 +95,15 @@ export function RailFooter({
 
       <button
         type="button"
-        className="rail-footer-button"
+        className="vault-menu-button"
         data-testid="rail-folder-menu"
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={`Actions for ${folderName ?? 'this folder'}`}
         title={folderPath ?? 'No folder open'}
-        onClick={onToggle}
+        onClick={(event) => { event.stopPropagation(); onToggle(); }}
       >
-        <span className="rail-footer-name">{folderName ?? 'No folder'}</span>
-        <span className="rail-footer-dots" aria-hidden="true">⋯</span>
+        <span aria-hidden="true">⋯</span>
       </button>
     </div>
   );

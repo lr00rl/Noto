@@ -209,6 +209,139 @@ as faint as the theme draws it; a picture has the theme's inside hairline;
 the caret is the accent, and a selection is the accent at a wash, where
 before it was the system blue because nothing had set it.
 
+## 5j. Measured against the running Typora, not guessed at. Closed.
+
+With the remote control working, both editors could be asked the same
+question at the same window size and their answers compared field by field:
+every font, size, leading, weight, colour, margin, padding, border and
+radius, for every construct in one note that holds them all.
+
+The type was already right. Every difference in the document was the base
+size and nothing else: Typora sets 16px, this is set to 15 at the author's
+asking, and since everything is in em the two are the same drawing at
+different sizes. What the measurement did find:
+
+The reading column was 64px too wide. Typora caps its page at 860 including
+its own 32px gutters, so the text is 796 across; the cap here had been set to
+the whole box. The page had 26px of air above and 80 below; Typora has 32 and
+104, and the deep foot is what lets the last paragraph be scrolled to eye
+level. Three colours were near misses rather than matches: the strong ink,
+and the quote's text and rule, are now the theme's own values.
+
+Code was drawn in status colours, a string in the green that means success
+and a keyword in the accent. The theme gives code five colours of its own,
+and they are now read from it: purple for what the language reserves, green
+for text, warm brown for numbers, blue for names the document defines, and
+the muted tier for comments.
+
+The tree was a size smaller and a third tighter than Typora's: 26px rows of
+13px text against 32px rows of 14px. It is Typora's now, with the row height
+in one place since the sticky offsets are multiples of it, every row quiet
+except the one you are in, and the theme's own warm grey behind it.
+
+A task item hung outside its list, because the whole item was pulled left to
+make room for the box rather than the box being put where the bullet goes. A
+finished one now recedes to the theme's colour, and is struck through only
+when it is a loose item, which is the theme's own rule.
+
+An alert's title sat on the same line as its first sentence.
+
+## 5m. Quick open read as ten copies of one path. Closed.
+
+Every result showed its whole path, truncated at the right, and in a vault
+whose paths share long prefixes that left ten rows reading identically: the
+same forty characters, then an ellipsis. What tells two results apart is the
+folder the note is in, so the filename goes, since the row already names it,
+and the last two folders are what survives. The whole path is still there on
+hover.
+
+The keyboard's focus ring was drawn in near-black ink, which on a bordered
+control read as a second border or as something being wrong. It is the accent
+now, which is the one thing this interface uses to say where you are.
+
+## 5n. Three bars of furniture where Typora has one. Closed.
+
+Typora spends the top 28px of its window on the file's name and draws nothing
+else: no bar down the side of the rail, no strip along the foot. This had
+three. The rail carried a footer naming the folder, which the tree's own
+first row already names, with the folder's actions behind it; those actions
+now live on that first row, as a quiet ellipsis that comes up when the
+pointer is on it, which is where an action belongs, on the thing it acts on.
+The foot of the window carried a sentence that was always there, and a
+promise that is always on screen stops being read; it is said when it
+changes and fades. The title bar is 32 rather than 38.
+
+## 5o. A formula was drawn as an exhibit. Closed.
+
+Typora gives a block of maths no box at all: centred on the page at the
+body's own size, with room above and below and nothing drawn around it. This
+put a rule and a fill and a smaller size around every one, so a document of
+working read as a document of quotations. Inline maths was boxed too, and set
+smaller than the sentence holding it.
+
+## 5p. The keys Typora gives to the marks markdown has no key for. Closed.
+
+Read out of Typora's own menus rather than from memory. Its headings, strong
+and emphasis were already the same. What was missing: Underline on Command+U,
+Highlight on Shift+Command+H, and, on Control rather than Command, inline code
+on Control+`, strike on Control+Shift+`, and inline maths on Control+M. Its
+Increase and Decrease Heading Level, Command+= and Command+-, walk the one
+scale from a paragraph up to a first-level heading and back down again rather
+than jumping to a level by number. All of those are bound now, alongside the
+bindings this already had.
+
+Its block types are on Option and Command together: a maths block on B, a
+fence on C, a quote on Q, an ordered list on O, a bullet list on U, a task
+list on X and a rule on the minus. Those are bound too. Opening a folder moved
+off Option and Command with O, since a menu accelerator wins over the editor's
+own keys and a list is made far more often than a folder is opened.
+
+Two of them cannot be written as text. A `<u>` typed into a paragraph is
+escaped when the paragraph is saved, because a bare `<` could open anything,
+and comes back as `\<u>`; a `$` is escaped for the same reason. Underline
+goes in as inline HTML nodes and maths as a maths node, so each is what it
+says it is and survives the round trip. Highlight is plain `==`, which needs
+no escaping and so can be exactly the characters the file will hold.
+
+## 5q. Typora's two writing modes were missing. Closed.
+
+Focus mode and typewriter mode are in Typora's View menu and are part of what
+people mean when they say they write in Typora. Focus mode quietens every
+block but the one the caret is in; the block is already marked for the syntax
+reveal, so knowing which one it is costs nothing, and it recedes rather than
+disappearing so the shape of the page is still there to navigate by.
+Typewriter mode keeps the line being written at 42% of the way down the pane
+and moves the page under it. It only ever acts on a caret, never on a range,
+because a page sliding under a drag is unusable, and it moves the page at
+once rather than animating, since it runs on every keystroke that changes the
+line and an animation would spend its time chasing the last one.
+
+Both are settings, so they are remembered, and both are in the View menu
+where Typora keeps them. Neither has a shortcut, which is also Typora's
+choice: they are settled once for a session rather than reached for mid
+sentence.
+
+## 5k. A line the author broke is now drawn broken. Closed.
+
+CommonMark reads a single newline inside a paragraph as a space, and so did
+this. Typora draws it as a break, and the difference showed on any note with
+a two-line quote or a wrapped sentence. The reasoning for collapsing had been
+that such a newline is only where an editor happened to wrap the source; a
+census of the vault says otherwise. There is no wrapping convention in it at
+all, lines running from a few characters to nearly three thousand, and 2.7%
+of its 213,471 paragraphs hold a newline. These notes were written in Typora,
+where Enter starts a paragraph and only Shift+Enter puts a newline inside
+one, so every one of those is a break somebody typed. They are kept now, and
+drawn where they were typed.
+
+## 5l. The title bar was a band across the window. Closed.
+
+Typora's sidebar and page each carry their own ground from the top of the
+window to the bottom, so the two columns read as columns. This drew a single
+panel-coloured bar across the whole width, which cut the page off from its
+own title. The bar now carries the rail's ground above the rail and the
+page's above the page, and the divide runs floor to ceiling.
+
 ## 6. Inline code was bare. Closed.
 
 The theme gives inline code a border, a fill, a small radius and `0.9em`. Noto

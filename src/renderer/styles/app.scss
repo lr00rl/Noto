@@ -65,6 +65,12 @@ body {
   from { opacity: 0; translate: -12px 0; }
 }
 
+@keyframes noto-status-say {
+  0% { opacity: 0; }
+  8%, 55% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 @keyframes noto-rise {
   from { opacity: 0; translate: 0 6px; }
 }
@@ -95,6 +101,9 @@ button:hover:not(:disabled) { background: var(--raised); }
 button:active:not(:disabled) { background: var(--hairline); }
 button:disabled { color: var(--muted); opacity: 0.7; }
 
+/* The keyboard's place in the window is where you are, so it is drawn in the
+   one accent rather than in ink: a near-black ring on a bordered control read
+   as a second border, or as something being wrong. */
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
@@ -155,7 +164,16 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   min-width: 0;
   max-width: 100%;
   padding: 0 8px;
-  background: var(--panel);
+  /* Typora spends 28px on its title bar and puts one thing in it. This holds
+     a few controls that have to stay reachable, so it is 32: enough for a
+     26px control with air, and six pixels less window furniture than before. */
+  height: 32px;
+  /* The rail's ground above the rail, the page's above the page, so the two
+     columns read floor to ceiling. A band of panel across the whole window
+     cut the page off from its own title. */
+  background: linear-gradient(to right,
+    var(--panel) 0 var(--shell-rail, 0px),
+    var(--paper) var(--shell-rail, 0px));
 }
 
 /* macOS opens the window with `hiddenInset`, which floats the traffic lights
@@ -400,7 +418,9 @@ button:disabled { color: var(--muted); opacity: 0.7; }
      top of the scrollport, or the rows sliding under it show through the gap. */
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 0 6px 12px;
+  /* A deep foot, as Typora's tree has, so the last row is never jammed
+     against the bottom of the pane. */
+  padding: 0 12px 60px;
 }
 
 /* The drag target is wider than the line it moves, because a 1px border is not
@@ -507,49 +527,52 @@ button:disabled { color: var(--muted); opacity: 0.7; }
    At the bottom because it answers "which folder", which is asked far less
    often than "which note" and should sit further from the hand. */
 
-.rail-footer {
+/* The folder's actions, on the folder's own row.
+   -------------------------------------------------------------------------
+   These used to be a bar along the bottom of the rail, which spent an edge of
+   the window restating the name the tree's first row already gives. The row
+   is the thing the actions act on, so they live there: a quiet ellipsis that
+   comes up when the pointer is on the row, and stays up while its menu is. */
+.vault-menu {
   position: relative;
   flex: 0 0 auto;
-  border-top: 1px solid var(--hairline);
+  margin-left: auto;
 }
-
-.rail-footer-button {
+.vault-menu-button {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  min-height: 28px;
+  justify-content: center;
+  width: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  height: 20px;
   border: 0;
-  border-radius: 0;
+  border-radius: 4px;
   background: transparent;
-  padding: 4px 10px;
+  padding: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-out);
 }
+/* Shown to the pointer, to the keyboard, and while its own menu is open. */
+.tree-vault-row:hover .vault-menu-button,
+.vault-menu-button:focus-visible,
+.vault-menu-button[aria-expanded='true'] { opacity: 1; }
+.vault-menu-button:hover { background: var(--raised); color: var(--ink); }
 
-.rail-footer-button:hover { background: var(--raised); color: var(--ink); }
-
-.rail-footer-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rail-footer-dots { flex: 0 0 auto; letter-spacing: 0.06em; }
-
-/* Opens upward, because it is anchored to the bottom of the window and a menu
-   that opened downward would have nowhere to go. */
-.rail-menu {
+/* Hangs from the row, since the row is at the top of the pane. */
+.vault-menu-list {
   animation: noto-arrive var(--motion-default) var(--ease-out);
   position: absolute;
   z-index: 40;
-  right: 6px;
-  bottom: calc(100% + 4px);
-  left: 6px;
+  top: calc(100% + 4px);
+  right: 0;
   display: flex;
   flex-direction: column;
+  min-width: 190px;
   max-height: 60vh;
   overflow-y: auto;
   border: 1px solid var(--hairline);
@@ -558,8 +581,7 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   padding: 4px;
   box-shadow: 0 14px 36px -12px color-mix(in srgb, var(--ink) 40%, transparent);
 }
-
-.rail-menu-item {
+.vault-menu-item {
   border: 0;
   border-radius: 5px;
   background: transparent;
@@ -572,12 +594,12 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   white-space: nowrap;
 }
 
-.rail-menu-item:hover:not(:disabled) { background: var(--raised); }
-.rail-menu-item:disabled { color: var(--muted); }
-.rail-menu-item.is-folder { color: var(--muted); }
-.rail-menu-item.is-folder:hover { color: var(--ink); }
+.vault-menu-item:hover:not(:disabled) { background: var(--raised); }
+.vault-menu-item:disabled { color: var(--muted); }
+.vault-menu-item.is-folder { color: var(--muted); }
+.vault-menu-item.is-folder:hover { color: var(--ink); }
 
-.rail-menu-heading {
+.vault-menu-heading {
   padding: 10px 8px 4px;
   color: var(--muted);
   font-size: 10px;
@@ -1331,6 +1353,10 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Said, then let go of. It holds long enough to be read and fades, so the
+     foot of the window is empty at rest rather than carrying a sentence
+     nobody is reading any more. */
+  animation: noto-status-say 5s var(--ease-out) forwards;
 
   /* A plugin's word, for a moment, in ink rather than the resting grey. */
   &.is-notice { color: var(--ink); animation: noto-rise var(--motion-medium) var(--ease-out); }
@@ -1500,7 +1526,8 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   overflow: hidden;
   color: var(--muted);
   font-family: tokens.$mono;
-  font-size: 11px;
+  /* Quieter than the name it belongs to. It is context, not the answer. */
+  font-size: 10.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

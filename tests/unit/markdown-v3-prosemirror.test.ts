@@ -187,3 +187,21 @@ describe('Typora inline syntax the parser must leave alone', () => {
     expect(roundTrip(source)).toBe(source);
   });
 });
+
+describe('a newline inside a paragraph', () => {
+  it('is kept, so the break the author typed is the break that shows', () => {
+    const doc = pmDoc('first line\nsecond line');
+    expect(doc.firstChild!.textContent).toBe('first line\nsecond line');
+  });
+
+  it('round-trips to the same bytes', () => {
+    const source = 'first line\nsecond line';
+    expect(roundTrip(source)).toBe(source);
+  });
+
+  it('leaves a paragraph break alone', () => {
+    const doc = pmDoc('one\n\ntwo');
+    expect(doc.childCount).toBe(2);
+    expect(doc.firstChild!.textContent).toBe('one');
+  });
+});

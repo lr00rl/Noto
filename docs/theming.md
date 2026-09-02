@@ -49,6 +49,11 @@ distinguished by `data-theme="light"` and `data-theme="dark"` on the root.
 | `--line-strong` | A table's outer rules, the rule under a stuck folder row |
 | `--accent` | The one mark for where you are, links, the caret |
 | `--code-ink`, `--code-fill` | Inline code's text and fill |
+| `--code-text` | The text of a fenced block, before any highlighting |
+| `--code-keyword`, `--code-string`, `--code-number`, `--code-symbol`, `--code-muted` | The five colours a fenced block is drawn in: reserved words, text, numbers, names the code defines, and comments |
+| `--surface-active` | The fill behind the current file's row |
+| `--quote-ink`, `--quote-line` | A blockquote's text and its rule |
+| `--task-done` | A finished task item |
 | `--alert-note`, `--alert-tip`, `--alert-important`, `--alert-warning`, `--alert-caution` | The rule, tint and title of each kind of `[!NOTE]` callout |
 | `--mark-fill` | The fill behind `==highlighted==` text and `<mark>` |
 | `--success`, `--warning`, `--danger` | Status only |
@@ -128,11 +133,19 @@ want:
 - Task list items are `li.noto-task-item` with `data-checked`; the box is drawn
   with `::before` and `::after`.
 
+Focus mode is `data-focus-mode="on"` on the root, and quietens
+`.ProseMirror > *:not(.noto-active-block)`. A theme that wants a different
+treatment, a blur or a colour rather than an opacity, overrides that one rule.
+
 Selectors here are stable for the life of a major version. Anything without a
 `noto-` prefix, such as ProseMirror's own classes, is not something a theme
 should depend on.
 
 ## The chrome
+
+The height of one tree row is `--tree-row` and the sticky offsets are
+multiples of it, so a theme that changes the row height gets the stack right
+for free.
 
 The rail is `.workspace-rail`, its tree `.tree-root`; rows are `.tree-row`
 with `.tree-directory` or `.tree-file`, the current file `.tree-file-active`,

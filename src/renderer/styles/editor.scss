@@ -27,7 +27,10 @@
      for a code block that runs past the reading column. `full` is everything
      beside the rail, up to 1680px. */
   --canvas-gutter: clamp(20px, 4%, 72px);
-  --measure-cap: 860px;
+  /* Typora caps its page at 860 including its own 32px gutters, so the column
+     of text is 796. Measured from the running window, not guessed: the cap
+     used to be set to the whole box, which made every line 64px longer. */
+  --measure-cap: 796px;
   --measure: min(100% - 2 * var(--canvas-gutter), var(--measure-cap));
 }
 
@@ -49,7 +52,9 @@
   min-width: 0;
   min-height: 100%;
   margin: 0 auto;
-  padding: 26px 0 80px;
+  /* The page's own gutters, as Typora sets them: room at the top, and enough
+     at the foot that the last paragraph can be scrolled up to eye level. */
+  padding: 32px 0 104px;
 }
 
 .ProseMirror {
@@ -144,10 +149,10 @@
   /* The theme's quote: a quiet rule, a fill, and text a step lighter. */
   margin-left: 0;
   padding: 0.5em 0.8em 0.5em 0.68em;
-  border-left: 2px solid var(--line-strong);
+  border-left: 2px solid var(--quote-line);
   border-radius: 3px;
   background: var(--raised);
-  color: color-mix(in srgb, var(--ink) 78%, var(--muted));
+  color: var(--quote-ink);
   line-height: 1.48;
 }
 .ProseMirror blockquote > p { margin: 0.4em 0; }
@@ -185,6 +190,9 @@
   border: 1px solid var(--hairline);
   border-radius: 6px;
   background: var(--raised);
+  /* Code has its own text colour, a touch darker than prose, which is what
+     the theme gives it; the brown of inline code belongs to inline code. */
+  color: var(--code-text);
   padding: 0;
   font-family: tokens.$mono;
   font-size: 0.9em;
@@ -224,8 +232,6 @@
   max-width: 100%;
   height: auto;
   vertical-align: middle;
-  border: 1px solid var(--hairline);
-  border-radius: 3px;
 }
 .ProseMirror .noto-image-frame.ProseMirror-selectednode .noto-image {
   outline: 2px solid var(--accent);
@@ -388,4 +394,17 @@
 .ProseMirror ::selection,
 .ProseMirror::selection {
   background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+/* Focus mode, as Typora has it: everything but the block being written
+   recedes. Not hidden and not blurred, only quieter, so the shape of the page
+   is still there to navigate by and the eye is drawn to one paragraph. The
+   block under the caret is already marked for the syntax reveal, so nothing
+   new has to be tracked to know which one it is. */
+:root[data-focus-mode='on'] .ProseMirror > *:not(.noto-active-block) {
+  opacity: 0.32;
+  transition: opacity var(--motion-medium) var(--ease-out);
+}
+:root[data-focus-mode='on'] .ProseMirror > .noto-active-block {
+  transition: opacity var(--motion-medium) var(--ease-out);
 }

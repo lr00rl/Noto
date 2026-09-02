@@ -107,6 +107,21 @@ export interface NotoSettingsV1 {
    * rule rather than Typora's fixed width.
    */
   readonly codeLineNumbers: boolean;
+  /**
+   * Dim every block but the one the caret is in.
+   *
+   * Typora calls this focus mode. It is off by default: it is a thing you
+   * reach for when a draft is fighting you, not a way to read.
+   */
+  readonly focusMode: boolean;
+  /**
+   * Keep the line being typed at the middle of the window.
+   *
+   * Typora calls this typewriter mode. Off by default for the same reason,
+   * and because it moves the page under the reader, which is startling until
+   * it is asked for.
+   */
+  readonly typewriterMode: boolean;
   /** Show the workspace tree when the app starts. */
   readonly sidebarOnLaunch: boolean;
   /** Width of the navigation rail, in CSS pixels. Dragged, not typed. */
@@ -144,6 +159,8 @@ export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   spellCheck: true,
   remoteImages: true,
   codeLineNumbers: true,
+  focusMode: false,
+  typewriterMode: false,
   sidebarOnLaunch: false,
   railWidth: 272,
   autoSave: false,

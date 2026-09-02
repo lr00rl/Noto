@@ -7,7 +7,7 @@
  * controls it hosted.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type {
   FileTruthOpenReplyV1,
   FileTruthRecoveryRecordV1,
@@ -366,7 +366,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     root.style.setProperty('--doc-line-height', `${settings.lineHeight}`);
     root.dataset.widthMode = settings.widthMode;
     root.dataset.codeLineNumbers = settings.codeLineNumbers ? 'on' : 'off';
-  }, [settings.fontSize, settings.lineHeight, settings.widthMode, settings.codeLineNumbers]);
+    root.dataset.focusMode = settings.focusMode ? 'on' : 'off';
+  }, [settings.fontSize, settings.lineHeight, settings.widthMode, settings.codeLineNumbers,
+    settings.focusMode]);
 
   /**
    * The user's own stylesheet, layered over the theme.
@@ -1089,6 +1091,12 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         setPrefs((current) => ({ ...current, open: false }));
         setPaletteOpen((current) => !current);
         break;
+      case 'toggle-focus-mode':
+        changeSettings({ focusMode: !settings.focusMode });
+        break;
+      case 'toggle-typewriter':
+        changeSettings({ typewriterMode: !settings.typewriterMode });
+        break;
       case 'toggle-outline':
         toggleRail('outline');
         break;
@@ -1170,6 +1178,10 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       // validated, which the shell already has.
       data-platform={platform}
       data-testid="noto-app" data-file-state={state}
+      /* The rail's width, so the title bar can carry the rail's ground above
+         the rail and the page's above the page, as Typora does: the divide
+         between the two runs floor to ceiling instead of a band across. */
+      style={{ '--shell-rail': rail.open ? `${settings.railWidth}px` : '0px' } as CSSProperties}
       data-plugin-lifecycle={pluginSnapshot?.lifecycle ?? 'disabled'}
       data-plugin-registrations={pluginSnapshot?.rendererRegistrations ?? 0}>
       <a className="skip-link" href="#document-canvas">Skip to document</a>
@@ -1285,23 +1297,6 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
               void ensureFileIndex();
               setQuickOpen({ open: true, mode: 'name' });
             }}
-            footer={(
-              <RailFooter
-                folderName={folder.name}
-                folderPath={folder.root}
-                recentFolders={recentFolders}
-                open={folderMenu}
-                onToggle={() => setFolderMenu((current) => !current)}
-                onClose={() => setFolderMenu(false)}
-                onChooseFolder={chooseFolder}
-                onOpenRecentFolder={openRecentFolder}
-                onRefresh={() => { void ensureFileIndex(); setFolder((current) => ({ ...current })); }}
-                fileManagerName={fileManagerName}
-                onReveal={() => { void window.notoWorkspace.reveal({
-                  version: 1, requestId: rid('reveal'), target: 'folder',
-                }); }}
-              />
-            )}
             view={rail.view}
             onView={(view) => setRail({ open: true, view })}
             width={settings.railWidth}
@@ -1309,6 +1304,23 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
             outline={outline}
             onGoToBlock={(blockIndex) => editorRef.current?.focusBlock(blockIndex)}
             tree={{
+              vaultMenu: (
+                <RailFooter
+                  folderName={folder.name}
+                  folderPath={folder.root}
+                  recentFolders={recentFolders}
+                  open={folderMenu}
+                  onToggle={() => setFolderMenu((current) => !current)}
+                  onClose={() => setFolderMenu(false)}
+                  onChooseFolder={chooseFolder}
+                  onOpenRecentFolder={openRecentFolder}
+                  onRefresh={() => { void ensureFileIndex(); setFolder((current) => ({ ...current })); }}
+                  fileManagerName={fileManagerName}
+                  onReveal={() => { void window.notoWorkspace.reveal({
+                    version: 1, requestId: rid('reveal'), target: 'folder',
+                  }); }}
+                />
+              ),
               root: folder.root,
               rootName: folder.name,
               activePath: opened?.path ?? null,
@@ -1356,6 +1368,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                 spellCheck={settings.spellCheck}
                 documentPath={doc.opened.path}
                 remoteImages={settings.remoteImages}
+                typewriterMode={settings.typewriterMode}
                 onDirtyChange={(dirty) => onDocumentDirtyChange(doc.document.documentId, dirty)}
                 onDocumentChanged={() => {
                   if (doc.document.documentId === activeIdRef.current) bumpTyping();
@@ -1499,7 +1512,11 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
               once: the dot on the name, the word beside the actions, and this.
               What this line adds is the fidelity promise, which nothing else
               says. */}
-          <span className={notice ? 'status-message is-notice' : 'status-message'}
+          {/* Keyed on what it says, so React remounts the line whenever the
+              message changes and the fade starts again. The line says its
+              piece and then recedes: a promise that is always on screen stops
+              being read, and the window is quieter for its absence. */}
+          <span key={notice ?? state} className={notice ? 'status-message is-notice' : 'status-message'}
             data-testid={notice ? 'status-notice' : undefined} aria-live="polite">
             {notice ?? (state === 'Opened' ? 'Exact source preserved' : state === 'Saved' ? 'Exact source saved' : '')}
           </span>
