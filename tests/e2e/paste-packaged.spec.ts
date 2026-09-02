@@ -5,12 +5,12 @@ import { packagedExecutable, placeCaret } from './packaged-app';
 
 const resultRoot = path.join(process.cwd(), 'test-results', 'paste');
 
-async function launch(name: string): Promise<{ app: ElectronApplication; page: Page; file: string }> {
+async function launch(name: string, body = '# Paste\n\nBefore.\n\nAfter.\n'): Promise<{ app: ElectronApplication; page: Page; file: string }> {
   const workspace = path.join(resultRoot, name);
   await rm(workspace, { recursive: true, force: true });
   await mkdir(path.join(workspace, 'user-data'), { recursive: true });
   const file = path.join(workspace, 'note.md');
-  await writeFile(file, '# Paste\n\nBefore.\n\nAfter.\n', 'utf8');
+  await writeFile(file, body, 'utf8');
   const app = await electron.launch({
     executablePath: packagedExecutable(),
     args: [`--user-data-dir=${path.join(workspace, 'user-data')}`, `--open=${file}`],
@@ -78,6 +78,22 @@ test.describe('pasting', () => {
       await paste(page, '', ' and some plain text');
       await expect(last).toHaveText('After. and some plain text');
       await expect(page.locator('.ProseMirror strong')).toHaveCount(0);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+test.describe('what copying puts on the clipboard', () => {
+  test('is the markdown, so a bold word stays bold somewhere else', async () => {
+    const { app, page } = await launch('copy-markdown', 'Some **bold** words here.\n');
+    try {
+      // Select the whole paragraph and copy it.
+      await page.locator('.ProseMirror > p').first().click({ clickCount: 3 });
+      await page.keyboard.press(process.platform === 'darwin' ? 'Meta+c' : 'Control+c');
+
+      const copied = await app.evaluate(({ clipboard }) => clipboard.readText());
+      expect(copied).toBe('Some **bold** words here.');
     } finally {
       await app.close();
     }

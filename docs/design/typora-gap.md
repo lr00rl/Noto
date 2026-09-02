@@ -975,6 +975,23 @@ if one appears between the check and the write. A test puts a note called
 `Untitled.md` in the way and checks that it still holds its own words
 afterwards.
 
+## 53. Copying gave the words without the markdown. Closed.
+
+The editor draws a document but the document is a text file, and a reader who
+copies a bold sentence out of it means the bold to come too. ProseMirror hands
+over its own plain text unless told otherwise, so every asterisk, backtick and
+bracket was dropped on the way out: `Some **bold** words` arrived somewhere
+else as `Some bold words`.
+
+Typora copies markdown by default and the author has it set that way, which
+settles what the default should be here.
+
+The awkward part is the shape of a partial selection, so it is tested on its
+own: a selection inside one paragraph is a fragment of inline nodes with no
+block around it, and it is wrapped in a single paragraph rather than one each,
+because a mark running across two text nodes is one run of markdown and
+splitting it would close and reopen the delimiters in the middle.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
