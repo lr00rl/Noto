@@ -43,8 +43,12 @@ test.describe('diagrams', () => {
       const diagram = fence.locator('.noto-diagram');
       await expect(diagram).toHaveAttribute('data-state', 'rendered', { timeout: 20_000 });
       const frame = diagram.locator('iframe');
+      // The frame's height is animated, so it is polled rather than read once:
+      // a single read right after the drawing lands can catch the transition
+      // halfway and see a height the diagram never actually had.
+      await expect.poll(async () => frame.evaluate((element) => element.getBoundingClientRect().height))
+        .toBeGreaterThan(80);
       const drawn = await frame.evaluate((element) => element.getBoundingClientRect().height);
-      expect(drawn).toBeGreaterThan(80);
 
       // The caret is in the heading, so only the drawing shows: the source is
       // in the page but not in sight, and the fence has no box.
