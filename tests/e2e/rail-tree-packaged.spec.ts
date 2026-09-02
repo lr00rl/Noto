@@ -76,7 +76,8 @@ test.describe('the rail tree', () => {
       await expect(chapters).toHaveCSS('top', '0px');
       // The file's whole node holds, since its row fills the node.
       await expect(firstNode).toHaveCSS('position', 'sticky');
-      await expect(firstNode).toHaveCSS('top', '26px');
+      // One row down, and a row is Typora's 32.
+      await expect(firstNode).toHaveCSS('top', '32px');
       await expect(page.getByTestId('tree-vault')).not.toHaveCSS('position', 'sticky');
       await expect(chapters).not.toHaveAttribute('data-stuck');
 
@@ -90,7 +91,7 @@ test.describe('the rail tree', () => {
         return row.getBoundingClientRect().top - scroller.getBoundingClientRect().top
           - Number.parseFloat(getComputedStyle(scroller).paddingTop);
       });
-      expect(Math.round(offset)).toBe(26);
+      expect(Math.round(offset)).toBe(32);
 
       // A sibling folder opened off the path does not join the stack.
       const drafts = page.getByTestId('tree-directory').filter({ hasText: 'drafts' });

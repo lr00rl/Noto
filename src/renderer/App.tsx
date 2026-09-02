@@ -7,7 +7,7 @@
  * controls it hosted.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type {
   FileTruthOpenReplyV1,
   FileTruthRecoveryRecordV1,
@@ -1170,6 +1170,10 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       // validated, which the shell already has.
       data-platform={platform}
       data-testid="noto-app" data-file-state={state}
+      /* The rail's width, so the title bar can carry the rail's ground above
+         the rail and the page's above the page, as Typora does: the divide
+         between the two runs floor to ceiling instead of a band across. */
+      style={{ '--shell-rail': rail.open ? `${settings.railWidth}px` : '0px' } as CSSProperties}
       data-plugin-lifecycle={pluginSnapshot?.lifecycle ?? 'disabled'}
       data-plugin-registrations={pluginSnapshot?.rendererRegistrations ?? 0}>
       <a className="skip-link" href="#document-canvas">Skip to document</a>

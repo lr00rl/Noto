@@ -24,7 +24,7 @@ export interface FileTreeProps {
 }
 
 /** The height of one row, which the sticky offsets are multiples of. */
-export const TREE_ROW_HEIGHT = 26;
+export const TREE_ROW_HEIGHT = 32;
 
 export function FileTree({ root, rootName, activePath, list, onOpenFile, onChooseFolder }: FileTreeProps) {
   const [children, setChildren] = useState<ReadonlyMap<string, readonly WorkspaceEntryV1[]>>(new Map());
@@ -156,7 +156,7 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
         level.style.removeProperty('--path-stop');
         continue;
       }
-      level.style.setProperty('--path-stop', `${child.offsetTop - level.offsetTop + 13}px`);
+      level.style.setProperty('--path-stop', `${child.offsetTop - level.offsetTop + TREE_ROW_HEIGHT / 2}px`);
     }
     return () => {
       scroller.removeEventListener('scroll', onScroll);

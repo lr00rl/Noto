@@ -40,3 +40,20 @@ See `docs/design/typora-gap.md` for what is closed and how. Every slice is a
 branch, verified (`pnpm typecheck`, `CI=true pnpm test`,
 `CI=true pnpm package:e2e` then `CI=true pnpm exec playwright test`), merged
 `--no-ff` into main, pushed.
+
+## The probe
+
+`scratchpad/probe/` holds the instrument this run is built on. It asks both
+editors the same question and diffs the answers, so a gap is a number rather
+than an impression.
+
+    node probe/measure-typora.mjs <note.md> <w> <h> out.json   # through the sidecar
+    node probe/measure-noto.mjs   <note.md> <w> <h> out.json   # through the packaged app
+    node probe/diff.mjs typora.json noto.json                  # only what differs
+
+`kitchen-sink.md` is one note holding every construct. `map.json` names the
+selectors; `chrome-map.json` and `chrome-map-noto.json` do the same for the
+window furniture. `shot-noto.mjs` renders Noto at a given size and rail width.
+
+Typora is driven with one window open, since several windows share one
+sidecar session and the claim does not follow focus in its WebView.

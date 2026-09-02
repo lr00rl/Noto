@@ -115,9 +115,11 @@ test.describe('settings', () => {
     const { app, page } = await launch('width');
     try {
       // 1280 wide with the rail closed: the reading column stops at its cap,
-      // wide is at least 1000, and full is the canvas less its gutters.
+      // wide is at least 1000, and full is the canvas less its gutters. The
+      // cap is 796, which is what Typora's 860-wide page leaves for text
+      // once its own 32px gutters are taken off.
       const reading = await layoutOf(page);
-      expect(reading.column).toBeCloseTo(860, 0);
+      expect(reading.column).toBeCloseTo(796, 0);
       expect(reading.sideways).toBe(0);
 
       await invokeMenu(app, 'settings');

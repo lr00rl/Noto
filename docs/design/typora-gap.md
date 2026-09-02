@@ -209,6 +209,64 @@ as faint as the theme draws it; a picture has the theme's inside hairline;
 the caret is the accent, and a selection is the accent at a wash, where
 before it was the system blue because nothing had set it.
 
+## 5j. Measured against the running Typora, not guessed at. Closed.
+
+With the remote control working, both editors could be asked the same
+question at the same window size and their answers compared field by field:
+every font, size, leading, weight, colour, margin, padding, border and
+radius, for every construct in one note that holds them all.
+
+The type was already right. Every difference in the document was the base
+size and nothing else: Typora sets 16px, this is set to 15 at the author's
+asking, and since everything is in em the two are the same drawing at
+different sizes. What the measurement did find:
+
+The reading column was 64px too wide. Typora caps its page at 860 including
+its own 32px gutters, so the text is 796 across; the cap here had been set to
+the whole box. The page had 26px of air above and 80 below; Typora has 32 and
+104, and the deep foot is what lets the last paragraph be scrolled to eye
+level. Three colours were near misses rather than matches: the strong ink,
+and the quote's text and rule, are now the theme's own values.
+
+Code was drawn in status colours, a string in the green that means success
+and a keyword in the accent. The theme gives code five colours of its own,
+and they are now read from it: purple for what the language reserves, green
+for text, warm brown for numbers, blue for names the document defines, and
+the muted tier for comments.
+
+The tree was a size smaller and a third tighter than Typora's: 26px rows of
+13px text against 32px rows of 14px. It is Typora's now, with the row height
+in one place since the sticky offsets are multiples of it, every row quiet
+except the one you are in, and the theme's own warm grey behind it.
+
+A task item hung outside its list, because the whole item was pulled left to
+make room for the box rather than the box being put where the bullet goes. A
+finished one now recedes to the theme's colour, and is struck through only
+when it is a loose item, which is the theme's own rule.
+
+An alert's title sat on the same line as its first sentence.
+
+## 5k. A line the author broke is now drawn broken. Closed.
+
+CommonMark reads a single newline inside a paragraph as a space, and so did
+this. Typora draws it as a break, and the difference showed on any note with
+a two-line quote or a wrapped sentence. The reasoning for collapsing had been
+that such a newline is only where an editor happened to wrap the source; a
+census of the vault says otherwise. There is no wrapping convention in it at
+all, lines running from a few characters to nearly three thousand, and 2.7%
+of its 213,471 paragraphs hold a newline. These notes were written in Typora,
+where Enter starts a paragraph and only Shift+Enter puts a newline inside
+one, so every one of those is a break somebody typed. They are kept now, and
+drawn where they were typed.
+
+## 5l. The title bar was a band across the window. Closed.
+
+Typora's sidebar and page each carry their own ground from the top of the
+window to the bottom, so the two columns read as columns. This drew a single
+panel-coloured bar across the whole width, which cut the page off from its
+own title. The bar now carries the rail's ground above the rail and the
+page's above the page, and the divide runs floor to ceiling.
+
 ## 6. Inline code was bare. Closed.
 
 The theme gives inline code a border, a fill, a small radius and `0.9em`. Noto
