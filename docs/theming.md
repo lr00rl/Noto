@@ -117,8 +117,14 @@ want:
   each time it is drawn, so a theme file reaches it without styling the frame.
 - A picture is `img.noto-image` inside `.noto-image-frame`; one that could not
   be shown is `.noto-image-placeholder` with a `data-reason`.
-- Tables draw horizontal rules only, from `--line-strong` and a mix of
-  `--muted`; a raw HTML block is `.noto-html-block`, a math block
+- A table is wrapped in `.noto-table-frame`, which also holds the rails it is
+  taken hold of by: `.noto-table-rails` with `.noto-table-rail-rows` and
+  `.noto-table-rail-columns`, each holding one `.noto-table-handle` per track,
+  and `.noto-table-drop` for the line showing where a dragged track will land.
+  The handles are invisible until the frame is hovered, carry
+  `.noto-table-handle-held` while dragged, and the rails carry
+  `data-dragging="row"` or `"column"` for as long as a drag lasts. Tables draw
+  horizontal rules only, from `--line-strong` and a mix of `--muted`; a raw HTML block is `.noto-html-block`, a math block
   `.noto-math-block`, frontmatter `.noto-frontmatter`.
 - A GitHub alert is a `blockquote.noto-alert` with `.noto-alert-note` or one
   of the other four kinds, carrying `--alert-color`; its title chip is

@@ -39,6 +39,7 @@ import { typoraMarksPlugin } from './typora-marks-plugin';
 import { typewriterPlugin } from './typewriter-plugin';
 import { autoPairPlugin } from './auto-pair';
 import { mathEditingPlugin, mathNodeViews } from './math-view';
+import { tableNodeViews } from './table-view';
 import { fenceNodeViews } from './fence-view';
 import type { ImageContext } from './image-source';
 import { htmlNodeViews } from './html-view';
@@ -119,6 +120,7 @@ export class NotoEditor implements NotoEditorPort {
       ...fenceNodeViews(),
       ...imageNodeViews(this.imageViews, () => this.imageContext),
       ...htmlNodeViews(this.imageViews, () => this.imageContext),
+      ...tableNodeViews(),
     };
   }
 

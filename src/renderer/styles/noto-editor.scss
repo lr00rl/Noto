@@ -1637,3 +1637,81 @@
    turning them off is a matter of taking the colour away rather than removing
    anything from the document. A theme can do the same by setting the property. */
 :root[data-code-indent-guides='off'] { --code-guide: transparent; }
+
+/* The rails a table is taken hold of by.
+ *
+ * Typora grows a slim bar above the columns and beside the rows when the
+ * pointer is over a table. The bars are quiet until the table is under the
+ * pointer and solid under it, so a table being read looks like a table and
+ * only a table being worked on shows its machinery.
+ *
+ * The rails have no width of their own. Each is placed at the table's own
+ * edge and its handles sit just outside, which keeps them off the text no
+ * matter how the columns are sized. */
+.noto-table-frame { position: relative; }
+
+.noto-table-rails {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.noto-table-rail {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.noto-table-handle {
+  position: absolute;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 22%, transparent);
+  opacity: 0;
+  pointer-events: auto;
+  transition: opacity 110ms ease, background-color 110ms ease;
+}
+
+.noto-table-rail-rows .noto-table-handle {
+  right: 9px;
+  width: 3px;
+  cursor: grab;
+}
+
+.noto-table-rail-columns .noto-table-handle {
+  /* Clear of the strong rule above the header: two horizontal lines any closer
+     together read as one doubled border rather than a rail and a table. */
+  bottom: 12px;
+  height: 3px;
+  cursor: grab;
+}
+
+.noto-table-frame:hover .noto-table-handle,
+.noto-table-rails[data-dragging] .noto-table-handle { opacity: 1; }
+
+.noto-table-handle:hover { background: color-mix(in srgb, var(--accent) 60%, transparent); }
+
+.noto-table-handle-held {
+  background: var(--accent);
+  cursor: grabbing;
+}
+
+/* Where the track will land. One line, in the one accent colour, drawn the
+   full length of the table so it reads as a place rather than a mark. */
+.noto-table-drop {
+  position: absolute;
+  z-index: 4;
+  background: var(--accent);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.noto-table-drop[data-axis='row'] {
+  height: 2px;
+  transform: translateY(-1px);
+}
+
+.noto-table-drop[data-axis='column'] {
+  width: 2px;
+  transform: translateX(-1px);
+}

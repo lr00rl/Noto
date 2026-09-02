@@ -610,6 +610,29 @@ is deliberate: Typora stops at the line inside a fence, which leaves a fence
 with nothing above it stuck where it is, while here the move carries on to the
 block. The intent behind the key is the same either way.
 
+## 37. A table could only be rearranged from the menu. Closed.
+
+Typora grows a slim rail above the columns and beside the rows when the pointer
+is over a table. The rail was found by reading the running app rather than from
+memory: `#typora-table-row-tracker` and `#typora-table-col-tracker`, each with a
+drag area and a data area, and `#typora-table-row-insert-marker` beside them.
+Typora fills the tracker with a clone of the row so the row itself follows the
+pointer.
+
+Noto draws the same rail, one handle per track, quiet until the table is under
+the pointer. Clicking a handle selects its row or column; dragging carries it,
+with a line in the accent colour showing where it will land, and Escape or a
+cancelled pointer puts everything back because nothing is dispatched until the
+drop. The header has no handle and nothing may pass above it.
+
+Two things were learned building it. Handles drawn to the full length of their
+track join into one continuous bar and stop reading as one grip per column, so
+each is inset three pixels at both ends. And anything written to the node view's
+own element, `data-dragging` in the first attempt, is a change the editor did
+not make: it rebuilds the view and the drag dies on the first pointer move.
+Everything the drag touches now lives inside the rails, which the view is told
+to ignore.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
