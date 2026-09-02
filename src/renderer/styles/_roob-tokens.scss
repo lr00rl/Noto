@@ -25,6 +25,13 @@
   --paper: #FAF9F6;
   --panel: #F3F1EC;
   --raised: #F2F1EE;
+  /* A panel that floats over a scrim: preferences and quick open. Light can
+     lay a pale card on a darkened ground and be seen; dark cannot, because
+     darkening an already dark page moves it barely at all, so there the panel
+     is lifted above the page instead of matching it. Same idea, opposite
+     direction. A surface that floats without a scrim, the find bar, uses
+     `--raised` instead: it has to differ from the page it sits on. */
+  --overlay: #FAF9F6;
   --ink: #34312E;
   --hairline: #DDD9D2;
   --accent: #A85D3B;
@@ -75,6 +82,7 @@
   --paper: #1F1E1C;
   --panel: #181715;
   --raised: #292826;
+  --overlay: #2B2A27;
   --ink: #D7D4CF;
   --hairline: #3B3935;
   --accent: #E0A07A;

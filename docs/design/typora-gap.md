@@ -653,6 +653,16 @@ The two buttons on the empty state sat at different heights, because the
 primary carried a top margin of its own inside a centred row. Both now take
 their shape from one rule and only the colours differ.
 
+A fourth came out of photographing the same windows in the dark theme.
+Preferences and quick open were drawn in the paper colour on a ground that was
+the paper colour under a scrim, which in the light theme is a pale card on a
+grey field and in the dark theme is two nearly identical dark greys: 0x1F1E1C
+against roughly 0x0F0E0D, with a black shadow contributing nothing. A panel
+over a scrim now has its own token and is lifted above the page in the dark
+rather than matched to it. The find bar keeps the raised colour, because it
+floats without a scrim and has to differ from the page it sits on. The two
+cases look like one and are not.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
