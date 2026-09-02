@@ -279,6 +279,24 @@ put a rule and a fill and a smaller size around every one, so a document of
 working read as a document of quotations. Inline maths was boxed too, and set
 smaller than the sentence holding it.
 
+## 5p. The keys Typora gives to the marks markdown has no key for. Closed.
+
+Read out of Typora's own menus rather than from memory. Its headings, strong
+and emphasis were already the same. What was missing: Underline on Command+U,
+Highlight on Shift+Command+H, and, on Control rather than Command, inline code
+on Control+`, strike on Control+Shift+`, and inline maths on Control+M. Its
+Increase and Decrease Heading Level, Command+= and Command+-, walk the one
+scale from a paragraph up to a first-level heading and back down again rather
+than jumping to a level by number. All of those are bound now, alongside the
+bindings this already had.
+
+Two of them cannot be written as text. A `<u>` typed into a paragraph is
+escaped when the paragraph is saved, because a bare `<` could open anything,
+and comes back as `\<u>`; a `$` is escaped for the same reason. Underline
+goes in as inline HTML nodes and maths as a maths node, so each is what it
+says it is and survives the round trip. Highlight is plain `==`, which needs
+no escaping and so can be exactly the characters the file will hold.
+
 ## 5k. A line the author broke is now drawn broken. Closed.
 
 CommonMark reads a single newline inside a paragraph as a space, and so did

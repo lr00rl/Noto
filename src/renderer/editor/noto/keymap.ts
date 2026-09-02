@@ -23,7 +23,7 @@ import {
 import { liftListItem, sinkListItem, splitListItem } from 'prosemirror-schema-list';
 import { redo, undo } from 'prosemirror-history';
 import { goToNextCell } from 'prosemirror-tables';
-import type { Command, Plugin } from 'prosemirror-state';
+import { TextSelection, type Command, type Plugin } from 'prosemirror-state';
 import { notoSchema } from '../../../shared/markdown/v3/pm/schema';
 
 const { nodes, marks } = notoSchema;
@@ -35,6 +35,108 @@ const insertHardBreak: Command = chainCommands(exitCode, (state, dispatch) => {
   }
   return true;
 });
+
+/**
+ * Wrap the selection in a pair of literal delimiters.
+ *
+ * For the syntaxes markdown has no mark for and Typora has a key for anyway:
+ * `==highlight==`, `<u>underline</u>` and `$maths$`. The characters go into
+ * the document, which is what makes them survive a save; the editor draws
+ * them as the thing they mean and hides them again once the caret leaves.
+ *
+ * With nothing selected the pair is inserted and the caret placed between
+ * them, so the key can be pressed before the words as well as after.
+ */
+/** Exported so the behaviour can be tested without a DOM to press keys in. */
+export function surround(open: string, close: string): Command {
+  return (state, dispatch) => {
+    const { $from, from, to, empty } = state.selection;
+    // Not in a fence: there the characters would be code, not syntax.
+    if (!$from.parent.isTextblock || $from.parent.type.spec.code) return false;
+    if (!dispatch) return true;
+    const tr = state.tr;
+    if (empty) {
+      tr.insertText(open + close, from);
+      tr.setSelection(TextSelection.create(tr.doc, from + open.length));
+    } else {
+      // The end first, so the start's positions are still the ones measured.
+      tr.insertText(close, to);
+      tr.insertText(open, from);
+      tr.setSelection(TextSelection.create(tr.doc, from + open.length, to + open.length));
+    }
+    dispatch(tr.scrollIntoView());
+    return true;
+  };
+}
+
+/**
+ * Typora's Increase and Decrease Heading Level, which walk the one scale from
+ * a paragraph up to a first-level heading and back down again rather than
+ * jumping to a level by number.
+ */
+/**
+ * Wrap the selection in an HTML tag, as Typora's Underline does.
+ *
+ * The tag goes in as `inline_html` nodes rather than as text. Text is escaped
+ * on the way back out, since a bare `<` in a paragraph could open anything,
+ * so a tag typed as text would be saved as `\<u>` and stop being a tag. As
+ * nodes it is what it says it is, and the editor already draws a bare
+ * formatting tag as the shape it names.
+ */
+export function surroundTag(tag: string): Command {
+  return (state, dispatch) => {
+    const { $from, from, to, empty } = state.selection;
+    if (!$from.parent.isTextblock || $from.parent.type.spec.code) return false;
+    if (!dispatch) return true;
+    const open = nodes.inline_html.create({ value: `<${tag}>` });
+    const close = nodes.inline_html.create({ value: `</${tag}>` });
+    const tr = state.tr;
+    // The end first, so the start's positions are still the ones measured.
+    tr.insert(to, close);
+    tr.insert(from, open);
+    tr.setSelection(empty
+      ? TextSelection.create(tr.doc, from + open.nodeSize)
+      : TextSelection.create(tr.doc, from + open.nodeSize, to + open.nodeSize));
+    dispatch(tr.scrollIntoView());
+    return true;
+  };
+}
+
+/**
+ * Turn the selection into inline maths, as Typora's Inline Math does.
+ *
+ * A `math_inline` node rather than a pair of dollar signs, for the same
+ * reason the tag is a node: a `$` written into a paragraph is escaped on the
+ * way out and stops being maths.
+ */
+export const wrapInMath: Command = (state, dispatch) => {
+  const { $from, from, to, empty } = state.selection;
+  if (!$from.parent.isTextblock || $from.parent.type.spec.code) return false;
+  if (empty) return false;
+  const text = state.doc.textBetween(from, to);
+  if (text.trim().length === 0) return false;
+  if (dispatch) {
+    const math = nodes.math_inline.create(null, notoSchema.text(text));
+    dispatch(state.tr.replaceRangeWith(from, to, math).scrollIntoView());
+  }
+  return true;
+};
+
+/** Exported for the same reason as `surround`. */
+export function shiftHeading(towardsTitle: boolean): Command {
+  return (state, dispatch) => {
+    const { $from } = state.selection;
+    const block = $from.parent;
+    if (block.type === nodes.paragraph) {
+      return towardsTitle ? setBlockType(nodes.heading, { level: 1 })(state, dispatch) : false;
+    }
+    if (block.type !== nodes.heading) return false;
+    const level = (block.attrs.level as number) + (towardsTitle ? -1 : 1);
+    if (level < 1) return false;
+    if (level > 6) return setBlockType(nodes.paragraph)(state, dispatch);
+    return setBlockType(nodes.heading, { level })(state, dispatch);
+  };
+}
 
 /**
  * Enter inside a list splits the item; everywhere else it behaves normally.
@@ -63,6 +165,19 @@ export function notoKeymap({ mac }: { mac: boolean }): Plugin[] {
     ])),
 
     [`${mod}-Shift-k`]: setBlockType(nodes.code_block),
+    // Typora's own bindings for the marks markdown has no key for, so a hand
+    // that learned them there does not have to learn them again. Its inline
+    // code, strike and maths are on Control rather than Command.
+    'Ctrl-`': toggleMark(marks.inline_code),
+    'Ctrl-Shift-`': toggleMark(marks.strikethrough),
+    'Ctrl-m': wrapInMath,
+    [`${mod}-u`]: surroundTag('u'),
+    [`${mod}-Shift-h`]: surround('==', '=='),
+    // Typora names these Command+plus and Command+minus. A keyboard gives the
+    // plus only with Shift on most layouts, so both spellings are taken.
+    [`${mod}-=`]: shiftHeading(true),
+    [`${mod}-+`]: shiftHeading(true),
+    [`${mod}--`]: shiftHeading(false),
     [`${mod}-Shift-q`]: wrapIn(nodes.blockquote),
 
     [`${mod}-z`]: undo,

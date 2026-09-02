@@ -136,9 +136,13 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       command('Wider', 'CmdOrCtrl+]', 'widen'),
       command('Narrower', 'CmdOrCtrl+[', 'narrow'),
       { type: 'separator' },
-      { role: 'resetZoom' },
-      { role: 'zoomIn' },
-      { role: 'zoomOut' },
+      // Zoom sits on Shift as it does in Typora, which leaves plain Command
+      // with the plus and the minus for walking a block up and down the
+      // heading scale. A menu accelerator wins over the editor's own keys, so
+      // leaving zoom on its default would have made those two do nothing.
+      { role: 'resetZoom', accelerator: 'CmdOrCtrl+Shift+0' },
+      { role: 'zoomIn', accelerator: 'CmdOrCtrl+Shift+=' },
+      { role: 'zoomOut', accelerator: 'CmdOrCtrl+Shift+-' },
       { type: 'separator' },
       { role: 'togglefullscreen' },
     ],
