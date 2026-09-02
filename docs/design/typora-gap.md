@@ -867,10 +867,26 @@ Setting `preserveWhitespace` on the parse rule changed nothing, which is worth
 recording: the flag the view consults is `whitespace` on the node spec, not
 the option on the rule.
 
+A heading has the same exposure and needed the same flag. A line of dashes
+straight after a paragraph, with no blank line between, is a setext heading
+and takes every line above it with it; 2,963 of the vault's notes have one,
+and almost all of them turn out to be frontmatter missing its opening
+delimiter, written that way by whatever scraped them. Whatever the author
+meant, that is what the file says and what every parser reads, and typing into
+one was flattening six lines into one.
+
+Typora reads those files differently, and the difference is worth recording
+rather than chasing. With single line breaks preserved, which is how the
+author has it set, Typora makes only the last line the heading and leaves the
+rest a paragraph. CommonMark makes the whole paragraph the heading, and so
+does this. The files are malformed either way; following the spec the rest of
+the pipeline is built on beats matching one editor's reading of a broken file.
+
 Found by a sweep that copies real notes, opens each, types one letter into a
-paragraph and reads the file back, checking that every line the reader did not
-touch survives. Over 127 notes it now reports nothing. Two packaged tests hold
-the line, one of them on a file written with carriage returns.
+block and reads the file back, checking that every line the reader did not
+touch survives. Over 127 notes it now reports nothing. Three packaged tests
+hold the line, one on a file written with carriage returns and one on a
+heading that swallowed its lines.
 
 # Where things stand
 
