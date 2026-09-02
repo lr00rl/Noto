@@ -888,6 +888,23 @@ touch survives. Over 127 notes it now reports nothing. Three packaged tests
 hold the line, one on a file written with carriage returns and one on a
 heading that swallowed its lines.
 
+## 49. The promise, checked against six kinds of block. Holds.
+
+The sweep that found the paragraph fault now edits a heading, a list item, a
+table cell, a line inside a fence and a line inside a quote as well, and it
+lives in `scripts/edit-sweep.mjs` rather than in a scratch directory.
+
+Across those kinds, nothing outside the edited block moves. What does move is
+accounted for: a table, a list and a quote are each one block, so editing any
+part of one re-serializes all of it, and the gap beside an edited block is
+made canonical on purpose, which is one line.
+
+Two reports turned out to be the probe rather than the product. Typing inside
+a bare URL makes its text differ from its address, and a link whose text is
+not its address has to be written out in full. And counting differing lines
+positionally reports two hundred where one blank line was inserted, so the
+count is a multiset now.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
