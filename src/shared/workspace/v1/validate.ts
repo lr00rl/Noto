@@ -35,6 +35,8 @@ import type {
   WorkspaceFolderEventV1,
   WorkspaceFolderReplyV1,
   WorkspaceFolderRequestV1,
+  WorkspaceOpenExternalReplyV1,
+  WorkspaceOpenExternalRequestV1,
 } from './contracts';
 import { isFileTruthOpenReplyV1 } from '../../file-truth/v1/validate';
 
@@ -200,6 +202,56 @@ export function isWorkspaceRevealRequestV1(value: unknown): value is WorkspaceRe
     && typeof value.requestId === 'string' && requestId.test(value.requestId)
     && revealTargets.includes(value.target as WorkspaceRevealTargetV1);
 }
+
+/**
+ * The only schemes a note may send to the operating system.
+ *
+ * Everything else, `file:` most of all, is refused. A URL in a note is text
+ * somebody else may have written, and `shell.openExternal` will launch a
+ * handler for any scheme the machine knows.
+ */
+const OPENABLE_SCHEMES: ReadonlySet<string> = new Set(['http:', 'https:', 'mailto:']);
+
+/**
+ * The URL to open, normalised, or null when it is not one to open.
+ *
+ * The normalised form is what the caller must hand on, not the string it was
+ * given. The parser this checks with and the one the operating system opens
+ * with do not have to agree, and they do not: `https:/\/\evil.com` parses
+ * here as `https://evil.com/`, a tab inside a host is dropped, a newline
+ * inside a scheme is dropped. Checking one string and opening another is the
+ * whole of that bug class, so only the checked string is ever opened.
+ */
+export function openableExternalUrl(value: string): string | null {
+  if (value.length === 0 || value.length > 2048) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return null;
+  }
+  if (!OPENABLE_SCHEMES.has(parsed.protocol)) return null;
+  return parsed.href;
+}
+
+export function isOpenableExternalUrl(value: string): boolean {
+  return openableExternalUrl(value) !== null;
+}
+
+export function isWorkspaceOpenExternalRequestV1(value: unknown): value is WorkspaceOpenExternalRequestV1 {
+  return record(value) && exact(value, ['version', 'requestId', 'url'])
+    && value.version === 1
+    && typeof value.requestId === 'string' && requestId.test(value.requestId)
+    && typeof value.url === 'string' && isOpenableExternalUrl(value.url);
+}
+
+export function isWorkspaceOpenExternalReplyV1(value: unknown): value is WorkspaceOpenExternalReplyV1 {
+  return record(value) && exact(value, ['version', 'opened'])
+    && value.version === 1 && typeof value.opened === 'boolean';
+}
+
+export const isWorkspaceOpenExternalResultV1 = (value: unknown, id: string): value is WorkspaceResultV1<WorkspaceOpenExternalReplyV1> =>
+  isResult(value, id, isWorkspaceOpenExternalReplyV1);
 
 export function isWorkspaceRevealReplyV1(value: unknown): value is WorkspaceRevealReplyV1 {
   return record(value) && exact(value, ['version', 'revealed'])

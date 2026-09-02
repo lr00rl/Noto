@@ -719,6 +719,32 @@ which takes every inline mark off the selection and leaves the words. Block
 type is not touched by it: a heading that stopped being a heading would be a
 different command.
 
+## 42. Not one of the vault's 14,417 links could be followed. Closed.
+
+Counting what the vault actually holds put the earlier guesswork right.
+Inline links come to 14,417, tables to 1,123 files, callouts to 105 and
+footnotes to 53. Links are the thing this vault is made of, and clicking one
+did nothing at all: the window refuses navigation, which is the right refusal
+and the wrong end state.
+
+Command or Control and a click follows one now, the same modifier a wiki link
+already took, because the text under a link is editable text and a plain click
+has to go on placing the caret. A page on the web goes to the browser; any
+other address is treated as a note in this folder and resolved the way a wiki
+link is, by relative path and then by name.
+
+Reaching the browser means `shell.openExternal`, which hands the string to the
+operating system and will launch a handler for any scheme the machine knows,
+and the string came out of somebody's Markdown file. The scheme is checked
+against http, https and mailto in the renderer, in the preload, and again in
+main immediately before the call.
+
+The check that mattered was not the third one. Validating a parsed URL and then
+opening the raw string is a bug wherever the two parsers disagree, and they do:
+`https:/\/\evil.com` parses here as `https://evil.com/`, a tab inside a host
+is dropped, a newline inside a scheme is dropped. Only the normalised form is
+opened, so what was checked is what is launched.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form

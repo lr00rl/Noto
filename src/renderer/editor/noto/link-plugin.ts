@@ -245,3 +245,28 @@ export function linkEditorPlugin(): Plugin<LinkTarget | null> {
     view: (view) => new LinkPanel(view),
   });
 }
+
+/**
+ * Following a link out of a note.
+ *
+ * The same modifier a link takes everywhere else, because the text under it is
+ * editable text and a plain click has to go on placing the caret. What happens
+ * to the address is not decided here: this reports it and the shell decides
+ * whether it names a page on the web or a note in the folder.
+ */
+export function followLinkPlugin(options: { onFollow: (href: string) => void }): Plugin {
+  return new Plugin({
+    props: {
+      handleClick: (_view, _position, event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return false;
+        if (!(event.metaKey || event.ctrlKey)) return false;
+        const anchor = target.closest<HTMLElement>('a[href]');
+        const href = anchor?.getAttribute('href') ?? '';
+        if (!href) return false;
+        options.onFollow(href);
+        return true;
+      },
+    },
+  });
+}

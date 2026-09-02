@@ -12,6 +12,9 @@ const NOTE = [
   '',
   'Or read [the other one](https://example.com/old) instead.',
   '',
+  'The note next door is [over here](sibling.md), and the folder below has',
+  '[this one](sub/deeper.md).',
+  '',
 ].join('\n');
 
 async function launch(name: string): Promise<{ app: ElectronApplication; page: Page; file: string }> {
@@ -20,6 +23,9 @@ async function launch(name: string): Promise<{ app: ElectronApplication; page: P
   await mkdir(path.join(workspace, 'user-data'), { recursive: true });
   const file = path.join(workspace, 'note.md');
   await writeFile(file, NOTE, 'utf8');
+  await writeFile(path.join(workspace, 'sibling.md'), '# Sibling\n\nNext door.\n', 'utf8');
+  await mkdir(path.join(workspace, 'sub'), { recursive: true });
+  await writeFile(path.join(workspace, 'sub', 'deeper.md'), '# Deeper\n\nBelow.\n', 'utf8');
   const app = await electron.launch({
     executablePath: packagedExecutable(),
     args: [`--user-data-dir=${path.join(workspace, 'user-data')}`, `--open=${file}`],
@@ -51,6 +57,41 @@ async function invokeMenu(app: ElectronApplication, id: string): Promise<void> {
 async function selectParagraph(page: Page, text: string): Promise<void> {
   await page.getByText(text, { exact: false }).first().click({ clickCount: 3 });
 }
+
+test.describe('following a link', () => {
+  const follow = process.platform === 'darwin' ? { modifiers: ['Meta' as const] } : { modifiers: ['Control' as const] };
+
+  test('opens the note a relative address names', async () => {
+    const { app, page } = await launch('follow-relative');
+    try {
+      await page.getByText('over here').click(follow);
+      // Two documents are open now, so the assertion is on the visible one.
+      await expect(page.locator('.ProseMirror h1:visible')).toHaveText('Sibling');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('follows one into a folder below', async () => {
+    const { app, page } = await launch('follow-nested');
+    try {
+      await page.getByText('this one').click(follow);
+      await expect(page.locator('.ProseMirror h1:visible')).toHaveText('Deeper');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('leaves the caret alone on a plain click, which is still editing', async () => {
+    const { app, page } = await launch('plain-click');
+    try {
+      await page.getByText('over here').click();
+      await expect(page.locator('.ProseMirror h1:visible')).toHaveText('Links');
+    } finally {
+      await app.close();
+    }
+  });
+});
 
 test.describe('making and changing a link', () => {
   test('wraps the selected words and writes the address to the file', async () => {

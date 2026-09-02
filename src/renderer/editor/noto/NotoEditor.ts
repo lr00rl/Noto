@@ -56,7 +56,7 @@ import {
 } from './search-plugin';
 import { syntaxHighlightPlugin } from './highlight';
 import { wikiLinkPlugin } from './wiki-link-plugin';
-import { linkEditorPlugin } from './link-plugin';
+import { followLinkPlugin, linkEditorPlugin } from './link-plugin';
 
 export interface NotoEditorOptions extends InputRuleOptions {
   readonly mac: boolean;
@@ -74,6 +74,8 @@ export interface NotoEditorOptions extends InputRuleOptions {
    * navigating.
    */
   readonly onActiveBlockChanged?: (index: number) => void;
+  /** Cmd or Ctrl clicking an ordinary `[text](address)` link. */
+  readonly onFollowLink?: (href: string) => void;
   /** Cmd or Ctrl clicking a `[[wiki link]]`. Absent means links stay inert. */
   readonly onFollowWikiLink?: (target: string) => void;
   /** Where relative images resolve from, and whether web images load. */
@@ -144,6 +146,7 @@ export class NotoEditor implements NotoEditorPort {
       activeNodePlugin(),
       wikiLinkPlugin({ onFollow: (target) => this.options.onFollowWikiLink?.(target) }),
       linkEditorPlugin(),
+      followLinkPlugin({ onFollow: (href) => this.options.onFollowLink?.(href) }),
       mathEditingPlugin(),
       searchPlugin(),
       syntaxHighlightPlugin(),
