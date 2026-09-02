@@ -174,11 +174,30 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       command('Unordered List', 'CmdOrCtrl+Alt+U', 'block-bullet-list'),
       command('Task List', 'CmdOrCtrl+Alt+X', 'block-task-list'),
       command('Horizontal Line', 'CmdOrCtrl+Alt+-', 'block-rule'),
-      command('Hyperlink…', 'CmdOrCtrl+K', 'insert-link'),
-      { type: 'separator' },
+    ],
+  };
+
+  /*
+   * Inline marks have their own menu, as they do in Typora, which keeps
+   * Paragraph for the block a thing is and Format for how its words are drawn.
+   * Bold, italic, code and strike had their keys from the first day and were
+   * never on a menu at all, so the only way to learn them was to already know
+   * them.
+   */
+  const formatMenu: MenuItemConstructorOptions = {
+    label: 'F&ormat',
+    submenu: [
+      command('Strong', 'CmdOrCtrl+B', 'mark-strong'),
+      command('Emphasis', 'CmdOrCtrl+I', 'mark-emphasis'),
       command('Underline', 'CmdOrCtrl+U', 'mark-underline'),
+      command('Code', 'CmdOrCtrl+E', 'mark-code'),
+      command('Strike', 'CmdOrCtrl+Shift+X', 'mark-strike'),
       command('Highlight', 'CmdOrCtrl+Shift+H', 'mark-highlight'),
       command('Inline Math', 'Control+M', 'mark-math'),
+      { type: 'separator' },
+      command('Hyperlink…', 'CmdOrCtrl+K', 'insert-link'),
+      { type: 'separator' },
+      command('Clear Format', 'CmdOrCtrl+Shift+Backspace', 'clear-format'),
     ],
   };
 
@@ -265,6 +284,7 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
     fileMenu,
     editMenu,
     paragraphMenu,
+    formatMenu,
     viewMenu,
     goMenu,
     windowMenu,

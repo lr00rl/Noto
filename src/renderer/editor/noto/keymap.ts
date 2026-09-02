@@ -223,6 +223,21 @@ const enter: Command = chainCommands(
  * already does. The keys and the menu run the same code rather than two
  * implementations that drift.
  */
+/**
+ * Take every inline mark off the selection.
+ *
+ * Typora calls this Clear Format. Passing no mark type removes them all, which
+ * is what the reader means: the words stay and everything drawn around them
+ * goes. Block type is left alone, because a heading that stopped being a
+ * heading would be a different command.
+ */
+export const clearFormat: Command = (state, dispatch) => {
+  const { from, to, empty } = state.selection;
+  if (empty) return false;
+  if (dispatch) dispatch(state.tr.removeMark(from, to));
+  return true;
+};
+
 export const EDITOR_COMMANDS: Readonly<Record<string, Command>> = {
   'block-paragraph': setBlockType(nodes.paragraph),
   'block-heading-1': setBlockType(nodes.heading, { level: 1 }),
@@ -240,6 +255,10 @@ export const EDITOR_COMMANDS: Readonly<Record<string, Command>> = {
   'block-bullet-list': wrapInList(nodes.bullet_list),
   'block-task-list': toggleTaskList,
   'block-rule': insertRule,
+  'mark-strong': toggleMark(marks.strong),
+  'mark-emphasis': toggleMark(marks.emphasis),
+  'mark-code': toggleMark(marks.inline_code),
+  'mark-strike': toggleMark(marks.strikethrough),
   'mark-underline': surroundTag('u'),
   'mark-highlight': surround('==', '=='),
   'mark-math': wrapInMath,
@@ -256,6 +275,7 @@ export const EDITOR_COMMANDS: Readonly<Record<string, Command>> = {
   'move-column-left': moveColumn(true),
   'move-column-right': moveColumn(false),
   'insert-link': openLinkEditor,
+  'clear-format': clearFormat,
 };
 
 export function notoKeymap({ mac }: { mac: boolean }): Plugin[] {
@@ -297,6 +317,7 @@ export function notoKeymap({ mac }: { mac: boolean }): Plugin[] {
     [`${mod}--`]: shiftHeading(false),
     [`${mod}-Shift-q`]: wrapIn(nodes.blockquote),
     [`${mod}-k`]: openLinkEditor,
+    [`${mod}-Shift-Backspace`]: clearFormat,
 
     [`${mod}-z`]: undo,
     [`${mod}-Shift-z`]: redo,

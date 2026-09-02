@@ -705,6 +705,20 @@ serializes a document with each mark and compares. The selection colour went
 the same way: it was set inside the editor only, so every field outside it
 selected in the platform's blue on a warm page.
 
+## 41. Bold and italic had keys and no menu. Closed.
+
+The same reading of Typora's menu turned up a plainer gap than the missing
+hyperlink. Typora keeps Paragraph for the block a thing is and Format for how
+its words are drawn. Noto had no Format menu at all: Strong, Emphasis, Code
+and Strike existed only as key bindings, so the only way to learn them was to
+already know them, and Underline, Highlight and Inline Math sat at the foot of
+Paragraph where they are not.
+
+There is a Format menu now, with all seven, the hyperlink, and Clear Format,
+which takes every inline mark off the selection and leaves the words. Block
+type is not touched by it: a heading that stopped being a heading would be a
+different command.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
