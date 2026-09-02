@@ -124,8 +124,10 @@ export interface NotoSettingsV1 {
 
 export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   theme: 'system',
-  fontSize: 18,
-  lineHeight: 1.62,
+  // The author's theme: 16px at 1.58 is what he reads all day in Typora, and
+  // the width modes' 860px reading column is that theme's width at that size.
+  fontSize: 16,
+  lineHeight: 1.58,
   widthMode: 'default',
   // On by default because it is what a writing tool should do, and it is
   // reversible per document by undoing the substitution.

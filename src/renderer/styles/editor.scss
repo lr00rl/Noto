@@ -6,8 +6,8 @@
    settings file, so they match `DEFAULT_SETTINGS` rather than being arbitrary:
    a mismatch shows as the document reflowing once at launch. */
 :root {
-  --doc-font-size: 18px;
-  --doc-line-height: 1.62;
+  --doc-font-size: 16px;
+  --doc-line-height: 1.58;
 
   /* The writing column, as a share of the canvas beside the rail.
 
@@ -75,39 +75,63 @@
    block held the caret, which is a highlighter running beside the sentence you
    are reading: the caret already says where you are, and Typora draws nothing
    here at all. */
+/* Block rhythm is the author's theme, verbatim: 0.74em above and below every
+   block, collapsing between neighbours, so two paragraphs sit 0.74em apart
+   and a heading's own larger top margin is what separates it from the text
+   before it rather than that margin plus the paragraph's. */
 .ProseMirror > * {
-  margin: 0 0 1.05em;
+  /* Against the document size rather than the block's own, so a fence or a
+     table, which are set smaller, keeps the same distance from its
+     neighbours as a paragraph does. */
+  margin: calc(0.74 * var(--doc-font-size)) 0;
   padding-left: 14px;
 }
 
-.ProseMirror > [data-noto-marker] { position: relative; }
-.ProseMirror > [data-noto-marker]::before {
-  content: attr(data-noto-marker);
-  position: absolute;
-  right: calc(100% - 10px);
-  top: 0.42em;
-  max-width: 12px;
-  overflow: hidden;
-  color: var(--accent);
-  font: 9px/1 tokens.$mono;
-  white-space: nowrap;
-  pointer-events: none;
+.ProseMirror > :first-child { margin-top: 0; }
+
+/* The heading scale is the author's theme's, in em so it follows the text
+   size setting: the theme's headings were in em and Noto's were in pixels,
+   which made every heading a step louder than the theme's against the same
+   paragraph, and left the size setting moving the body while the headings
+   stayed put. Margins are the theme's rem values scaled by the document size
+   rather than the root, for the same reason. */
+/* `:where` keeps the shared rule below every per-level one in specificity, so
+   the per-level margins win by weight rather than by their place in the file. */
+.ProseMirror :where(h1, h2, h3, h4, h5, h6) {
+  margin: calc(1.45 * var(--doc-font-size)) 0 calc(0.7 * var(--doc-font-size));
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ink-strong);
+}
+.ProseMirror :is(h1, h2, h3, h4, h5, h6) code { font-size: inherit; }
+.ProseMirror h1 { margin-top: calc(0.35 * var(--doc-font-size)); font-size: 1.84em; line-height: 1.16; text-wrap: balance; }
+.ProseMirror h2 { margin-top: calc(1.72 * var(--doc-font-size)); font-size: 1.48em; line-height: 1.22; text-wrap: balance; }
+.ProseMirror h3 { margin-top: calc(1.5 * var(--doc-font-size)); font-size: 1.24em; line-height: 1.32; text-wrap: balance; }
+.ProseMirror h4 { margin-top: calc(1.3 * var(--doc-font-size)); font-size: 1.12em; }
+.ProseMirror h5 { margin-top: calc(1.3 * var(--doc-font-size)); font-size: 1em; }
+.ProseMirror h6 {
+  margin-top: calc(1.3 * var(--doc-font-size));
+  font-family: tokens.$ui;
+  font-size: 0.91em;
+  letter-spacing: 0.02em;
+  color: var(--muted);
 }
 
-.ProseMirror h1 { margin-top: 0.2em; font-size: 34px; line-height: 1.22; font-weight: 600; text-wrap: balance; }
-.ProseMirror h2 { font-size: 27px; line-height: 1.28; font-weight: 600; text-wrap: balance; }
-.ProseMirror h3 { font-size: 22px; line-height: 1.35; font-weight: 600; text-wrap: balance; }
+.ProseMirror strong { font-weight: 600; color: var(--ink-strong); }
 
-/* Below h3 size stops doing the work. At 19px against an 18px body the
-   difference was invisible, so the lower levels are distinguished by weight and
-   tracking instead and the scale keeps its spread at the top. */
-.ProseMirror h4 {
-  font-size: 18px;
-  line-height: 1.45;
-  font-weight: 700;
-  letter-spacing: 0.005em;
-  text-wrap: balance;
-}
+/* Lists: the theme's indent, a marker in the muted tier, and a tight list
+   with no space between its items. A loose list, which the parser marks, gets
+   the paragraph rhythm back inside each item. */
+.ProseMirror :where(ul, ol) { padding-left: 1.45em; }
+/* A top-level list keeps the 14px marker gutter every other block has. */
+.ProseMirror > :is(ul, ol) { padding-left: calc(14px + 1.45em); }
+.ProseMirror li { padding-left: 0.15em; }
+.ProseMirror li::marker { color: var(--muted); }
+.ProseMirror li > :is(ul, ol) { margin: 0; }
+.ProseMirror li > p { margin: 0; }
+.ProseMirror [data-spread] > li > p { margin: 0.5em 0; }
+.ProseMirror [data-spread] > li:first-child > p:first-child { margin-top: 0; }
+.ProseMirror [data-spread] > li:last-child > p:last-child { margin-bottom: 0; }
 
 /* The rule was a hairline at 1.29:1, so the quote was signalled almost entirely
    by its text turning grey, and grey already means completed task, disabled
@@ -118,23 +142,59 @@
   border-left: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
   color: var(--muted);
 }
+.ProseMirror blockquote > p { margin: 0.4em 0; }
+.ProseMirror blockquote > :first-child { margin-top: 0; }
+.ProseMirror blockquote > :last-child { margin-bottom: 0; }
 
-.ProseMirror code,
-.ProseMirror pre {
+/* Code at 0.9em of the prose rather than a fixed 14px, so it follows the text
+   size. Inline code gets the theme's edge: a hairline, a fill and its own
+   ink, because an identifier set bare in a serif sentence has nothing to
+   mark where it starts and stops. Inside a fence the edge comes off again;
+   the fence is the edge. */
+.ProseMirror code {
   font-family: tokens.$mono;
-  font-size: 14px;
-  line-height: 1.55;
+  font-size: 0.9em;
+}
+
+.ProseMirror :not(pre) > code {
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  background: var(--code-fill);
+  color: var(--code-ink);
+  padding: 0.06em 0.3em 0.08em;
 }
 
 .ProseMirror pre {
   max-width: 100%;
   overflow-x: auto;
-  background: var(--raised);
-  padding: 14px 16px;
+  border: 1px solid var(--hairline);
   border-radius: 4px;
+  background: var(--raised);
+  padding: 0.9em 1em 0.85em;
+  font-family: tokens.$mono;
+  font-size: 0.9em;
+  line-height: 1.52;
 }
 
-.ProseMirror a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--hairline); }
+.ProseMirror pre code {
+  font-size: inherit;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+/* Links in the accent, as the theme has them, with the underline held back
+   to a third so a paragraph of links does not read as a paragraph of rules. */
+.ProseMirror a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 34%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.14em;
+}
+.ProseMirror a:hover { text-decoration-color: currentColor; }
 /* Images sit in the text column and never past it. The frame is inline, so an
    image inside a sentence stays in the sentence and a paragraph that is only
    an image reads as a figure without a rule saying so. */
@@ -185,10 +245,6 @@
 
 .noto-opaque-content { min-width: 0; }
 .noto-opaque-unavailable { color: var(--danger); font: 12px/1.4 tokens.$ui; }
-
-@media (max-width: 1120px) {
-  .ProseMirror { font-size: 17px; }
-}
 
 /* A phone-width window spends its pixels on text: the gutter drops to a
    fixed 16px, as in the plugin below 1024, and the modes all resolve to the
