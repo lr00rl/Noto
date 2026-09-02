@@ -810,6 +810,29 @@ link rather than the whole of it, so changing an address would have rewritten
 half a link. Both are covered by tests, and one of them writes the file and
 reads it back.
 
+## 46. What the fidelity number is now, and why the rest of it stays.
+
+Measured over 900 notes rather than 400: 39,774 blocks, 4,158 of which come
+back different, 10.5%. The wider sample is the more honest figure and the two
+things that dominate it are both deliberate.
+
+A rule written as six dashes comes back as three, 388 times, which is more
+than a third of all the change. The vault writes three dashes 8,123 times and
+six 2,799, so three is the form the file usually has and the one the
+serializer picks. The rest is unreachable in practice: a horizontal rule is a
+leaf node, and the only ways to touch it are to delete it or to edit a block
+beside it, neither of which re-serializes the rule. A test covers exactly
+that, a neighbouring edit leaving a six-dash rule alone.
+
+Second is trailing whitespace at the end of a heading, a paragraph or an empty
+quote line, stripped on the way out. Two spaces at the end of a heading cannot
+be a hard break and two at the end of a paragraph have nothing to break
+before, so nothing is lost but the bytes.
+
+What remains after those is small and scattered. The corpus measurement has
+paid for itself four times over and this is where it stops being the best
+place to look.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
