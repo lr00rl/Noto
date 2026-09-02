@@ -41,7 +41,8 @@ distinguished by `data-theme="light"` and `data-theme="dark"` on the root.
 | --- | --- |
 | `--paper` | The document canvas and the window ground |
 | `--panel` | The rail, the title bar and preferences |
-| `--raised` | Hover surfaces, code fences, quiet fills |
+| `--raised` | Hover surfaces, code fences, quiet fills, the find bar |
+| `--overlay` | A panel floating over the scrim: preferences and quick open |
 | `--ink` | Body text |
 | `--ink-strong` | Headings, bold, a table's first column |
 | `--muted` | Secondary text, folder names, labels |
