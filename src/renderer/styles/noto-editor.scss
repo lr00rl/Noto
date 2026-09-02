@@ -447,7 +447,7 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  width: min(calc(100% - 48px), var(--measure));
+  width: var(--measure);
   min-height: 100%;
   margin: 0 auto;
   padding-bottom: 6vh;

@@ -500,7 +500,12 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   max-width: 100%;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  /* Vertical only. The column is sized never to exceed the canvas, and a code
+     block or table that is wider than the column scrolls inside its own box.
+     Should anything still poke past the edge, it is clipped rather than
+     letting the whole page slide sideways, which is the one thing a document
+     must never do. */
+  overflow: hidden auto;
   overscroll-behavior: contain;
   background: var(--paper);
 }

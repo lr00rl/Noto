@@ -51,16 +51,16 @@ describe('writing settings', () => {
     const { store } = await storeIn();
     const updated = await store.update({ theme: 'dark' });
     expect(updated.theme).toBe('dark');
-    expect(updated.measureCh).toBe(DEFAULT_SETTINGS.measureCh);
+    expect(updated.widthMode).toBe(DEFAULT_SETTINGS.widthMode);
     expect(updated.smartTypography).toBe(DEFAULT_SETTINGS.smartTypography);
   });
 
   it('persists across a restart', async () => {
     const { store, file } = await storeIn();
-    await store.update({ theme: 'dark', measureCh: 74, fontSize: 20 });
+    await store.update({ theme: 'dark', widthMode: 'wide', fontSize: 20 });
 
     const reopened = new SettingsStore(file);
-    expect(await reopened.load()).toMatchObject({ theme: 'dark', measureCh: 74, fontSize: 20 });
+    expect(await reopened.load()).toMatchObject({ theme: 'dark', widthMode: 'wide', fontSize: 20 });
   });
 
   it('writes readable json', async () => {

@@ -12,6 +12,7 @@ import {
   DEFAULT_SETTINGS,
   NOTO_SETTINGS_VERSION,
   SETTING_RANGES,
+  WIDTH_MODES,
   type NotoNumericSetting,
   type NotoSettingsV1,
   type NotoTheme,
@@ -20,10 +21,13 @@ import {
   type SettingsResultV1,
   type SettingsWriteRequestV1,
   type ThemeCssReplyV1,
+  type WidthModeV1,
 } from './contracts';
 
 const requestId = /^[A-Za-z0-9._:-]{1,96}$/;
 const themes: readonly NotoTheme[] = ['light', 'dark', 'system'];
+const isWidthMode = (value: unknown): value is WidthModeV1 =>
+  (WIDTH_MODES as readonly unknown[]).includes(value);
 const numericKeys = Object.keys(SETTING_RANGES) as NotoNumericSetting[];
 const isNumericKey = (key: string): key is NotoNumericSetting =>
   (numericKeys as string[]).includes(key);
@@ -57,7 +61,7 @@ export function coerceSettings(value: unknown): NotoSettingsV1 {
     theme: themes.includes(value.theme as NotoTheme) ? value.theme as NotoTheme : DEFAULT_SETTINGS.theme,
     fontSize: numeric(value, 'fontSize'),
     lineHeight: numeric(value, 'lineHeight'),
-    measureCh: numeric(value, 'measureCh'),
+    widthMode: isWidthMode(value.widthMode) ? value.widthMode : DEFAULT_SETTINGS.widthMode,
     smartTypography: typeof value.smartTypography === 'boolean'
       ? value.smartTypography
       : DEFAULT_SETTINGS.smartTypography,
@@ -92,6 +96,7 @@ export function isSettingsWriteRequestV1(value: unknown): value is SettingsWrite
   return keys.every((key) => {
     if (!SETTING_KEYS.includes(key as keyof NotoSettingsV1)) return false;
     if (key === 'theme') return themes.includes(patch.theme as NotoTheme);
+    if (key === 'widthMode') return isWidthMode(patch.widthMode);
     if (key === 'customCssPath') return isCssPath(patch.customCssPath);
     // Out of range is refused rather than clamped: a write says what it wants,
     // and silently storing something else is the kind of disagreement that
@@ -116,6 +121,7 @@ export function isSettingsReplyV1(value: unknown): value is SettingsReplyV1 {
   if (!record(value) || value.version !== NOTO_SETTINGS_VERSION || !record(value.settings)) return false;
   const settings = value.settings;
   return themes.includes(settings.theme as NotoTheme)
+    && isWidthMode(settings.widthMode)
     && numericKeys.every((key) => typeof settings[key] === 'number' && Number.isFinite(settings[key]))
     && typeof settings.smartTypography === 'boolean'
     && typeof settings.spellCheck === 'boolean'

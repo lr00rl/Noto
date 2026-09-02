@@ -38,7 +38,7 @@ import { RecentStrip } from './RecentStrip';
 import { WorkspaceRail, type RailView } from './WorkspaceRail';
 import { RailFooter } from './RailFooter';
 import { Preferences, type PreferencesSection } from './Preferences';
-import { DEFAULT_SETTINGS, stepWidth, type NotoSettingsV1 } from '../shared/settings/v1/contracts';
+import { DEFAULT_SETTINGS, stepWidthMode, type NotoSettingsV1 } from '../shared/settings/v1/contracts';
 import type { NotoEditor } from './editor/noto/NotoEditor';
 import {
   acceptedSaveOutcome,
@@ -291,19 +291,21 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   }, [settings.theme]);
 
   /**
-   * Document typography, as custom properties on the root.
+   * Document typography as custom properties on the root, and the page width
+   * as an attribute.
    *
-   * Properties rather than a `data-` attribute with three preset values, so the
-   * measure can be 68 characters when 66 and 74 are both wrong, and so the
-   * three of these compose: a bigger face wants a slightly tighter leading and
-   * the same character count, not the same pixel width.
+   * Size and leading are numbers the reader owns, so they go in as values. The
+   * width is a mode, because the pixels it resolves to depend on the canvas,
+   * and the stylesheet is the one place that knows the canvas: it computes
+   * each mode as a share of the width beside the rail, capped, and never more
+   * than the canvas itself. See `WIDTH_MODES`.
    */
   useEffect(() => {
     const root = globalThis.document.documentElement;
     root.style.setProperty('--doc-font-size', `${settings.fontSize}px`);
     root.style.setProperty('--doc-line-height', `${settings.lineHeight}`);
-    root.style.setProperty('--measure', `${settings.measureCh}ch`);
-  }, [settings.fontSize, settings.lineHeight, settings.measureCh]);
+    root.dataset.widthMode = settings.widthMode;
+  }, [settings.fontSize, settings.lineHeight, settings.widthMode]);
 
   /**
    * The user's own stylesheet, layered over the theme.
@@ -1013,13 +1015,13 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       case 'toggle-sidebar':
         toggleRail('files');
         break;
-      // Three stops rather than a fine nudge: the chord is for changing the
-      // shape of the page in one press, and it stops at the ends.
+      // Three modes in a ring, as in the plugin this is ported from: the chord
+      // changes the shape of the page in one press and never lands on nothing.
       case 'widen':
-        changeSettings({ measureCh: stepWidth(settingsRef.current.measureCh, 1) });
+        changeSettings({ widthMode: stepWidthMode(settingsRef.current.widthMode, 1) });
         break;
       case 'narrow':
-        changeSettings({ measureCh: stepWidth(settingsRef.current.measureCh, -1) });
+        changeSettings({ widthMode: stepWidthMode(settingsRef.current.widthMode, -1) });
         break;
       case 'find':
         setPrefs((current) => ({ ...current, open: false }));
