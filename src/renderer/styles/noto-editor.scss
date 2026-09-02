@@ -1503,3 +1503,58 @@
   font-size: 0.85em;
   opacity: 0.7;
 }
+
+/* Diagrams ---------------------------------------------------------------
+ *
+ * A mermaid fence is drawn as its diagram. While the caret is elsewhere the
+ * drawing is all there is, on the page and not in a box, as Typora has it;
+ * while the caret is in the fence the source sits above the drawing in the
+ * fence's own box. The source is never removed from the page, only kept out
+ * of sight, so the caret can still reach it from the keyboard.
+ */
+.ProseMirror pre .noto-diagram {
+  grid-column: 1 / -1;
+  position: relative;
+  min-height: 32px;
+  border-top: 1px solid var(--hairline);
+  padding: 12px 14px;
+  background: var(--paper);
+  font: 13px tokens.$ui;
+  white-space: normal;
+  cursor: text;
+  user-select: none;
+}
+.ProseMirror pre .noto-diagram-frame {
+  display: block;
+  width: 100%;
+  height: 0;
+  border: 0;
+  background: transparent;
+  color-scheme: normal;
+  /* A press on the drawing is a press on the fence. */
+  pointer-events: none;
+  transition: height var(--motion-medium) var(--ease-out);
+}
+.ProseMirror pre .noto-diagram[data-state='rendering'] .noto-diagram-frame { opacity: 0.5; }
+.ProseMirror pre .noto-diagram-status {
+  color: var(--danger);
+  font: 12px tokens.$ui;
+}
+.ProseMirror pre .noto-diagram:not([data-state='failed']) .noto-diagram-status { display: none; }
+
+.ProseMirror pre.noto-fence[data-lang='mermaid']:not(.noto-active-block):not(.noto-active-block *) {
+  border-color: transparent;
+  background: transparent;
+
+  > .noto-fence-gutter { display: none; }
+  /* Out of sight, still in the page: the caret can enter it. */
+  > .noto-fence-code {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  > .noto-diagram { border-top: 0; padding: 2px 0; }
+}

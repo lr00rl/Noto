@@ -19,6 +19,7 @@ import { TextSelection } from 'prosemirror-state';
 import type { EditorView, NodeView } from 'prosemirror-view';
 import { digitsForLineCount, gutterText, lineCount } from './fence-gutter';
 import { supportedLanguages } from './highlight';
+import { DiagramFrame, isDiagramLanguage } from './diagram-frame';
 
 /** How long "Copied" stays before the button says "Copy" again. */
 const COPIED_MS = 1400;
@@ -56,6 +57,8 @@ export class FenceView implements NodeView {
   private readonly language: HTMLInputElement;
   private readonly copy: HTMLButtonElement;
   private lines = 0;
+  /** Present while the fence is a diagram, which its language decides. */
+  private diagram: DiagramFrame | null = null;
   private copiedTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
@@ -135,10 +138,11 @@ export class FenceView implements NodeView {
     return !this.contentDOM.contains(mutation.target);
   }
 
-  /** A click on the tools or the gutter is not a click in the document. */
+  /** A click on the tools, the gutter or the drawing is not a click in the document. */
   stopEvent(event: Event): boolean {
     return event.target instanceof Node
-      && (this.tools.contains(event.target) || this.gutter.contains(event.target));
+      && (this.tools.contains(event.target) || this.gutter.contains(event.target)
+        || (this.diagram !== null && this.diagram.dom.contains(event.target)));
   }
 
   /** Which line a vertical offset inside the gutter falls on, counted from zero. */
@@ -167,6 +171,7 @@ export class FenceView implements NodeView {
 
   destroy(): void {
     if (this.copiedTimer !== null) clearTimeout(this.copiedTimer);
+    this.diagram?.destroy();
   }
 
   /** Write the field's value into the node, as one undoable change. */
@@ -187,6 +192,19 @@ export class FenceView implements NodeView {
     // the word away.
     if (document.activeElement !== this.language) this.language.value = lang;
     this.language.size = Math.max(6, lang.length + 1);
+
+    // A mermaid fence is drawn as its diagram, beside the source; a press on
+    // the drawing puts the caret at the top of the source.
+    if (isDiagramLanguage(lang)) {
+      if (this.diagram === null) {
+        this.diagram = new DiagramFrame(() => this.caretToLine(0));
+        this.dom.append(this.diagram.dom);
+      }
+      this.diagram.render(this.node.textContent);
+    } else if (this.diagram !== null) {
+      this.diagram.destroy();
+      this.diagram = null;
+    }
 
     // Recounted on every update and rewritten only when the count moves, so
     // typing inside a line costs a scan of the text and nothing in the DOM.

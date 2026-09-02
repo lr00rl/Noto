@@ -58,8 +58,10 @@ async function launch(name: string): Promise<{ app: ElectronApplication; page: P
   });
   const page = await app.firstWindow();
   await page.waitForSelector('[data-testid="noto-editor"]', { state: 'visible', timeout: 30_000 });
-  await page.waitForSelector('[data-testid="file-tree"]', { state: 'visible', timeout: 30_000 });
+  // Sized before the tree is awaited: under a tiling window manager a new
+  // window can open at the 720px floor, where the rail is hidden.
   await page.setViewportSize({ width: 1280, height: 720 });
+  await page.waitForSelector('[data-testid="file-tree"]', { state: 'visible', timeout: 30_000 });
   return { app, page, vault, note };
 }
 
