@@ -898,6 +898,30 @@
 
 .tree-twisty-open { rotate: 90deg; }
 
+/* A file has no twisty, so it carries the twisty's width instead: the glyphs
+   of files and folders at one level then form a column, and the connector
+   arm meets each row at the same place. */
+.tree-twisty-blank { border: 0; width: 5px; }
+
+/* The file and folder glyphs, in the muted tier so they read as furniture
+   and the names stay the text; the current file's glyph comes up to ink with
+   its name. Above the connector, like the name, so an arm never crosses it. */
+.tree-glyph {
+  position: relative;
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  color: var(--muted);
+  opacity: 0.85;
+}
+
+.tree-file-active .tree-glyph { color: var(--ink); opacity: 1; }
+
 /* The name sits above the stem and paints the rail's own background behind
    itself, so a connector never runs through a letter. It is also its own
    element because the row is a flex container and `text-overflow` does not
