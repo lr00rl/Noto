@@ -186,13 +186,14 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   display: flex;
   align-items: center;
   gap: 6px;
-  max-width: min(52%, 460px);
+  max-width: min(60%, 560px);
   min-width: 0;
   pointer-events: none;
 }
 
 .document-identity strong {
   display: block;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   color: var(--muted);
@@ -205,7 +206,8 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 /* Where the note is, before its name, in the muted tier with a small chevron
    between segments. The name stays the one thing set a step darker. */
 .document-identity .crumb {
-  flex: 0 1 auto;
+  /* The folder gives way before the name does. */
+  flex: 0 4 auto;
   min-width: 0;
   overflow: hidden;
   color: var(--muted);
@@ -376,8 +378,10 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   background: transparent;
   padding: 0;
   color: var(--muted);
-  font-size: 13px;
-  letter-spacing: 0.005em;
+  /* Set as Typora sets its sidebar heading: small, spaced, in capitals. */
+  font: 600 11px tokens.$ui;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   text-align: left;
   transition-property: color;
   transition-duration: var(--motion-fast);
@@ -1296,16 +1300,18 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 
 .operational-status {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(140px, auto);
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   min-width: 0;
   max-width: 100%;
-  height: 26px;
+  height: 22px;
   padding: 0 12px;
   overflow: hidden;
-  border-top: 1px solid var(--hairline);
-  background: var(--panel);
+  /* No rule and no panel: the strip is a footnote to the page, as Typora's
+     footer is, not a bar of its own. */
+  border-top: 0;
+  background: transparent;
   color: var(--muted);
   font-size: 11px;
 }
@@ -1632,3 +1638,20 @@ button:disabled { color: var(--muted); opacity: 0.7; }
     animation: none !important;
   }
 }
+
+/* The theme's scrollbars: a thin thumb in the hairline colour on no track. */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: var(--hairline); border-radius: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* The path is in the title bar; the strip does not say it twice. */
+.status-path { display: none; }
+/* One heading at a time, as Typora has it: no indicator under the tabs. */
+.rail-tabs::after { display: none; }
+
+/* The thumb shows while the pointer is over the pane, as an overlay
+   scrollbar would; styled scrollbars otherwise paint all the time. */
+.rail-view::-webkit-scrollbar-thumb,
+#document-canvas::-webkit-scrollbar-thumb { background: transparent; }
+.rail-view:hover::-webkit-scrollbar-thumb,
+#document-canvas:hover::-webkit-scrollbar-thumb { background: var(--hairline); }

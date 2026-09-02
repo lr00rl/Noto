@@ -159,6 +159,12 @@ is brought into view once, the first time it exists. After that the rail is
 the reader's: a folder they close on the path stays closed until the file
 changes, and a folder opening elsewhere never moves the rail.
 
+The tree is set in the body serif, as Typora's sidebar is: the rail reads as
+part of the page it navigates, not as a panel from another program. Folder
+glyphs are filled shapes, files are outlines, and the two labels over the
+tree are set as Typora sets its sidebar heading, in small capitals with no
+indicator.
+
 A name that does not fit the rail is scrolled to, never cut to an ellipsis.
 Rows are as wide as their names and at least the rail, so the pane scrolls
 sideways the way Typora's does, which is what a vault of long Chinese

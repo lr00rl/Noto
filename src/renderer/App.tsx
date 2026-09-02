@@ -315,8 +315,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
    *
    * Inside an open folder the path is relative to the folder, which is the
    * frame the reader is already in; outside one it is the shortened folder.
-   * Only the last two segments are shown, with an ellipsis for the rest, since
-   * a title bar is not the place to read a six-level path in full.
+   * Only the folder the note is in is shown, since a title bar is not the
+   * place to read a six-level path in full, and the name must never give way
+   * to it.
    */
   const crumbs = useMemo((): readonly string[] => {
     if (!opened) return [];
@@ -326,7 +327,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     const inside = root !== null && (directory === root || directory.startsWith(`${root}/`) || directory.startsWith(`${root}\\`));
     const shown = inside ? `${folder.name ?? ''}${directory.slice(root.length)}` : containingFolder;
     const segments = shown.split(/[\\/]/).filter((segment) => segment.length > 0);
-    return segments.length > 2 ? ['…', ...segments.slice(-2)] : segments;
+    return segments.slice(-1);
   }, [opened, folder, containingFolder]);
 
   const updateRecoveryBarrier = (value: boolean) => {

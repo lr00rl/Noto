@@ -175,6 +175,40 @@ holds it, and the only thing that crosses is the source and the palette going
 in and a height or an error coming out. The file keeps its bytes: the drawing
 is a view of the fence, never its content.
 
+## 5i. Frame by frame against the author's window. Closed, for this frame.
+
+The author's Typora window and Noto were put on the same note at the same
+size, 1274 by 698, and compared. What differed, and what changed:
+
+Tables were the loudest. Noto laid them out with fixed, equal columns and let
+words break anywhere, so `patents_detail.description` wrapped mid-word and
+every row was two lines tall; Typora sizes each column to what it holds.
+Columns now take their content's width, long words break only when the
+table has run out of room, and the cells carry the theme's padding, row
+rule and hover wash.
+
+The sidebar was set in the interface sans; Typora's is in the body serif,
+which makes the tree read as part of the same page as the note. It is the
+serif now, the folder glyph is a filled shape as Typora's is rather than a
+wire outline, the stuck rows carry the theme's hairline and its faint
+shadow rather than a strong rule, the tabs are set as Typora sets its
+sidebar heading, small capitals with no indicator, and the rail opens at
+272 rather than 248, which is what a vault of long Chinese names needs.
+
+The title bar cut the file name to an ellipsis to make room for two folders
+and a marker. Only the folder the note is in is shown now, and it gives way
+before the name does. The status strip repeated the path under a rule on a
+panel of its own; Typora has no such bar. The strip keeps the state and the
+recent notes on the page itself, with no rule and no fill. Scrollbars were
+the system's classic ones; they are the theme's thin thumb now, shown
+while the pointer is over the pane.
+
+Smaller: the quote is the theme's box, a quiet rule on a fill with text a
+step lighter; a fence has the theme's radius and its extra air; a rule is
+as faint as the theme draws it; a picture has the theme's inside hairline;
+the caret is the accent, and a selection is the accent at a wash, where
+before it was the system blue because nothing had set it.
+
 ## 6. Inline code was bare. Closed.
 
 The theme gives inline code a border, a fill, a small radius and `0.9em`. Noto
