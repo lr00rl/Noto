@@ -29,7 +29,21 @@ const nodes: Record<string, NodeSpec> = {
   paragraph: {
     group: 'block',
     content: 'inline*',
-    parseDOM: [{ tag: 'p' }],
+    /*
+     * A line the author broke stays broken.
+     *
+     * The break is a newline inside the text, drawn by `white-space: pre-wrap`
+     * rather than by any node of its own. Without this the editor collapses it
+     * to a space the moment it re-reads the paragraph from the DOM, which it
+     * does after a keystroke: typing one letter into a paragraph the author
+     * had wrapped over three lines joined all three into one.
+     *
+     * The flag on the node is what does it. The view reads its own DOM back
+     * with `preserveWhitespace: 'full'` only where the node type says its
+     * whitespace is `pre`, so the parse rule alone changed nothing.
+     */
+    whitespace: 'pre',
+    parseDOM: [{ tag: 'p', preserveWhitespace: 'full' }],
     toDOM: () => ['p', 0],
   },
 
