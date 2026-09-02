@@ -138,10 +138,10 @@ describe('ProseMirror round trip stability', () => {
 
   it('normalises emphasis and strong markers without changing their meaning', () => {
     // A single marker is emphasis and a double marker is strong. The serializer
-    // settles on `_` for emphasis and `*` for strong, so both spellings of each
-    // converge on one form and stay there.
-    expect(roundTrip('*emphasis*')).toBe('_emphasis_');
-    expect(roundTrip('_emphasis_')).toBe('_emphasis_');
+    // settles on the star for both, which is what the vault writes: 5,280
+    // starred runs against 364 underscored ones.
+    expect(roundTrip('*emphasis*')).toBe('*emphasis*');
+    expect(roundTrip('_emphasis_')).toBe('*emphasis*');
     expect(roundTrip('**strong**')).toBe('**strong**');
     expect(roundTrip('__strong__')).toBe('**strong**');
   });
@@ -223,5 +223,38 @@ describe('a URL written on its own', () => {
     // its brackets or the address loses a character on the way back in.
     expect(roundTrip('<https://example.com/a.>')).toBe('<https://example.com/a.>');
     expect(roundTrip('<mailto:someone@example.com>')).toBe('<mailto:someone@example.com>');
+  });
+});
+
+describe('emphasis beside Chinese text', () => {
+  it('is read as emphasis, which CommonMark alone will not do', () => {
+    const doc = pmDoc('**注意：**一定不要这样');
+    const strong: string[] = [];
+    doc.descendants((node) => {
+      if (node.isText && node.marks.some((mark) => mark.type.name === 'strong')) strong.push(node.text!);
+    });
+    expect(strong).toEqual(['注意：']);
+  });
+
+  it('is written back exactly as it was', () => {
+    expect(roundTrip('**注意：**一定不要这样')).toBe('**注意：**一定不要这样');
+    expect(roundTrip('**消息队列**和**管道**：两种机制')).toBe('**消息队列**和**管道**：两种机制');
+  });
+
+  it('leaves English emphasis where it was', () => {
+    expect(roundTrip('a **bold** word and an *emphatic* one'))
+      .toBe('a **bold** word and an *emphatic* one');
+  });
+});
+
+describe('what the serializer must not escape', () => {
+  it('leaves an identifier and an alert marker alone', () => {
+    expect(roundTrip('## mcp__claude_api 索引')).toBe('## mcp__claude_api 索引');
+    expect(roundTrip('use search_mcp_register here')).toBe('use search_mcp_register here');
+    expect(roundTrip('> [!TIP]\n> Something.')).toBe('> [!TIP]\n> Something.');
+  });
+
+  it('still escapes an underscore that could open emphasis', () => {
+    expect(roundTrip('a \\_lonely underscore')).toContain('\\_');
   });
 });

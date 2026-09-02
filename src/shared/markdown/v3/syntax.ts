@@ -10,6 +10,8 @@
 import { fromMarkdown } from 'mdast-util-from-markdown';
 import { defaultHandlers, toMarkdown, type Options as ToMarkdownOptions } from 'mdast-util-to-markdown';
 import { gfm } from 'micromark-extension-gfm';
+import { cjkFriendlyExtension } from 'micromark-extension-cjk-friendly';
+import { cjkFriendlyToMarkdown } from 'mdast-util-to-markdown-cjk-friendly';
 import { gfmFromMarkdown, gfmToMarkdown } from 'mdast-util-gfm';
 import { math } from 'micromark-extension-math';
 import { mathFromMarkdown, mathToMarkdown } from 'mdast-util-math';
@@ -22,6 +24,21 @@ import type { Nodes, Root, RootContent } from 'mdast';
 const micromarkExtensions = [
   // One tilde is Typora's subscript, drawn in the editor; only a pair strikes.
   gfm({ singleTilde: false }),
+  /*
+   * Emphasis next to Chinese text.
+   *
+   * CommonMark decides whether `**` can close by what sits either side of it,
+   * and it counts CJK punctuation as punctuation, so `**注意：**一定` does not
+   * close and the whole run stays as literal asterisks. Typora closes it, and
+   * so does anyone reading the file. A census of the vault found 596 of 3,220
+   * bold runs unparsed for this reason, in a quarter of its files: the reader
+   * saw asterisks where they had written bold, and editing the paragraph
+   * escaped them into the file for good measure.
+   *
+   * This is the CommonMark community's own CJK-friendly amendment to the
+   * flanking rules rather than a rule invented here.
+   */
+  cjkFriendlyExtension(),
   math({ singleDollarTextMath: true }),
   frontmatter(),
 ];
@@ -76,7 +93,44 @@ function tildeOnlyInPairs(extension: ToMarkdownOptions): ToMarkdownOptions {
   };
 }
 
-const WIKI_LINK_RUN = /\[\[[^[\]\n|]+(?:\|[^[\]\n]*)?\]\]/g;
+
+/*
+ * Runs the serializer must emit exactly as they are.
+ *
+ * `[[wiki links]]`, and the `[!NOTE]` marker that opens a GitHub alert. Both
+ * begin with a `[`, which the serializer escapes because a bare `[` can open
+ * a link reference and it cannot know whether a matching definition exists.
+ * That is right in general and wrong for these two: escaping a wiki link
+ * stops it being one, and escaping an alert's marker stops the quote being an
+ * alert at all, so editing a callout would quietly turn it into a plain
+ * quote. Both are recognised only in the shapes that cannot mean anything
+ * else, and everything around them still goes through the escaping.
+ */
+/**
+ * A word character for CommonMark's flanking rules: letters, digits, and the
+ * CJK ideographs these notes are mostly written in. Spelled out rather than as
+ * a unicode property, because the pattern is built without the unicode flag.
+ */
+const WORD = `[0-9A-Za-z\u00C0-\u024F\u3400-\u4DBF\u4E00-\u9FFF]`;
+
+/*
+ * An identifier is the third: a run of word characters joined by underscores,
+ * `mcp__claude_api` or `search_mcp_register`. CommonMark will not open or
+ * close emphasis on an underscore with a word character on either side, which
+ * is the rule that lets snake_case be written plainly, but the serializer
+ * escapes every underscore in phrasing regardless. Editing any paragraph
+ * naming an identifier turned it into `mcp\_\_claude\_api`. The run holds
+ * nothing but word characters and underscores, so emitting it whole escapes
+ * nothing that needed escaping.
+ */
+const VERBATIM_RUN = new RegExp(
+  [
+    '\\[\\[[^[\\]\\n|]+(?:\\|[^[\\]\\n]*)?\\]\\]',
+    '\\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\\]',
+    `${WORD}+(?:_+${WORD}+)+`,
+  ].join('|'),
+  'g',
+);
 
 /**
  * A URL written on its own stays written on its own.
@@ -113,12 +167,12 @@ const bareAutolink: ToMarkdownOptions = {
   },
 };
 
-const wikiLinkSafeText: ToMarkdownOptions = {
+const verbatimRunsInText: ToMarkdownOptions = {
   handlers: {
     text(node, _parent, state, info) {
       const value = node.value;
-      WIKI_LINK_RUN.lastIndex = 0;
-      if (!WIKI_LINK_RUN.test(value)) return state.safe(value, info);
+      VERBATIM_RUN.lastIndex = 0;
+      if (!VERBATIM_RUN.test(value)) return state.safe(value, info);
 
       /*
        * Each ordinary segment is escaped with its real neighbours.
@@ -129,11 +183,11 @@ const wikiLinkSafeText: ToMarkdownOptions = {
        * `&#x20;`. The neighbours here are known exactly: a segment before a
        * link is followed by `[`, one after a link is preceded by `]`.
        */
-      WIKI_LINK_RUN.lastIndex = 0;
+      VERBATIM_RUN.lastIndex = 0;
       let out = '';
       let last = 0;
       for (;;) {
-        const match = WIKI_LINK_RUN.exec(value);
+        const match = VERBATIM_RUN.exec(value);
         if (match === null) break;
         if (match.index > last) {
           out += state.safe(value.slice(last, match.index), {
@@ -155,7 +209,9 @@ const wikiLinkSafeText: ToMarkdownOptions = {
 
 const serializerOptions: ToMarkdownOptions = {
   bullet: '-',
-  emphasis: '_',
+  // The vault writes emphasis with a star, 5,280 times against 364 with an
+  // underscore, so an edited paragraph keeps the form the file already uses.
+  emphasis: '*',
   strong: '*',
   fence: '`',
   fences: true,
@@ -163,7 +219,12 @@ const serializerOptions: ToMarkdownOptions = {
   rule: '-',
   ruleSpaces: false,
   tightDefinitions: true,
-  extensions: [tildeOnlyInPairs(gfmToMarkdown()), mathToMarkdown(), frontmatterToMarkdown(), wikiLinkSafeText, bareAutolink],
+  extensions: [
+    // The writing half of the CJK amendment. Without it the serializer keeps
+    // CommonMark's own flanking rules and, believing the run cannot close,
+    // escapes the Chinese character after it into a numeric reference.
+    cjkFriendlyToMarkdown(),
+    tildeOnlyInPairs(gfmToMarkdown()), mathToMarkdown(), frontmatterToMarkdown(), verbatimRunsInText, bareAutolink],
 };
 
 /**

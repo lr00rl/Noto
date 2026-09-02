@@ -441,6 +441,45 @@ markdown of the inline thing it is in, and a bare URL was revealed as
 that would turn it into a different construct. A link whose text is its own
 address now reveals nothing, because there is nothing to reveal.
 
+## 5y. Bold beside Chinese was not bold. Closed.
+
+The largest single fault found in this run, and it was found by re-serializing
+the vault rather than by looking at it. CommonMark decides whether a `**` run
+can close from what sits either side of it, and it counts CJK punctuation as
+punctuation, so `**注意：**一定` never closes: the reader saw asterisks where
+they had written bold. A census of 300 notes found 596 of their 3,220 bold
+runs unparsed for this reason, in a quarter of the files. Typora closes them,
+and so does anybody reading the file.
+
+Both halves of the CommonMark community's own CJK-friendly amendment are in
+now, the reading half and the writing half. The reading half fixes the
+rendering; the writing half matters just as much, because without it the
+serializer keeps the old rules, decides the run cannot close, and escapes the
+Chinese character after it into a numeric reference. Missed runs fell from 596
+to 179.
+
+## 5z. Editing a block rewrote more of it than it had to. Closed, in part.
+
+A block nobody touches is copied from the original bytes, but an edited one is
+written afresh, and the serializer's dialect is not this vault's. Measured by
+parsing and re-serializing every block of 400 notes: 15.2% came back
+different. Four causes, worth 6 points between them.
+
+Emphasis was written with an underscore where the vault writes a star, 5,280
+to 364. Every underscore in a paragraph was escaped, so any sentence naming
+`mcp__claude_api` came back as `mcp\_\_claude\_api`; CommonMark will not
+read emphasis from an underscore with a word character on each side, which is
+the rule that lets snake_case be written plainly, so an identifier is now
+emitted whole. An alert's own `[!TIP]` marker was escaped, which turned the
+callout back into a plain quote the first time anybody edited it. And the CJK
+emphasis above. Together: 15.2% down to 9.4%.
+
+What is left is deliberate. A rule written as six dashes comes back as three,
+a table's cells are padded to their column, and a CRLF file loses one carriage
+return at a fence's first line. Each is a normalisation rather than a loss,
+and the vault is of two minds about table padding, so there is no form to
+prefer.
+
 ## 5k. A line the author broke is now drawn broken. Closed.
 
 CommonMark reads a single newline inside a paragraph as a space, and so did

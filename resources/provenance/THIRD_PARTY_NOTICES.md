@@ -2,9 +2,9 @@
 
 Generated from the installed dependency tree. Do not edit by hand.
 
-- Lockfile SHA-256: `4e512c9487d433a07e4a1ff606840a6da7a608c176e39553c18d4da50f6d2e24`
-- Unique resolved packages: 719
-- Packages with copied license or notice text: 691
+- Lockfile SHA-256: `ac2b44053f8b347ed5abdb194da666bffd7ed87101bfc406dfcad4ddd9e2b34a`
+- Unique resolved packages: 723
+- Packages with copied license or notice text: 695
 - Packages without a root license or notice file: 28
 
 | Package | Declared license | License files | Repository |
@@ -358,6 +358,7 @@ Generated from the installed dependency tree. Do not edit by hand.
 | `galactus@1.0.0` | MIT | LICENSE | git+https://github.com/marshallOfSound/galactus.git |
 | `gar@1.0.4` | MIT | LICENSE | git+https://github.com/ethanent/gar.git |
 | `get-caller-file@2.0.5` | ISC | LICENSE.md | git+https://github.com/stefanpenner/get-caller-file.git |
+| `get-east-asian-width@1.6.0` | MIT | license | sindresorhus/get-east-asian-width |
 | `get-folder-size@2.0.1` | MIT | none found | https://github.com/alessioalex/get-folder-size.git |
 | `get-package-info@1.0.0` | MIT | LICENSE | https://github.com/rahatarmanahmed/get-package-info |
 | `get-stream@4.1.0` | MIT | license | sindresorhus/get-stream |
@@ -453,6 +454,7 @@ Generated from the installed dependency tree. Do not edit by hand.
 | `mdast-util-gfm@3.1.0` | MIT | license | syntax-tree/mdast-util-gfm |
 | `mdast-util-math@3.0.0` | MIT | license | syntax-tree/mdast-util-math |
 | `mdast-util-phrasing@4.1.0` | MIT | license | syntax-tree/mdast-util-phrasing |
+| `mdast-util-to-markdown-cjk-friendly@1.0.0` | MIT | LICENSE | https://github.com/tats-u/markdown-cjk-friendly |
 | `mdast-util-to-markdown@2.1.2` | MIT | license | syntax-tree/mdast-util-to-markdown |
 | `mdast-util-to-string@4.0.0` | MIT | license | syntax-tree/mdast-util-to-string |
 | `mem@4.3.0` | MIT | license | sindresorhus/mem |
@@ -460,6 +462,8 @@ Generated from the installed dependency tree. Do not edit by hand.
 | `merge2@1.4.1` | MIT | LICENSE | git@github.com:teambition/merge2.git |
 | `mermaid@11.17.2` | MIT | LICENSE | https://github.com/mermaid-js/mermaid |
 | `micromark-core-commonmark@2.0.3` | MIT | license | https://github.com/micromark/micromark/tree/main/packages/micromark-core-commonmark |
+| `micromark-extension-cjk-friendly-util@3.0.1` | MIT | LICENSE | https://github.com/tats-u/markdown-cjk-friendly |
+| `micromark-extension-cjk-friendly@2.0.1` | MIT | LICENSE | https://github.com/tats-u/markdown-cjk-friendly |
 | `micromark-extension-frontmatter@2.0.0` | MIT | license | micromark/micromark-extension-frontmatter |
 | `micromark-extension-gfm-autolink-literal@2.1.0` | MIT | license | micromark/micromark-extension-gfm-autolink-literal |
 | `micromark-extension-gfm-footnote@2.1.0` | MIT | license | micromark/micromark-extension-gfm-footnote |
@@ -12490,6 +12494,22 @@ Permission to use, copy, modify, and/or distribute this software for any purpose
 THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
 
+### get-east-asian-width@1.6.0
+
+#### license
+
+```text
+MIT License
+
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
 ### get-package-info@1.0.0
 
 #### LICENSE
@@ -15525,6 +15545,41 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
+### mdast-util-to-markdown-cjk-friendly@1.0.0
+
+#### LICENSE
+
+```text
+Copyright (c) 2025 Tatsunori Uchino <tats.u@live.jp>
+
+MIT LICENSE
+
+Based on remark-gfm:
+
+(The MIT License)
+
+Copyright (c) Titus Wormer <tituswormer@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+'Software'), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
 ### mdast-util-to-markdown@2.1.2
 
 #### license
@@ -15688,6 +15743,76 @@ SOFTWARE.
 #### license
 
 ```text
+(The MIT License)
+
+Copyright (c) Titus Wormer <tituswormer@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+'Software'), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+### micromark-extension-cjk-friendly-util@3.0.1
+
+#### LICENSE
+
+```text
+Copyright (c) 2025 Tatsunori Uchino <tats.u@live.jp>
+
+MIT LICENSE
+
+Based on micromark's sub-packages (micromark-util-character, micromark-util-symbol, and micromark-util-classify-character)
+
+(The MIT License)
+
+Copyright (c) Titus Wormer <tituswormer@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+'Software'), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+### micromark-extension-cjk-friendly@2.0.1
+
+#### LICENSE
+
+```text
+Copyright (c) 2025 Tatsunori Uchino <tats.u@live.jp>
+
+MIT LICENSE
+
+Based on micromark and micromark-core-commonmark
+
 (The MIT License)
 
 Copyright (c) Titus Wormer <tituswormer@gmail.com>

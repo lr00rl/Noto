@@ -1,5 +1,5 @@
 {
-  "lockfileSha256": "4e512c9487d433a07e4a1ff606840a6da7a608c176e39553c18d4da50f6d2e24",
+  "lockfileSha256": "ac2b44053f8b347ed5abdb194da666bffd7ed87101bfc406dfcad4ddd9e2b34a",
   "packages": [
     {
       "name": "@antfu/install-pkg",
@@ -3125,6 +3125,15 @@
       ]
     },
     {
+      "name": "get-east-asian-width",
+      "version": "1.6.0",
+      "license": "MIT",
+      "repository": "sindresorhus/get-east-asian-width",
+      "noticeFiles": [
+        "license"
+      ]
+    },
+    {
       "name": "get-folder-size",
       "version": "2.0.1",
       "license": "MIT",
@@ -3970,6 +3979,15 @@
       ]
     },
     {
+      "name": "mdast-util-to-markdown-cjk-friendly",
+      "version": "1.0.0",
+      "license": "MIT",
+      "repository": "https://github.com/tats-u/markdown-cjk-friendly",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
       "name": "mdast-util-to-markdown",
       "version": "2.1.2",
       "license": "MIT",
@@ -4030,6 +4048,24 @@
       "repository": "https://github.com/micromark/micromark/tree/main/packages/micromark-core-commonmark",
       "noticeFiles": [
         "license"
+      ]
+    },
+    {
+      "name": "micromark-extension-cjk-friendly-util",
+      "version": "3.0.1",
+      "license": "MIT",
+      "repository": "https://github.com/tats-u/markdown-cjk-friendly",
+      "noticeFiles": [
+        "LICENSE"
+      ]
+    },
+    {
+      "name": "micromark-extension-cjk-friendly",
+      "version": "2.0.1",
+      "license": "MIT",
+      "repository": "https://github.com/tats-u/markdown-cjk-friendly",
+      "noticeFiles": [
+        "LICENSE"
       ]
     },
     {
