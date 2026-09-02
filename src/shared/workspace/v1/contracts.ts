@@ -39,6 +39,7 @@ export const WORKSPACE_CHANNELS = {
   openRecentFolder: 'noto:v1:workspace:open-recent-folder',
   reveal: 'noto:v1:workspace:reveal',
   openExternal: 'noto:v1:workspace:open-external',
+  newFile: 'noto:v1:workspace:new-file',
   searchContent: 'noto:v1:workspace:search-content',
 } as const;
 
@@ -186,6 +187,7 @@ export const WORKSPACE_MENU_COMMANDS = [
   'move-column-left',
   'move-column-right',
   'insert-link',
+  'new-file',
   'mark-strong',
   'mark-emphasis',
   'mark-code',
@@ -250,6 +252,21 @@ export interface WorkspaceOpenExternalReplyV1 {
   readonly version: typeof NOTO_WORKSPACE_VERSION;
   /** False when the scheme was not one this opens. */
   readonly opened: boolean;
+}
+
+/**
+ * Make a new note.
+ *
+ * The renderer names no path. Where the note goes is main's decision, taken
+ * from the folder that is open, and the name is the first free one there. A
+ * request that could name its own path would be a request to write anywhere
+ * the application can reach.
+ */
+export interface WorkspaceNewFileReplyV1 {
+  readonly version: typeof NOTO_WORKSPACE_VERSION;
+  readonly created: boolean;
+  /** Absent when there was nowhere to put it. */
+  readonly path: string | null;
 }
 
 /** One line of a file that holds the query. */
@@ -342,5 +359,6 @@ export interface NotoWorkspaceApiV1 {
   folder(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceFolderEventV1>>;
   reveal(request: WorkspaceRevealRequestV1): Promise<WorkspaceResultV1<WorkspaceRevealReplyV1>>;
   openExternal(request: WorkspaceOpenExternalRequestV1): Promise<WorkspaceResultV1<WorkspaceOpenExternalReplyV1>>;
+  newFile(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceNewFileReplyV1>>;
   searchContent(request: WorkspaceContentRequestV1): Promise<WorkspaceResultV1<WorkspaceContentReplyV1>>;
 }

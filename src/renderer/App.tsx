@@ -1209,6 +1209,15 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
           setLocalMessage('That does not apply where the cursor is.');
         }
         break;
+      case 'new-file':
+        void window.notoWorkspace.newFile({ version: 1, requestId: rid('new-file') })
+          .then((result) => {
+            if (result.ok && result.value.created) return;
+            setLocalMessage(result.ok
+              ? 'Open a folder first, and the new note goes in it.'
+              : actionableFileTruthMessage(result.error.message, 'The note could not be made.'));
+          });
+        break;
       case 'toggle-focus-mode':
         changeSettings({ focusMode: !settings.focusMode });
         break;
