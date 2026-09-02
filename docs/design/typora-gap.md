@@ -360,6 +360,23 @@ first snapshot batch of that same startup spends. Deliberately one shot: a
 plugin the reader enables later is meant to stay idle until they activate it,
 and an announcement left standing would start it the moment it was enabled.
 
+## 5t. There was no menu on a right click, so spell check had no answers. Closed.
+
+Nothing at all came up on a right click, which meant the spell checker could
+underline a word and offer nothing to do about it. There is a menu now, built
+in main because that is where the clipboard roles and the dictionary's own
+suggestions live. It shows only what the click is about: the spelling
+section over a misspelled word, with up to five suggestions and a way to add
+the word; a link's or a picture's address when the click is on one; and
+otherwise the clipboard, including pasting as plain text, which for a file
+made of markdown is what is wanted more often than the fragment's own markup.
+
+Pasting itself was already right and had no test. A fragment copied from a web
+page arrives as the markdown it means, headings at their own level, bold and
+links as marks, lists as lists, and the file it saves has no HTML in it. A
+fragment pasted into the middle of a sentence merges with that sentence, which
+is what every editor does; on a line of its own the blocks survive.
+
 ## 5k. A line the author broke is now drawn broken. Closed.
 
 CommonMark reads a single newline inside a paragraph as a space, and so did
