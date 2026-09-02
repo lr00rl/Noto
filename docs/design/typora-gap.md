@@ -992,6 +992,31 @@ block around it, and it is wrapped in a single paragraph rather than one each,
 because a mark running across two text nodes is one run of markdown and
 splitting it would close and reopen the delimiters in the middle.
 
+## 54. Two things that looked like faults and were not.
+
+The rail was opened on the author's own vault, three folders deep, and two
+things looked wrong in the picture.
+
+Long names are cut at the rail's edge with no ellipsis. That is deliberate:
+the tree is as wide as its widest row, so the rail scrolls sideways and shows
+the whole name rather than the first half of it. Typora clips too, and its
+node titles are set to `clip` rather than `ellipsis`, so it cannot show the
+rest at all. The ellipsis was added, found to do nothing, and taken out again;
+the reason it is absent is now written where the next person will look.
+
+The folders above the one being read were not pinned to the top. Also
+deliberate, and the rule says so: only folders on the path to the note in
+front are sticky, so the rail reads as where the file you are in lives rather
+than as a stack of everything ever opened. Nothing was open in that picture.
+
+Two more from the same pass are genuinely absent and are left that way on
+purpose. Structural selection and deletion, which Typora puts on Edit, is
+already there from the platform: Option and Backspace takes a word, Command
+and Backspace takes the line, Option and Shift and an arrow selects a word.
+Building those would be reimplementing macOS. And export, which is the largest
+thing Typora has and this does not, needs a rendering pipeline this does not
+carry; it is a real gap and a whole piece of work rather than an afternoon's.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form

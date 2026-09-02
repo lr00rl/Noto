@@ -1200,7 +1200,11 @@
 /* The name sits above the stem and paints the rail's own background behind
    itself, so a connector never runs through a letter. It is also its own
    element because the row is a flex container and `text-overflow` does not
-   reach a bare text node inside one. */
+   reach a bare text node inside one.
+   No ellipsis, deliberately. The tree is `width: max-content` so the rail
+   scrolls sideways to a long name, which shows the whole of it rather than
+   the first half; Typora clips without an ellipsis too, and cannot scroll to
+   the rest. Truncating here would need that scroll taken away first. */
 .tree-name {
   position: relative;
   white-space: nowrap;
