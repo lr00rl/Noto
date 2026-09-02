@@ -290,6 +290,12 @@ scale from a paragraph up to a first-level heading and back down again rather
 than jumping to a level by number. All of those are bound now, alongside the
 bindings this already had.
 
+Its block types are on Option and Command together: a maths block on B, a
+fence on C, a quote on Q, an ordered list on O, a bullet list on U, a task
+list on X and a rule on the minus. Those are bound too. Opening a folder moved
+off Option and Command with O, since a menu accelerator wins over the editor's
+own keys and a list is made far more often than a folder is opened.
+
 Two of them cannot be written as text. A `<u>` typed into a paragraph is
 escaped when the paragraph is saved, because a bare `<` could open anything,
 and comes back as `\<u>`; a `$` is escaped for the same reason. Underline

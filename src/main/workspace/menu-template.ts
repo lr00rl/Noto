@@ -75,7 +75,10 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
     label: '&File',
     submenu: [
       { id: 'open-dialog', label: 'Open…', accelerator: 'CmdOrCtrl+O', click: () => actions.openDialog() },
-      { id: 'open-folder', label: 'Open Folder…', accelerator: 'CmdOrCtrl+Alt+O', click: () => actions.openFolder() },
+      // Not Option and Command with O: Typora gives that pair to Ordered List,
+      // and a menu accelerator wins over the editor's own keys. Opening a
+      // folder happens once a session; making a list happens all day.
+      { id: 'open-folder', label: 'Open Folder…', accelerator: 'CmdOrCtrl+Alt+Shift+O', click: () => actions.openFolder() },
       // The fastest way into a vault of a few thousand notes, so it sits with
       // the other ways of opening one rather than under a search menu.
       command('Quick Open…', 'CmdOrCtrl+P', 'quick-open'),

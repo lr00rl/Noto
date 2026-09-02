@@ -3,7 +3,9 @@ import { EditorState, TextSelection } from 'prosemirror-state';
 import { splitBlocks } from '../../src/shared/markdown/v3/blocks';
 import { docFromSpans } from '../../src/shared/markdown/v3/pm/from-mdast';
 import { blockToMarkdown } from '../../src/shared/markdown/v3/pm/to-mdast';
-import { shiftHeading, surround, surroundTag, wrapInMath } from '../../src/renderer/editor/noto/keymap';
+import {
+  insertRule, shiftHeading, surround, surroundTag, toggleTaskList, wrapInMath,
+} from '../../src/renderer/editor/noto/keymap';
 import type { Command } from 'prosemirror-state';
 
 /** A state with the caret, or a range, placed in the document. */
@@ -50,5 +52,24 @@ describe("Typora's own bindings", () => {
   it('stops at the ends of the scale', () => {
     expect(run(stateFor('# one', 3), shiftHeading(true))).toBeNull();
     expect(run(stateFor('one', 2), shiftHeading(false))).toBeNull();
+  });
+});
+
+describe("Typora's block types, on Option and Command", () => {
+  it('marks a list item as a task, and unmarks it', () => {
+    expect(run(stateFor('- one', 3), toggleTaskList)).toBe('- [ ] one');
+    expect(run(stateFor('- [ ] one', 7), toggleTaskList)).toBe('- one');
+  });
+
+  it('makes a list out of a paragraph that is not one yet', () => {
+    expect(run(stateFor('one', 2), toggleTaskList)).toBe('- one');
+  });
+
+  it('puts a rule where the caret is', () => {
+    const state = stateFor('one', 4);
+    let next: EditorState | null = null;
+    expect(insertRule(state, (tr) => { next = state.apply(tr); })).toBe(true);
+    expect((next as unknown as EditorState).doc.childCount).toBe(2);
+    expect((next as unknown as EditorState).doc.child(1).type.name).toBe('horizontal_rule');
   });
 });

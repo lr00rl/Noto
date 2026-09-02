@@ -20,7 +20,7 @@ import {
   toggleMark,
   wrapIn,
 } from 'prosemirror-commands';
-import { liftListItem, sinkListItem, splitListItem } from 'prosemirror-schema-list';
+import { liftListItem, sinkListItem, splitListItem, wrapInList } from 'prosemirror-schema-list';
 import { redo, undo } from 'prosemirror-history';
 import { goToNextCell } from 'prosemirror-tables';
 import { TextSelection, type Command, type Plugin } from 'prosemirror-state';
@@ -122,6 +122,34 @@ export const wrapInMath: Command = (state, dispatch) => {
   return true;
 };
 
+/**
+ * Turn the block into a task list, which is a bullet list whose items carry a
+ * checked state. Already a task list, and the state comes off again, which is
+ * what a toggle in a menu is expected to do.
+ */
+export const toggleTaskList: Command = (state, dispatch) => {
+  const { $from } = state.selection;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const node = $from.node(depth);
+    if (node.type !== nodes.list_item) continue;
+    const position = $from.before(depth);
+    const checked = node.attrs.checked === null ? false : null;
+    if (dispatch) dispatch(state.tr.setNodeMarkup(position, undefined, { ...node.attrs, checked }));
+    return true;
+  }
+  // Not in a list yet: make one, then the next press marks it.
+  return wrapInList(nodes.bullet_list)(state, dispatch);
+};
+
+/** Put a horizontal rule where the caret is, as Typora's Horizontal Line does. */
+export const insertRule: Command = (state, dispatch) => {
+  if (!state.selection.$from.parent.isTextblock) return false;
+  if (dispatch) {
+    dispatch(state.tr.replaceSelectionWith(nodes.horizontal_rule.create()).scrollIntoView());
+  }
+  return true;
+};
+
 /** Exported for the same reason as `surround`. */
 export function shiftHeading(towardsTitle: boolean): Command {
   return (state, dispatch) => {
@@ -165,6 +193,14 @@ export function notoKeymap({ mac }: { mac: boolean }): Plugin[] {
     ])),
 
     [`${mod}-Shift-k`]: setBlockType(nodes.code_block),
+    // Typora keeps its block types on Option and Command together.
+    [`${mod}-Alt-c`]: setBlockType(nodes.code_block),
+    [`${mod}-Alt-b`]: setBlockType(nodes.math_block),
+    [`${mod}-Alt-q`]: wrapIn(nodes.blockquote),
+    [`${mod}-Alt-o`]: wrapInList(nodes.ordered_list),
+    [`${mod}-Alt-u`]: wrapInList(nodes.bullet_list),
+    [`${mod}-Alt-x`]: toggleTaskList,
+    [`${mod}-Alt--`]: insertRule,
     // Typora's own bindings for the marks markdown has no key for, so a hand
     // that learned them there does not have to learn them again. Its inline
     // code, strike and maths are on Control rather than Command.
