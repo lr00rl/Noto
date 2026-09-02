@@ -33,6 +33,7 @@ import {
   goToNextCell,
   isInTable,
 } from 'prosemirror-tables';
+import { moveBlock, moveColumn } from './move-block';
 import { TextSelection, type Command, type Plugin } from 'prosemirror-state';
 import { notoSchema } from '../../../shared/markdown/v3/pm/schema';
 
@@ -249,6 +250,10 @@ export const EDITOR_COMMANDS: Readonly<Record<string, Command>> = {
   'table-row-delete': deleteRow,
   'table-column-delete': deleteColumn,
   'table-delete': deleteTable,
+  'move-up': moveBlock(true),
+  'move-down': moveBlock(false),
+  'move-column-left': moveColumn(true),
+  'move-column-right': moveColumn(false),
 };
 
 export function notoKeymap({ mac }: { mac: boolean }): Plugin[] {
@@ -300,6 +305,13 @@ export function notoKeymap({ mac }: { mac: boolean }): Plugin[] {
 
     Tab: chainCommands(nextCellOrRow, sinkListItem(nodes.list_item)),
     'Shift-Tab': chainCommands(goToNextCell(-1), liftListItem(nodes.list_item)),
+    // Typora's own: one key moves a line of code, a table row, or the block
+    // itself, depending on what the caret is in. Columns get their own.
+    'Alt-ArrowUp': moveBlock(true),
+    'Alt-ArrowDown': moveBlock(false),
+    [`${mod}-Ctrl-ArrowLeft`]: moveColumn(true),
+    [`${mod}-Ctrl-ArrowRight`]: moveColumn(false),
+
     [`${mod}-]`]: sinkListItem(nodes.list_item),
     [`${mod}-[`]: liftListItem(nodes.list_item),
   };

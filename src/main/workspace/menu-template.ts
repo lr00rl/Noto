@@ -145,6 +145,9 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       command('Increase Heading Level', 'CmdOrCtrl+=', 'block-heading-up'),
       command('Decrease Heading Level', 'CmdOrCtrl+-', 'block-heading-down'),
       { type: 'separator' },
+      command('Move Up', 'Alt+Up', 'move-up'),
+      command('Move Down', 'Alt+Down', 'move-down'),
+      { type: 'separator' },
       {
         label: 'Table',
         submenu: [
@@ -154,6 +157,9 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
           command('Add Row Below', undefined, 'table-row-below'),
           command('Add Column Before', undefined, 'table-column-before'),
           command('Add Column After', undefined, 'table-column-after'),
+          { type: 'separator' },
+          command('Move Column Left', 'CmdOrCtrl+Ctrl+Left', 'move-column-left'),
+          command('Move Column Right', 'CmdOrCtrl+Ctrl+Right', 'move-column-right'),
           { type: 'separator' },
           command('Delete Row', undefined, 'table-row-delete'),
           command('Delete Column', undefined, 'table-column-delete'),
