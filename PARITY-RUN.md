@@ -91,3 +91,38 @@ Speed was measured, not assumed: `docs/performance/large-documents.md`.
 Where the record lives: `docs/design/typora-gap.md` for what was found and
 what was done, `docs/design/chrome.md` for the window, `docs/theming.md` for
 what a theme can reach.
+
+## The afternoon: driving the product instead of reading it
+
+The corpus measurement had been the best instrument all morning and it ran
+out of road. What replaced it was cruder and found more: copy a real note,
+open it in the packaged application, type one letter into a block, save, read
+the file back, and check that every line the reader did not touch survives.
+It lives in `scripts/edit-sweep.mjs` and it covers a paragraph, a heading, a
+list item, a table cell, a line of code and a line inside a quote.
+
+It found the worst fault of the day on its first run. A paragraph the author
+wrapped by hand holds newlines, and the editor drew them correctly but
+collapsed them to spaces the moment it read its own DOM back after a
+keystroke. One letter joined every line of the paragraph. 5,339 of the 7,047
+notes have such a paragraph, 341,174 of them in all. Headings had the same
+fault through setext underlines, 2,963 notes more. The flag that fixes it is
+`whitespace` on the node spec, not `preserveWhitespace` on the parse rule,
+which is worth writing down because the wrong one changes nothing and looks
+right.
+
+The same technique found a link with a bold word in it splitting into two
+links on save, 1,491 of those in the vault.
+
+What was added, each read out of the running Typora rather than remembered:
+the hyperlink panel and following a link, which the vault wanted most at
+14,417 inline links; the rails a table is taken hold of by; moving a line, a
+row, a column or a block; callouts; a Format menu; the word count; making a
+note at all, which the File menu could not do; and copying as markdown, which
+the author's Typora does by default.
+
+Three independent reviews at the end found four more, two of which the
+testing had already closed, and one that was wrong on reading the code.
+
+Speed with all of it on the author's largest note, 2.95 MB and 10,937 blocks:
+1.6 seconds to open, 51 milliseconds a keystroke.
