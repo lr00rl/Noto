@@ -63,6 +63,12 @@ export interface WorkspaceFolderEventV1 {
   readonly version: typeof NOTO_WORKSPACE_VERSION;
   readonly root: string | null;
   readonly name: string | null;
+  /**
+   * Whether the reader asked for this folder, rather than it arriving with a
+   * note opened on its own. Only a folder that was asked for shows the tree;
+   * the other kind would open the rail against the reader's own setting.
+   */
+  readonly chosen: boolean;
 }
 
 /**

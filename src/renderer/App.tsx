@@ -634,12 +634,12 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       setActiveId(activeTab?.documentId ?? null);
       activeIdRef.current = activeTab?.documentId ?? null;
     });
-    const adoptFolder = (event: { root: string | null; name: string | null }) => {
+    const adoptFolder = (event: { root: string | null; name: string | null; chosen?: boolean }) => {
       setFolder({ root: event.root, name: event.name });
       // A new folder changes what main will serve as an image, so notes that
       // are already open draw theirs again rather than keeping a stale refusal.
       editorsRef.current.forEach((editor) => editor.refreshImages());
-      if (event.root) setRail({ open: true, view: 'files' });
+      if (event.root && event.chosen) setRail({ open: true, view: 'files' });
       // Every route into a folder ends here, including the menu item, which
       // does not go through the renderer's own handler at all.
       refreshRecentFoldersRef.current();

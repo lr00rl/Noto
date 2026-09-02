@@ -103,9 +103,10 @@ function isFolderReply(value: unknown): value is WorkspaceFolderReplyV1 {
 }
 
 export function isWorkspaceFolderEventV1(value: unknown): value is WorkspaceFolderEventV1 {
-  return record(value) && exact(value, ['version', 'root', 'name']) && value.version === 1
+  return record(value) && exact(value, ['version', 'root', 'name', 'chosen']) && value.version === 1
     && (value.root === null || (typeof value.root === 'string' && value.root.length <= 4096))
-    && (value.name === null || (typeof value.name === 'string' && value.name.length <= 512));
+    && (value.name === null || (typeof value.name === 'string' && value.name.length <= 512))
+    && typeof value.chosen === 'boolean';
 }
 
 export const isWorkspaceFolderResultV1 = (value: unknown, id: string): value is WorkspaceResultV1<WorkspaceFolderEventV1> =>

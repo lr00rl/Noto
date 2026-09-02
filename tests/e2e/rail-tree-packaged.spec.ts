@@ -108,3 +108,64 @@ test.describe('the rail tree', () => {
     }
   });
 });
+
+test.describe('a note opened on its own', () => {
+  /** One note among others, opened directly, the way Finder opens a file. */
+  async function launchFile(name: string) {
+    const workspace = path.join(resultRoot, name);
+    await rm(workspace, { recursive: true, force: true });
+    const vault = path.join(workspace, 'vault');
+    await mkdir(path.join(vault, 'sub'), { recursive: true });
+    await mkdir(path.join(workspace, 'user-data'), { recursive: true });
+    await writeFile(path.join(vault, 'opened.md'), '# Opened\n', 'utf8');
+    await writeFile(path.join(vault, 'sibling.md'), '# Sibling\n', 'utf8');
+    await writeFile(path.join(vault, 'sub', 'deeper.md'), '# Deeper\n', 'utf8');
+    const app = await electron.launch({
+      executablePath: packagedExecutable(),
+      args: [`--user-data-dir=${path.join(workspace, 'user-data')}`, `--open=${path.join(vault, 'opened.md')}`],
+    });
+    const page = await app.firstWindow();
+    await page.setViewportSize({ width: 1100, height: 600 });
+    await page.waitForSelector('[data-testid="noto-editor"]', { state: 'visible', timeout: 30_000 });
+    return { app, page };
+  }
+
+  /** The shortcut is a menu accelerator, which only the menu item can fire. */
+  async function invokeMenu(app: ElectronApplication, id: string): Promise<void> {
+    await app.evaluate(({ Menu }, itemId) => {
+      const find = (items: Electron.MenuItem[]): Electron.MenuItem | null => {
+        for (const item of items) {
+          if (item.id === itemId) return item;
+          const nested = item.submenu ? find(item.submenu.items) : null;
+          if (nested) return nested;
+        }
+        return null;
+      };
+      const menu = Menu.getApplicationMenu();
+      const target = menu ? find(menu.items) : null;
+      if (!target) throw new Error(`No menu item with id ${itemId}`);
+      target.click();
+    }, id);
+  }
+
+  test('brings its own folder with it, so quick open has something to search', async () => {
+    const { app, page } = await launchFile('lone-file');
+    try {
+      // The rail stays shut: the reader did not ask for this folder, and the
+      // setting that decides whether it opens at launch is off by default.
+      await expect(page.getByTestId('file-tree')).toBeHidden();
+
+      await invokeMenu(app, 'quick-open');
+      await page.getByTestId('quick-input').fill('deeper');
+      await expect(page.getByTestId('quick-result').first()).toContainText('deeper.md');
+
+      await page.keyboard.press('Escape');
+      // And the tree knows the folder once it is asked for.
+      await page.getByTestId('sidebar-toggle').click();
+      await expect(page.getByTestId('tree-vault')).toContainText('vault');
+      await expect(page.getByTestId('file-tree')).toContainText('sibling.md');
+    } finally {
+      await app.close();
+    }
+  });
+});

@@ -796,7 +796,7 @@
 }
 
 .find-input {
-  flex: 1 1 14rem;
+  flex: 1 1 12rem;
   min-width: 8rem;
   padding: 5px 8px;
   font: inherit;
@@ -812,10 +812,11 @@
   }
 }
 
-/* Fixed width so the row does not shuffle as the count changes width. */
+/* Fixed width so the row does not shuffle as the count changes width. Wide
+   enough for "No results", which is the longest thing it says. */
 .find-status {
   flex: 0 0 auto;
-  min-width: 5.5rem;
+  min-width: 4.5rem;
   font-size: 0.76rem;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
@@ -861,10 +862,11 @@
   &:disabled { opacity: 0.45; cursor: default; }
 }
 
+/* Closing is not the reason the bar is open, and Escape closes it anyway. It
+   was filled in the ink colour, which made it the darkest thing in the window
+   and the first place the eye landed. It now reads as one more control. */
 .find-close {
-  color: var(--paper);
-  background: var(--ink);
-  border-color: var(--ink);
+  color: var(--muted);
 }
 
 /* Every match is tinted; the current one is inverted so it reads as selected
