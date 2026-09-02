@@ -13,6 +13,9 @@ import type { SearchOptions } from './editor/noto/search';
 export interface FindBarProps {
   readonly open: boolean;
   readonly showReplace: boolean;
+  /** A query to start from, when the bar was opened by something that already
+   *  knows what is being looked for. Empty means the reader will type it. */
+  readonly initialQuery?: string;
   /** Reports the query as it is typed, so matches highlight while typing. */
   readonly onSearch: (options: SearchOptions) => { matches: number; active: number };
   readonly onGo: (direction: 'forward' | 'backward') => { matches: number; active: number };
@@ -22,7 +25,7 @@ export interface FindBarProps {
 
 const NO_RESULTS = { matches: 0, active: -1 };
 
-export function FindBar({ open, showReplace, onSearch, onGo, onReplace, onClose }: FindBarProps) {
+export function FindBar({ open, showReplace, initialQuery, onSearch, onGo, onReplace, onClose }: FindBarProps) {
   const [query, setQuery] = useState('');
   const [replacement, setReplacement] = useState('');
   const [caseSensitive, setCaseSensitive] = useState(false);
@@ -39,6 +42,19 @@ export function FindBar({ open, showReplace, onSearch, onGo, onReplace, onClose 
     if (!open) return;
     setResults(query.length === 0 ? NO_RESULTS : onSearch(options));
   }, [open, query, caseSensitive, wholeWord, regex]);
+
+  /*
+   * Adopt a query the bar was opened with.
+   *
+   * Setting the state is all that is needed: the effect above already searches
+   * whenever the query changes, so a content-search result and a typed query
+   * reach the editor by exactly the same path. Calling the editor's search
+   * directly instead would leave this bar showing an empty field beside
+   * highlighted text, which is what it did.
+   */
+  useEffect(() => {
+    if (open && initialQuery) setQuery(initialQuery);
+  }, [open, initialQuery]);
 
   useEffect(() => {
     if (!open) return;

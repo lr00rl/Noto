@@ -80,6 +80,8 @@ import type {
   WorkspaceRequestV1,
   WorkspaceResultV1,
   WorkspaceIndexReplyV1,
+  WorkspaceContentReplyV1,
+  WorkspaceContentRequestV1,
   WorkspaceRevealReplyV1,
   WorkspaceRevealRequestV1,
   WorkspaceSaveAsReplyV1,
@@ -101,6 +103,8 @@ import {
   isWorkspaceRecentResultV1,
   isWorkspaceRequestV1,
   isWorkspaceIndexResultV1,
+  isWorkspaceContentRequestV1,
+  isWorkspaceContentResultV1,
   isWorkspaceRevealRequestV1,
   isWorkspaceRevealResultV1,
   isWorkspaceSaveAsResultV1,
@@ -304,6 +308,9 @@ const workspaceApi: NotoWorkspaceApiV1 = Object.freeze({
   openRecentFolder: (request: WorkspaceOpenPathRequestV1) => isWorkspaceOpenPathRequestV1(request)
     ? invokeWorkspace<WorkspaceFolderEventV1>(WORKSPACE_CHANNELS.openRecentFolder, request, request.requestId, isWorkspaceFolderResultV1)
     : Promise.resolve(rejectedWorkspace<WorkspaceFolderEventV1>('invalid', 'Invalid open recent folder request')),
+  searchContent: (request: WorkspaceContentRequestV1) => isWorkspaceContentRequestV1(request)
+    ? invokeWorkspace<WorkspaceContentReplyV1>(WORKSPACE_CHANNELS.searchContent, request, request.requestId, isWorkspaceContentResultV1)
+    : Promise.resolve(rejectedWorkspace<WorkspaceContentReplyV1>('invalid', 'Invalid content search request')),
   reveal: (request: WorkspaceRevealRequestV1) => isWorkspaceRevealRequestV1(request)
     ? invokeWorkspace<WorkspaceRevealReplyV1>(WORKSPACE_CHANNELS.reveal, request, request.requestId, isWorkspaceRevealResultV1)
     : Promise.resolve(rejectedWorkspace<WorkspaceRevealReplyV1>('invalid', 'Invalid reveal request')),

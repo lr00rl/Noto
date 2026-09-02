@@ -18,9 +18,11 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { WorkspaceIndexEntryV1 } from '../shared/workspace/v1/contracts';
+import type {
+  WorkspaceContentMatchV1, WorkspaceIndexEntryV1,
+} from '../shared/workspace/v1/contracts';
 import {
-  isPathQuery, matchPositions, rankCandidates, type ScoreKeys,
+  contentDebounceMs, isPathQuery, matchPositions, rankCandidates, type ScoreKeys,
 } from '../shared/search/v1/fuzzy';
 import { searchBoost, type FrecencyStoreV1 } from '../shared/search/v1/frecency';
 
@@ -31,8 +33,21 @@ interface Candidate extends ScoreKeys {
   readonly entry: WorkspaceIndexEntryV1;
 }
 
+export type QuickOpenMode = 'name' | 'content';
+
 export interface QuickOpenProps {
   readonly open: boolean;
+  readonly mode: QuickOpenMode;
+  readonly onMode: (mode: QuickOpenMode) => void;
+  /** Runs a content search. Replies for superseded queries are dropped by the
+   *  caller, so this only ever has to answer the last one asked. */
+  readonly onSearchContent: (query: string) => Promise<{
+    matches: readonly WorkspaceContentMatchV1[];
+    truncated: boolean;
+    timedOut: boolean;
+  } | null>;
+  /** Opens a note and puts the query's first match on screen. */
+  readonly onOpenMatch: (path: string, query: string) => void;
   readonly entries: readonly WorkspaceIndexEntryV1[];
   readonly frecency: FrecencyStoreV1;
   readonly truncated: boolean;
@@ -61,7 +76,8 @@ function Highlighted({ text, query }: { text: string; query: string }) {
 }
 
 export function QuickOpen({
-  open, entries, frecency, truncated, canInsertLink, onOpenFile, onInsertLink, onClose,
+  open, mode, onMode, onSearchContent, onOpenMatch,
+  entries, frecency, truncated, canInsertLink, onOpenFile, onInsertLink, onClose,
 }: QuickOpenProps) {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
@@ -74,6 +90,41 @@ export function QuickOpen({
     setSelected(0);
     queueMicrotask(() => inputRef.current?.focus({ preventScroll: true }));
   }, [open]);
+
+  const [content, setContent] = useState<{
+    matches: readonly WorkspaceContentMatchV1[]; truncated: boolean; timedOut: boolean;
+  }>({ matches: [], truncated: false, timedOut: false });
+  const [searching, setSearching] = useState(false);
+
+  /*
+   * The scan is debounced and superseded.
+   *
+   * A reply for a query the reader has already typed past is worse than no
+   * reply: it replaces what they are looking at with an answer to a question
+   * they have moved on from. The effect's own cleanup marks the request stale,
+   * so only the last one asked is ever shown.
+   */
+  useEffect(() => {
+    if (!open || mode !== 'content') return;
+    const trimmed = query.trim();
+    if (trimmed.length === 0) {
+      setContent({ matches: [], truncated: false, timedOut: false });
+      setSearching(false);
+      return;
+    }
+    let current = true;
+    setSearching(true);
+    const timer = setTimeout(() => {
+      void onSearchContent(trimmed).then((reply) => {
+        if (!current) return;
+        setSearching(false);
+        if (reply) setContent(reply);
+      });
+    }, contentDebounceMs(trimmed));
+    return () => { current = false; clearTimeout(timer); };
+  }, [open, mode, query, onSearchContent]);
+
+  useEffect(() => { setSelected(0); }, [mode]);
 
   const candidates = useMemo<Candidate[]>(() => entries.map((entry) => ({
     entry,
@@ -124,23 +175,38 @@ export function QuickOpen({
     onClose();
   }, [canInsertLink, onClose, onInsertLink, onOpenFile]);
 
+  const chooseMatch = useCallback((match: WorkspaceContentMatchV1 | undefined) => {
+    if (!match) return;
+    onOpenMatch(match.path, query.trim());
+    onClose();
+  }, [onClose, onOpenMatch, query]);
+
+  const rowCount = mode === 'content' ? content.matches.length : results.length;
+
   const onKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
+    // Tab switches what is being searched without leaving the box, which is
+    // where the thought "it is in a note, I just cannot remember which" turns
+    // into "search inside them then".
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      onMode(mode === 'name' ? 'content' : 'name');
+      return;
+    }
     if (event.key === 'ArrowDown' || (event.ctrlKey && event.key === 'n')) {
       event.preventDefault();
-      setSelected((current) => (results.length === 0 ? 0 : (current + 1) % results.length));
+      setSelected((current) => (rowCount === 0 ? 0 : (current + 1) % rowCount));
       return;
     }
     if (event.key === 'ArrowUp' || (event.ctrlKey && event.key === 'p')) {
       event.preventDefault();
-      setSelected((current) => (results.length === 0
-        ? 0
-        : (current - 1 + results.length) % results.length));
+      setSelected((current) => (rowCount === 0 ? 0 : (current - 1 + rowCount) % rowCount));
       return;
     }
     if (event.key === 'Enter') {
       event.preventDefault();
-      choose(results[selected], event.altKey);
+      if (mode === 'content') chooseMatch(content.matches[selected]);
+      else choose(results[selected], event.altKey);
     }
   };
 
@@ -156,6 +222,17 @@ export function QuickOpen({
         data-testid="quick-open"
         onClick={(event) => event.stopPropagation()}
       >
+        <div className="quick-input-row">
+        <button
+          type="button"
+          className="quick-mode"
+          data-testid="quick-mode"
+          aria-label={mode === 'name' ? 'Searching names. Switch to searching inside notes' : 'Searching inside notes. Switch to searching names'}
+          title="Tab"
+          onClick={() => onMode(mode === 'name' ? 'content' : 'name')}
+        >
+          {mode === 'name' ? 'Names' : 'In notes'}
+        </button>
         <input
           ref={inputRef}
           type="text"
@@ -164,7 +241,9 @@ export function QuickOpen({
           spellCheck={false}
           placeholder={entries.length === 0
             ? 'Open a folder to search it'
-            : `Search ${entries.length} notes`}
+            : mode === 'content'
+              ? `Search inside ${entries.length} notes`
+              : `Search ${entries.length} notes`}
           aria-label="Search notes"
           role="combobox"
           aria-expanded
@@ -174,9 +253,54 @@ export function QuickOpen({
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={onKeyDown}
         />
+        </div>
 
         <div className="quick-results" id="quick-open-results" role="listbox" ref={listRef}>
-          {results.length === 0
+          {mode === 'content' ? (
+            content.matches.length === 0
+              ? (
+                <p className="quick-empty">
+                  {query.trim().length === 0
+                    ? 'Type to search inside every note in this folder.'
+                    : searching
+                      ? 'Searching…'
+                      : content.timedOut
+                        ? 'That search took too long. Try a longer query.'
+                        : 'No note contains that.'}
+                </p>
+              )
+              : content.matches.map((match, index) => (
+                <button
+                  key={match.path}
+                  id={`quick-result-${index}`}
+                  type="button"
+                  role="option"
+                  aria-selected={index === selected}
+                  className={index === selected ? 'quick-result is-selected' : 'quick-result'}
+                  data-testid="quick-match"
+                  onMouseMove={() => setSelected(index)}
+                  onClick={() => chooseMatch(match)}
+                >
+                  <span className="quick-name">
+                    {match.name}
+                    <span className="quick-count">{match.occurrences}</span>
+                  </span>
+                  {match.lines.map((line) => (
+                    <span className="quick-line" key={line.lineNumber}>
+                      <span className="quick-line-number">{line.lineNumber}</span>
+                      <span className="quick-line-text">
+                        {line.line.slice(0, line.column)}
+                        <mark className="quick-hit">
+                          {line.line.slice(line.column, line.column + query.trim().length)}
+                        </mark>
+                        {line.line.slice(line.column + query.trim().length)}
+                      </span>
+                    </span>
+                  ))}
+                  <span className="quick-path">{match.relativePath}</span>
+                </button>
+              ))
+          ) : results.length === 0
             ? (
               <p className="quick-empty">
                 {entries.length === 0
@@ -212,9 +336,13 @@ export function QuickOpen({
 
         <footer className="quick-hints">
           <span><kbd>↩</kbd> open</span>
-          {canInsertLink && <span><kbd>⌥↩</kbd> insert link</span>}
+          {mode === 'name' && canInsertLink && <span><kbd>⌥↩</kbd> insert link</span>}
+          <span><kbd>tab</kbd> {mode === 'name' ? 'search in notes' : 'search names'}</span>
           <span><kbd>esc</kbd> close</span>
-          {truncated && (
+          {mode === 'content' && content.truncated && (
+            <span className="quick-truncated">Showing the first {content.matches.length}.</span>
+          )}
+          {mode === 'name' && truncated && (
             <span className="quick-truncated">
               Index is partial: this folder is larger than the ceiling.
             </span>

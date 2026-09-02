@@ -1202,13 +1202,39 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   box-shadow: 0 24px 64px -16px color-mix(in srgb, var(--ink) 42%, transparent);
 }
 
-.quick-input {
+.quick-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   flex: 0 0 auto;
-  border: 0;
   border-bottom: 1px solid var(--hairline);
+  padding-left: 14px;
+}
+
+/* What is being searched, stated rather than guessed at from the results.
+   It is a button because Tab already switches it and a label you can click is
+   the same affordance said twice more cheaply than a second control. */
+.quick-mode {
+  flex: 0 0 auto;
+  min-height: 20px;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  background: var(--panel);
+  padding: 1px 7px;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.quick-mode:hover { color: var(--ink); background: var(--raised); }
+
+.quick-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
   border-radius: 0;
   background: transparent;
-  padding: 14px 16px;
+  padding: 14px 16px 14px 0;
   color: var(--ink);
   font-size: 15px;
 }
@@ -1267,6 +1293,45 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   background: none;
   color: var(--accent);
   font-weight: 600;
+}
+
+/* A content match shows the lines it found, which is the whole reason to search
+   inside notes rather than across their names. */
+.quick-line {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  margin-top: 1px;
+  font-family: tokens.$mono;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.quick-line-number {
+  flex: 0 0 auto;
+  min-width: 2.5em;
+  color: var(--muted);
+  opacity: 0.7;
+  text-align: right;
+}
+
+.quick-line-text {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.is-selected .quick-line-text { color: var(--ink); }
+
+/* How many times it appears, which is what ranked it. */
+.quick-count {
+  margin-left: 6px;
+  color: var(--muted);
+  font-family: tokens.$mono;
+  font-size: 10px;
+  font-weight: 400;
 }
 
 .quick-empty {

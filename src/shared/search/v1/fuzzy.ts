@@ -184,3 +184,21 @@ export function rankCandidates<T extends ScoreKeys>(
 
   return heap.sort(worseFirst).map((entry) => entry.candidate);
 }
+
+/**
+ * How long to wait after a keystroke before searching inside the notes.
+ *
+ * Adaptive, because the cost is not the same for every query. One or two
+ * characters match nearly every file, so the scan does the most work and
+ * returns the least useful answer; a longer query is both cheaper to satisfy
+ * and more likely to be what the reader actually meant, so it starts sooner.
+ * Ported from the same plugin as the ranking, where these numbers were tuned
+ * against a vault this size.
+ */
+export function contentDebounceMs(query: string): number {
+  const length = [...query.trim()].length;
+  if (length === 0) return 120;
+  if (length === 1) return 420;
+  if (length === 2) return 320;
+  return 240;
+}

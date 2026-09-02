@@ -22,13 +22,14 @@ import {
   type WorkspaceFolderEventV1,
 } from '../../shared/workspace/v1/contracts';
 import type {
-  WorkspaceIndexReplyV1, WorkspaceRevealReplyV1, WorkspaceRevealTargetV1,
+  WorkspaceContentReplyV1, WorkspaceIndexReplyV1, WorkspaceRevealReplyV1, WorkspaceRevealTargetV1,
 } from '../../shared/workspace/v1/contracts';
 import type { StructuredLogger } from '../logger';
 import type { FileTruthStoreV1 } from '../file-truth/v1/file-truth-store';
 import type { RecentFiles } from './recent-files';
 import { listDirectory, type FileTreeEntryV1 } from './file-tree';
 import { buildFileIndex } from './file-index';
+import { searchContent } from './content-search';
 
 const MARKDOWN_FILTERS = [
   { name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd', 'txt'] },
@@ -263,6 +264,17 @@ export class WorkspaceSession {
     shell.showItemInFolder(path);
     this.logger.log('workspace_revealed', { target });
     return { version: NOTO_WORKSPACE_VERSION, revealed: true };
+  }
+
+  /**
+   * Search inside the notes of the current folder.
+   *
+   * Scans the same index quick open ranks, so the two agree about which files
+   * exist and neither can find something the other cannot.
+   */
+  async searchContent(query: string): Promise<WorkspaceContentReplyV1> {
+    const index = await this.fileIndex();
+    return searchContent(index.entries, query);
   }
 
   /** Entries inside a directory of the chosen folder. */
