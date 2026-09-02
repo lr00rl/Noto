@@ -37,7 +37,8 @@ import { activeNodePlugin } from './active-node-plugin';
 import { mathEditingPlugin, mathNodeViews } from './math-view';
 import { fenceNodeViews } from './fence-view';
 import type { ImageContext } from './image-source';
-import { imageNodeViews, type ImageView } from './image-view';
+import { htmlNodeViews } from './html-view';
+import { imageNodeViews, type Refreshable } from './image-view';
 import type { SearchOptions } from './search';
 import {
   getSearchState,
@@ -70,8 +71,8 @@ export class NotoEditor implements NotoEditorPort {
   private document: NotoDocumentWire;
   private smartTypography = false;
   private imageContext: ImageContext;
-  /** The images on screen, so a changed context can redraw them and nothing else. */
-  private readonly imageViews = new Set<ImageView>();
+  /** The pictures on screen, so a changed context can redraw them and nothing else. */
+  private readonly imageViews = new Set<Refreshable>();
   private baselineDoc: ProseNode;
   private dirty = false;
   private readonly host: HTMLElement;
@@ -102,6 +103,7 @@ export class NotoEditor implements NotoEditorPort {
       ...mathNodeViews(),
       ...fenceNodeViews(),
       ...imageNodeViews(this.imageViews, () => this.imageContext),
+      ...htmlNodeViews(this.imageViews, () => this.imageContext),
     };
   }
 
