@@ -53,8 +53,15 @@ hover, `--accent` while the surface they open is open. No borders. No fills. No
 labels. Six bordered text buttons in a row is a toolbar from 2005 and it competed
 with the document on every screen.
 
-What is on it: the rail toggle on the left; plugins, preferences and save on the
-right. What is not, and where it went instead:
+What is on it: the rail toggle, then back and forward, on the left; plugins,
+preferences and save on the right. Back and forward walk the trail, three
+notes each way, from the author's plugin of that name, and they fade rather
+than vanish when there is nowhere to go, so the pair keeps its place. The
+filename in the centre is preceded by where the note is: inside an open
+folder, the path from the folder's own name, otherwise the shortened
+directory, and only its last two segments, since a title bar is not the place
+to read a six-level path in full. What is not on it, and where it went
+instead:
 
 | Was a button | Now |
 | --- | --- |
@@ -87,7 +94,10 @@ other. It is positioned by a custom property the current view sets, so nothing
 is measured after paint and the first frame is never in the wrong place.
 
 The rail toggle in the title bar opens and closes the region; the menu items
-open it on the view they name.
+open it on the view they name. At the right of the two words sits a search
+glyph that opens quick open, the same one the chord opens: a vault is entered
+by search as often as by browsing, and the hand on the mouse should not have
+to reach for the keyboard to do it.
 
 `Cmd+]` and `Cmd+[` walk the page width through three modes, default, wide and
 full, in a ring. Each mode is a share of the canvas beside the rail with a

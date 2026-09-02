@@ -114,10 +114,13 @@ same hairline and no edge on the code inside it, since the fence is the edge.
 ## 7. Plugins: eight of sixteen, in some form
 
 Real ports: Title Shift, Markdown Padding. Native equivalents: `wider` is the
-width chord, `tree-guides` is the connector lines, `fuzzy-search` is quick open
-with content search, `note-assistant` is quick open's link mode with wiki-link
-rendering. Not done: `fence-enhance`, `sidenote`, `trail`, `timeline`,
-`todo-manager`, `file-tags`, `code-viewer`, `drawio`; `recent-files` exists as a
+width modes, `tree-guides` is the connector lines and the sticky folders,
+`fuzzy-search` is quick open with content search, `note-assistant` is quick
+open's link mode with wiki-link rendering, `fence-enhance` is the fence gutter
+with its language and copy button, and `trail` is back and forward in the
+title bar and the Go menu, three notes each way. Not done: `sidenote`,
+`timeline`, `todo-manager`, `file-tags`, `code-viewer`, `drawio`, and
+`fence-enhance`'s indent guides and tab markers; `recent-files` exists as a
 menu and a status strip rather than as the plugin's behaviour, and
 `remote-control` is infrastructure rather than a feature.
 

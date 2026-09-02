@@ -155,6 +155,8 @@ test.describe('plugin center', () => {
       // Demote every heading through the command palette.
       await page.keyboard.press(`${process.platform === 'darwin' ? 'Meta' : 'Control'}+KeyK`);
       await page.getByRole('button', { name: /demote a level/i }).click();
+      // The plugin's own word for what it did, in the status line.
+      await expect(page.getByTestId('status-notice')).toHaveText(/Headings demoted/);
 
       const editor = page.locator('.ProseMirror');
       await expect(editor.locator('h2')).toHaveText('One');
@@ -228,7 +230,9 @@ test.describe('plugin center', () => {
       await secondPage.waitForSelector('[data-testid="noto-editor"]', { state: 'visible', timeout: 30_000 });
       await openPluginCenter(secondPage);
       // Enabled persisted, and it still did not activate itself on its own.
-      await expect(rendererStatus(secondPage)).toHaveText('Enabled, waiting for editor', { timeout: 15_000 });
+      // Main remembered it was enabled, and the shell raised editor.ready when
+      // the note's editor came up, so it is running without a button pressed.
+      await expect(rendererStatus(secondPage)).toHaveText('Running', { timeout: 15_000 });
     } finally {
       await second.close();
     }

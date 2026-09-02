@@ -180,14 +180,15 @@ build:
   application never launches it. Opening it, with a user plugins folder, a
   package digest, and an install flow, is the next step on this road; until
   then a plugin is a pull request.
-- **Startup activation is declared but not fired.** `activation.startup` and
-  `activation.events` are validated and stored, but the app only activates a
-  plugin from Preferences today. A plugin should assume it is activated by
-  the reader.
+- **Activation is on `editor.ready` only.** When a document's editor comes up
+  and an enabled plugin is waiting, the shell raises `editor.ready` and the
+  plugin activates, so a plugin enabled yesterday is running when a note
+  opens today. `activation.startup` is validated and stored but nothing
+  fires it, and no other event is raised.
 - **Settings are booleans.** See above.
-- **`notice` is not yet shown.** The message reaches the host and is counted,
-  not displayed. Title Shift's "Headings are already at the limit" is written
-  and waiting for a surface.
+- **`notice` is a status line message.** It shows in the status bar for a
+  couple of seconds, attributed to the plugin in the lifecycle counters, and
+  that is all it can do: no actions, no persistence.
 - **UI extensions are declared and unconsumed.** Nothing reads
   `uiExtensions` yet.
 

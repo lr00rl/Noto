@@ -162,6 +162,31 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   white-space: nowrap;
 }
 
+/* Where the note is, before its name, in the muted tier with a small chevron
+   between segments. The name stays the one thing set a step darker. */
+.document-identity .crumb {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  opacity: 0.7;
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &::after {
+    content: '›';
+    margin: 0 2px 0 6px;
+    opacity: 0.8;
+  }
+}
+
+/* Back and forward along the trail. Quiet like every other icon here, and
+   faded rather than hidden when there is nowhere to go, so the pair keeps its
+   place and the eye learns where it is. */
+.title-nav:disabled { opacity: 0.32; }
+.title-nav svg { width: 14px; height: 14px; stroke-width: 1.5; }
+
 /* Read as punctuation on the name rather than as a control, because that is
    what it is: a statement, not something to click. */
 .document-identity .unsaved-dot {
@@ -264,10 +289,24 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   position: relative;
   display: flex;
   flex: 0 0 auto;
-  align-self: flex-start;
+  align-items: flex-start;
+  align-self: stretch;
   gap: 14px;
   margin: 10px 12px 8px;
   padding: 0 0 6px;
+}
+
+/* Search at the head of the rail, where a vault is entered: the same quick
+   open as the chord, one press away for the hand that is on the mouse. */
+.rail-search {
+  margin-left: auto;
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  min-height: 22px;
+  margin-top: -3px;
+
+  svg { width: 13px; height: 13px; }
 }
 
 /* The moving rule. One element under both labels, positioned by a custom
@@ -1230,6 +1269,9 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  /* A plugin's word, for a moment, in ink rather than the resting grey. */
+  &.is-notice { color: var(--ink); }
 }
 
 /* Command palette

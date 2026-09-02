@@ -39,6 +39,7 @@ import { WorkspaceRail, type RailView } from './WorkspaceRail';
 import { RailFooter } from './RailFooter';
 import { Preferences, type PreferencesSection } from './Preferences';
 import { DEFAULT_SETTINGS, stepWidthMode, type NotoSettingsV1 } from '../shared/settings/v1/contracts';
+import { EMPTY_TRAIL, forget as forgetTrail, record as recordTrail, stepBack, stepForward, type Trail } from './trail';
 import type { NotoEditor } from './editor/noto/NotoEditor';
 import {
   acceptedSaveOutcome,
@@ -167,6 +168,8 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const [themeReload, setThemeReload] = useState(0);
   const [themeProblem, setThemeProblem] = useState('');
   const [pluginSnapshots, setPluginSnapshots] = useState<PluginLifecycleSnapshot[]>([]);
+  const pluginSnapshotsRef = useRef(pluginSnapshots);
+  pluginSnapshotsRef.current = pluginSnapshots;
   const [pluginAvailability, setPluginAvailability] = useState<PluginSnapshotAvailability>('loading');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [recent, setRecent] = useState<readonly RecentFileV1[]>([]);
@@ -198,6 +201,43 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   settingsRef.current = settings;
 
   const [folder, setFolder] = useState<{ root: string | null; name: string | null }>({ root: null, name: null });
+
+  /*
+   * The trail, from the author's plugin of that name: three notes back and
+   * three forward. Recorded here, on the one thing every route to a note
+   * changes, the document in front, rather than at each place a note can be
+   * opened from. A step back or forward replays an open and must not record
+   * itself, which the flag says.
+   */
+  const [trail, setTrail] = useState<Trail>(EMPTY_TRAIL);
+  const replayingRef = useRef(false);
+  const activePath = opened?.path ?? null;
+  useEffect(() => {
+    if (!activePath) return;
+    if (replayingRef.current) {
+      replayingRef.current = false;
+      return;
+    }
+    setTrail((current) => recordTrail(current, activePath));
+  }, [activePath]);
+
+  /* A short message from a plugin, shown in the status line for a moment. */
+  const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onNotice = (event: Event) => {
+      const message = (event as CustomEvent<string>).detail;
+      if (typeof message !== 'string' || message.length === 0) return;
+      setNotice(message);
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setNotice(null), 2600);
+    };
+    window.addEventListener('noto:notice', onNotice);
+    return () => {
+      window.removeEventListener('noto:notice', onNotice);
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
   const [quickOpen, setQuickOpen] = useState<{ open: boolean; mode: QuickOpenMode }>(
     { open: false, mode: 'name' },
   );
@@ -269,6 +309,25 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     const home = window.notoPlatform?.home;
     return home && directory.startsWith(home) ? `~${directory.slice(home.length)}` : directory;
   }, [opened]);
+
+  /*
+   * The breadcrumb over the document: where the note is, then its name.
+   *
+   * Inside an open folder the path is relative to the folder, which is the
+   * frame the reader is already in; outside one it is the shortened folder.
+   * Only the last two segments are shown, with an ellipsis for the rest, since
+   * a title bar is not the place to read a six-level path in full.
+   */
+  const crumbs = useMemo((): readonly string[] => {
+    if (!opened) return [];
+    const cut = Math.max(opened.path.lastIndexOf('/'), opened.path.lastIndexOf('\\'));
+    const directory = cut > 0 ? opened.path.slice(0, cut) : '';
+    const root = folder.root;
+    const inside = root !== null && (directory === root || directory.startsWith(`${root}/`) || directory.startsWith(`${root}\\`));
+    const shown = inside ? `${folder.name ?? ''}${directory.slice(root.length)}` : containingFolder;
+    const segments = shown.split(/[\\/]/).filter((segment) => segment.length > 0);
+    return segments.length > 2 ? ['…', ...segments.slice(-2)] : segments;
+  }, [opened, folder, containingFolder]);
 
   const updateRecoveryBarrier = (value: boolean) => {
     recoveryBarrierRef.current = value;
@@ -838,6 +897,10 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     try {
       const result = await window.notoWorkspace.openPath({ version: 1, requestId: rid('open-path'), path: filePath });
       if (!result.ok) {
+        // A replay that failed is over, and a note that cannot be opened is
+        // not somewhere the trail should offer again.
+        replayingRef.current = false;
+        setTrail((current) => forgetTrail(current, filePath));
         setOpenError(actionableFileTruthMessage(result.error.message, 'That file could not be opened.'));
         return;
       }
@@ -845,9 +908,21 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       // not teach the ranking to offer it again.
       setFrecency((current) => pruneStore(recordOpen(current, filePath, Date.now()), Date.now()));
     } catch (error) {
+      replayingRef.current = false;
       setOpenError(actionableFileTruthMessage(error, 'That file could not be opened.'));
     }
   }, [confirmDiscard]);
+
+  /** One step along the trail, replayed as an open so nothing records it. */
+  const stepTrail = useCallback((direction: -1 | 1) => {
+    const step = direction < 0 ? stepBack(trail) : stepForward(trail);
+    if (!step) return;
+    replayingRef.current = true;
+    setTrail(step.trail);
+    void openPath(step.target);
+  }, [trail, openPath]);
+  const stepTrailRef = useRef(stepTrail);
+  stepTrailRef.current = stepTrail;
 
   /**
    * The file index, fetched once per folder.
@@ -987,6 +1062,12 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
           version: 1, requestId: rid('reveal'), target: 'document',
         });
         break;
+      case 'navigate-back':
+        stepTrailRef.current(-1);
+        break;
+      case 'navigate-forward':
+        stepTrailRef.current(1);
+        break;
       case 'quick-open':
         // Preferences is modal and would sit over it, for the same reason the
         // command palette dismisses it.
@@ -1109,9 +1190,25 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
               <path d="M6.25 2.75v10.5" />
             </svg>
           </button>
+          {/* Back and forward along the trail: three notes each way, from the
+              author's plugin. Beside the rail toggle, where an editor's
+              navigation lives, rather than floating over the page. */}
+          <button type="button" className="icon-button title-nav" data-testid="nav-back"
+            disabled={trail.back.length === 0} aria-label="Back" title="Back (⌘⌥←)"
+            onClick={() => stepTrail(-1)}>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.25 5.25 8 10 12.75" /></svg>
+          </button>
+          <button type="button" className="icon-button title-nav" data-testid="nav-forward"
+            disabled={trail.forward.length === 0} aria-label="Forward" title="Forward (⌘⌥→)"
+            onClick={() => stepTrail(1)}>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.25 10.75 8 6 12.75" /></svg>
+          </button>
         </div>
 
-        <div className="document-identity">
+        <div className="document-identity" data-testid="document-identity">
+          {crumbs.map((crumb, index) => (
+            <span key={`${index}-${crumb}`} className="crumb">{crumb}</span>
+          ))}
           <strong title={opened?.path} aria-label={opened ? `${filename}. ${opened.path}` : filename}>{filename}</strong>
           {/* Whether there is work to lose is the one thing worth seeing
               without reading. It is also the whole save affordance when the
@@ -1182,6 +1279,11 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       <div className={`workspace-layout ${rail.open ? 'has-rail' : ''}`}>
         {rail.open && (
           <WorkspaceRail
+            onSearch={() => {
+              setPrefs((current) => ({ ...current, open: false }));
+              void ensureFileIndex();
+              setQuickOpen({ open: true, mode: 'name' });
+            }}
             footer={(
               <RailFooter
                 folderName={folder.name}
@@ -1263,6 +1365,18 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                   if (doc.document.documentId === activeIdRef.current) {
                     editorRef.current = editor;
                     pluginClientRef.current?.attachAdapter(editor);
+                    // An editor is ready, which is the event enabled plugins
+                    // wait for. Sent only when one is waiting, so a plugin
+                    // already running is not asked to start again each time
+                    // a document opens.
+                    if (pluginSnapshotsRef.current.some((snapshot) => snapshot.desiredEnabled
+                      && snapshot.lifecycle === 'enabled-idle')) {
+                      void window.notoDesktop.plugins.triggerEvent({
+                        version: PLUGIN_LIFECYCLE_VERSION,
+                        requestId: rid('editor-ready'),
+                        event: 'editor.ready',
+                      }).catch(() => { /* The plugin center reports lifecycle faults. */ });
+                    }
                     // A content result was what opened this document, so show
                     // the reader what they searched for rather than the top of
                     // a file they now have to scan by eye.
@@ -1384,8 +1498,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
               once: the dot on the name, the word beside the actions, and this.
               What this line adds is the fidelity promise, which nothing else
               says. */}
-          <span className="status-message">
-            {state === 'Opened' ? 'Exact source preserved' : state === 'Saved' ? 'Exact source saved' : ''}
+          <span className={notice ? 'status-message is-notice' : 'status-message'}
+            data-testid={notice ? 'status-notice' : undefined} aria-live="polite">
+            {notice ?? (state === 'Opened' ? 'Exact source preserved' : state === 'Saved' ? 'Exact source saved' : '')}
           </span>
         </footer>
       )}
