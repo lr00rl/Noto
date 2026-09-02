@@ -4,7 +4,7 @@ import { splitBlocks } from '../../src/shared/markdown/v3/blocks';
 import { docFromSpans } from '../../src/shared/markdown/v3/pm/from-mdast';
 import { blockToMarkdown } from '../../src/shared/markdown/v3/pm/to-mdast';
 import {
-  clearFormat, insertRule, insertTable, shiftHeading, surround, surroundTag, toggleTaskList, wrapInMath,
+  clearFormat, insertAlert, insertRule, insertTable, shiftHeading, surround, surroundTag, toggleTaskList, wrapInMath,
 } from '../../src/renderer/editor/noto/keymap';
 import type { Command } from 'prosemirror-state';
 
@@ -125,5 +125,29 @@ describe('clearing the formatting', () => {
 
   it('declines with nothing selected, so a stray key cannot strip a paragraph', () => {
     expect(run(stateFor('**bold** text', 3), clearFormat)).toBeNull();
+  });
+});
+
+describe('turning a block into a callout', () => {
+  it('wraps it in a quote and writes the marker the file holds', () => {
+    expect(run(stateFor('Watch out.', 3), insertAlert('WARNING')))
+      .toBe('> [!WARNING]\n> Watch out.');
+  });
+
+  it('switches an existing callout to another kind rather than nesting one', () => {
+    const source = '> [!NOTE]\n> Body.';
+    const state = stateFor(source, 4);
+    expect(run(state, insertAlert('TIP'))).toBe('> [!TIP]\n> Body.');
+  });
+
+  it('leaves an ordinary quote a quote, with the marker added', () => {
+    expect(run(stateFor('> Quoted.', 3), insertAlert('NOTE'))).toBe('> [!NOTE]\n> Quoted.');
+  });
+
+  it('takes one undo, not two', () => {
+    const state = stateFor('Watch out.', 3);
+    let count = 0;
+    insertAlert('NOTE')(state, () => { count += 1; });
+    expect(count).toBe(1);
   });
 });

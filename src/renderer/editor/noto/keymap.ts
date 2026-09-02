@@ -33,9 +33,11 @@ import {
   goToNextCell,
   isInTable,
 } from 'prosemirror-tables';
+import { findWrapping } from 'prosemirror-transform';
+import type { ResolvedPos } from 'prosemirror-model';
 import { moveBlock, moveColumn } from './move-block';
 import { openLinkEditor } from './link-plugin';
-import { TextSelection, type Command, type Plugin } from 'prosemirror-state';
+import { TextSelection, type Command, type Plugin, type Transaction } from 'prosemirror-state';
 import { notoSchema } from '../../../shared/markdown/v3/pm/schema';
 
 const { nodes, marks } = notoSchema;
@@ -238,6 +240,75 @@ export const clearFormat: Command = (state, dispatch) => {
   return true;
 };
 
+const ALERT_MARKER = /^\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/;
+
+/** The depth of the innermost blockquote around `$pos`, or null. */
+function alertQuoteDepth($pos: ResolvedPos): number | null {
+  for (let depth = $pos.depth; depth > 0; depth -= 1) {
+    if ($pos.node(depth).type === nodes.blockquote) return depth;
+  }
+  return null;
+}
+
+/**
+ * Write the marker at the head of the quote's first paragraph, in `transaction`.
+ *
+ * A quote that already carries one has it replaced rather than gaining a
+ * second, so the five commands switch a callout between kinds.
+ */
+function writeMarker(transaction: Transaction, quotePos: number, kind: string): void {
+  const quote = transaction.doc.nodeAt(quotePos);
+  const first = quote?.firstChild;
+  if (!quote || !first || !first.isTextblock) return;
+  // Past the quote and into its first paragraph.
+  const head = quotePos + 2;
+  const existing = ALERT_MARKER.exec(first.textContent);
+  if (existing) {
+    transaction.replaceWith(head, head + existing[0].length, notoSchema.text(`[!${kind}]`));
+  } else {
+    // The break after the marker is the soft one the file has, a bare newline.
+    // A hard break would be written as two trailing spaces, which is not what
+    // `> [!NOTE]` looks like in anybody's note.
+    transaction.insert(head, notoSchema.text(`[!${kind}]\n`));
+  }
+}
+
+/**
+ * Turn the block the caret is in into a GitHub alert.
+ *
+ * The alert is a quote whose first paragraph opens with `[!NOTE]` and a line
+ * break, which is exactly what the file holds and what the editor draws a
+ * title chip for. Nothing about it is a node type of its own, so this wraps in
+ * a quote and writes the marker as text, the same two steps a reader would
+ * take by hand, in one transaction so one undo takes both back.
+ */
+export function insertAlert(kind: 'NOTE' | 'TIP' | 'IMPORTANT' | 'WARNING' | 'CAUTION'): Command {
+  return (state, dispatch) => {
+    const { $from } = state.selection;
+    const inside = alertQuoteDepth($from);
+    if (inside !== null) {
+      if (dispatch) {
+        const transaction = state.tr;
+        writeMarker(transaction, $from.before(inside), kind);
+        dispatch(transaction);
+      }
+      return true;
+    }
+
+    const range = $from.blockRange();
+    const wrapping = range && findWrapping(range, nodes.blockquote);
+    if (!range || !wrapping) return false;
+    if (dispatch) {
+      const transaction = state.tr.wrap(range, wrapping);
+      const $wrapped = transaction.doc.resolve(transaction.mapping.map($from.pos));
+      const depth = alertQuoteDepth($wrapped);
+      if (depth !== null) writeMarker(transaction, $wrapped.before(depth), kind);
+      dispatch(transaction);
+    }
+    return true;
+  };
+}
+
 export const EDITOR_COMMANDS: Readonly<Record<string, Command>> = {
   'block-paragraph': setBlockType(nodes.paragraph),
   'block-heading-1': setBlockType(nodes.heading, { level: 1 }),
@@ -276,6 +347,11 @@ export const EDITOR_COMMANDS: Readonly<Record<string, Command>> = {
   'move-column-right': moveColumn(false),
   'insert-link': openLinkEditor,
   'clear-format': clearFormat,
+  'block-alert-note': insertAlert('NOTE'),
+  'block-alert-tip': insertAlert('TIP'),
+  'block-alert-important': insertAlert('IMPORTANT'),
+  'block-alert-warning': insertAlert('WARNING'),
+  'block-alert-caution': insertAlert('CAUTION'),
 };
 
 export function notoKeymap({ mac }: { mac: boolean }): Plugin[] {

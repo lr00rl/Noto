@@ -772,6 +772,24 @@ be counting the punctuation. A full stop is not a word. Parity is the goal
 everywhere it describes something a reader wanted; here it would mean copying
 a number that is wrong.
 
+## 44. A callout could be read but not made. Closed.
+
+The editor has drawn GitHub alerts since entry 7, with a title chip standing
+in for the marker, and 105 of the vault's notes use one. There was no way to
+make one except by typing `> [!NOTE]` and a line break by hand.
+
+Five menu items now do it. A callout is not a node type of its own: it is a
+quote whose first paragraph opens with the marker, which is exactly what the
+file holds, so the command wraps in a quote and writes the marker as text, in
+one transaction so one undo takes both back. A quote that already carries a
+marker has it replaced rather than gaining a second, which makes the five
+items behave as one setting rather than five additions.
+
+The break after the marker is the soft one the file has, a bare newline. The
+first attempt used a hard break, which since entry 35 is written as two
+trailing spaces, and `> [!NOTE]  ` is not what the marker looks like in
+anybody's note.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
