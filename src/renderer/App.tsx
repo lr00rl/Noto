@@ -523,6 +523,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     const unsubscribeFolder = window.notoWorkspace.onFolderChanged((event) => {
       if (!active) return;
       setFolder({ root: event.root, name: event.name });
+      // A new folder changes what main will serve as an image, so notes that
+      // are already open draw theirs again rather than keeping a stale refusal.
+      editorsRef.current.forEach((editor) => editor.refreshImages());
       if (event.root) setRail({ open: true, view: 'files' });
       // Every route into a folder ends here, including the menu item, which
       // does not go through the renderer's own handler at all.
@@ -1238,6 +1241,8 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                 mac={platform === 'darwin'}
                 smartTypography={settings.smartTypography}
                 spellCheck={settings.spellCheck}
+                documentPath={doc.opened.path}
+                remoteImages={settings.remoteImages}
                 onDirtyChange={(dirty) => onDocumentDirtyChange(doc.document.documentId, dirty)}
                 onDocumentChanged={() => {
                   if (doc.document.documentId === activeIdRef.current) bumpTyping();

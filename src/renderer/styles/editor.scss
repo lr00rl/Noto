@@ -135,7 +135,41 @@
 }
 
 .ProseMirror a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--hairline); }
-.ProseMirror img { width: auto; max-width: 100%; height: auto; border: 1px solid var(--hairline); }
+/* Images sit in the text column and never past it. The frame is inline, so an
+   image inside a sentence stays in the sentence and a paragraph that is only
+   an image reads as a figure without a rule saying so. */
+.noto-image-frame { display: inline; max-width: 100%; }
+.noto-image {
+  display: inline-block;
+  max-width: 100%;
+  height: auto;
+  vertical-align: middle;
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+}
+.ProseMirror .noto-image-frame.ProseMirror-selectednode .noto-image {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The face of an image that is not shown: its name and the reason, in the UI
+   face at caption size, so it reads as the editor speaking rather than as the
+   note's own text. Dashed, because a solid frame would claim to be a picture. */
+.noto-image-placeholder {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  max-width: 100%;
+  padding: 2px 9px;
+  border: 1px dashed var(--hairline);
+  border-radius: 3px;
+  color: var(--muted);
+  font: 12px/1.7 tokens.$ui;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+.noto-image-name { overflow: hidden; text-overflow: ellipsis; font-family: tokens.$mono; }
+.noto-image-reason { flex: 0 0 auto; opacity: 0.75; }
 .ProseMirror ::selection { background: var(--hairline); color: var(--ink); }
 
 .noto-opaque-node {

@@ -308,6 +308,13 @@ export function Preferences({
                   testId="setting-spell-check"
                 />
                 <Switch
+                  label="Load images from the web"
+                  hint="Every web image in a note is a request to its server. Off shows the image's name in its place. Images in the open folder always show."
+                  checked={settings.remoteImages}
+                  onChange={(value) => onChange({ remoteImages: value })}
+                  testId="setting-remote-images"
+                />
+                <Switch
                   label="Save automatically"
                   hint="Save on a timer after typing stops. A save is still refused if the file changed underneath it."
                   checked={settings.autoSave}

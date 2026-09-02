@@ -89,6 +89,16 @@ export interface NotoSettingsV1 {
   /** Turn quotes and dashes into their typographic forms as you type. */
   readonly smartTypography: boolean;
   readonly spellCheck: boolean;
+  /**
+   * Show images that live on the web.
+   *
+   * On by default, because a third of the author's notes embed one and a
+   * picture that does not appear is a broken note. Every one is a request to
+   * the server that holds it, though, which is why it is a switch and why the
+   * switch says so. Local images are not affected: they are served by main
+   * from the open folder and never leave the machine.
+   */
+  readonly remoteImages: boolean;
   /** Show the workspace tree when the app starts. */
   readonly sidebarOnLaunch: boolean;
   /** Width of the navigation rail, in CSS pixels. Dragged, not typed. */
@@ -121,6 +131,7 @@ export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   // reversible per document by undoing the substitution.
   smartTypography: true,
   spellCheck: true,
+  remoteImages: true,
   sidebarOnLaunch: false,
   railWidth: 248,
   autoSave: false,

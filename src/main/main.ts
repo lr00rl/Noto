@@ -95,7 +95,7 @@ async function run(): Promise<void> {
   await app.whenReady();
   app.setAppUserModelId('dev.lr00rl.noto');
   const rendererRoot = path.join(__dirname, '..', 'renderer', 'main_window');
-  await installNotoProtocol(rendererRoot, logger);
+  await installNotoProtocol(rendererRoot, logger, { roots: () => session?.imageRoots() ?? [] });
 
   const serviceModulePath = app.isPackaged
     ? path.join(process.resourcesPath, 'app.asar.unpacked', '.vite', 'build', 'fs-service.js')
