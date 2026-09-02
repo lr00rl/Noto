@@ -8,6 +8,19 @@ import {
   rendererProofManifest,
   titleShiftManifest,
 } from '../../shared/plugins/proof-manifests';
+import {
+  createPluginActionCompletionTracker,
+  pluginSnapshotIdentity,
+  presentFilesystemPlugin,
+  pluginOperationFailure,
+  presentRendererPlugin,
+  type FilesystemPrimaryAction,
+  type PluginActionCompletionPolicy,
+  type PluginActionSection,
+  type PluginPresentation,
+  type PluginSnapshotAvailability,
+  type RendererPrimaryAction,
+} from './plugin-center-state';
 
 /** Display names for the trusted plugins, which lifecycle snapshots omit. */
 const trustedNames = new Map<string, string>([
@@ -30,18 +43,13 @@ const pluginDescriptions = new Map<string, string>([
   [rendererProofManifest.id, 'Dim every block except the one the caret is in.'],
   [filesystemProofManifest.id, 'Read files from one folder you choose, and prove it is refused everywhere else.'],
 ]);
-import {
-  createPluginActionCompletionTracker,
-  pluginSnapshotIdentity,
-  presentFilesystemPlugin,
-  pluginOperationFailure,
-  presentRendererPlugin,
-  type FilesystemPrimaryAction,
-  type PluginActionCompletionPolicy,
-  type PluginActionSection,
-  type PluginSnapshotAvailability,
-  type RendererPrimaryAction,
-} from './plugin-center-state';
+
+/** The commands a plugin adds to the palette, so the reader knows where it shows up. */
+const pluginCommands = new Map<string, readonly string[]>([
+  [titleShiftManifest.id, titleShiftManifest.commands?.map((command) => command.title) ?? []],
+  [markdownPaddingManifest.id, markdownPaddingManifest.commands?.map((command) => command.title) ?? []],
+  [rendererProofManifest.id, rendererProofManifest.commands?.map((command) => command.title) ?? []],
+]);
 
 type PluginMethods = Pick<NotoPluginsApi,
   'enable' | 'disable' | 'triggerEvent' | 'executeCommand' | 'setSetting' | 'replaceGeneration'>;
@@ -72,9 +80,29 @@ type OperationErrors = Record<PluginActionSection, string | null>;
 const emptyPending = (): PendingActions => ({ renderer: null, filesystem: null });
 const emptyErrors = (): OperationErrors => ({ renderer: null, filesystem: null });
 
+/** One row of the index: what it is, where it stands, and what its detail needs. */
+interface Entry {
+  readonly id: string;
+  readonly name: string;
+  readonly group: 'installed' | 'examples';
+  readonly kind: 'Editor plugin' | 'Service plugin';
+  readonly section: PluginActionSection;
+  readonly presentation: PluginPresentation<string>;
+  readonly lifecycle: PluginLifecycleSnapshot['lifecycle'] | 'absent';
+}
+
+/** The dot beside a name: where the plugin stands, without reading. */
+function dotState(lifecycle: Entry['lifecycle']): string {
+  if (lifecycle === 'active' || lifecycle === 'activating') return 'on';
+  if (lifecycle === 'failed' || lifecycle === 'crashed') return 'failed';
+  if (lifecycle === 'enabled-idle' || lifecycle === 'deactivating') return 'ready';
+  return 'off';
+}
+
 export function PluginCenter({ api, snapshots, availability, open, evidenceControls }: PluginCenterProps) {
   const [pendingAction, setPendingAction] = useState<PendingActions>(emptyPending);
   const [operationError, setOperationError] = useState<OperationErrors>(emptyErrors);
+  const [selectedId, setSelectedId] = useState<string>(titleShiftManifest.id);
   const snapshotsRef = useRef(snapshots);
   const completionTrackerRef = useRef<ReturnType<typeof createPluginActionCompletionTracker> | null>(null);
   if (!completionTrackerRef.current) {
@@ -169,7 +197,7 @@ export function PluginCenter({ api, snapshots, availability, open, evidenceContr
   /**
    * The same lifecycle actions, for any trusted-renderer plugin.
    *
-   * The proof plugin keeps its bespoke section because it carries a setting and
+   * The proof plugin keeps its bespoke detail because it carries a setting and
    * diagnostics; everything else needs only enable, activate and disable, so it
    * is rendered from the snapshot rather than hand written per plugin.
    */
@@ -242,146 +270,215 @@ export function PluginCenter({ api, snapshots, availability, open, evidenceContr
 
   if (!open) return null;
 
-  return (
-    <div className="plugin-list" id="plugin-drawer">
-      {trustedPlugins.map(({ snapshot, presentation }) => (
-        <section key={snapshot.id} className={`plugin-section plugin-tone-${presentation.tone}`}
-          data-testid={`plugin-${snapshot.id}`} aria-busy={pendingAction.renderer !== null}>
-          <div className="plugin-name-row"><strong>{snapshot.name}</strong></div>
-          <p className="plugin-status" aria-live="polite">{presentation.status}</p>
-          <p className="plugin-scope">{pluginDescriptions.get(snapshot.id) ?? presentation.scope}</p>
-          <button type="button" className="plugin-primary"
-            disabled={presentation.actionDisabled || pendingAction.renderer !== null}
-            onClick={() => presentation.primaryAction
-              && void trustedAction(snapshot.id, presentation.primaryAction)}>
-            {presentation.primaryLabel}
-          </button>
-        </section>
+  /*
+   * An index and a detail, not a flat run of sections.
+   *
+   * Four plugins laid end to end, each with its own status line, button and
+   * diagnostics, read as a debug console; the reader could not see at a
+   * glance what was installed, what was on, or where to look. The index is the
+   * list, one row per plugin with a dot for its state, and the detail is one
+   * plugin at a time with everything it has to say. Examples sit in their own
+   * group so nobody wonders what a "Fixture Reader" is doing in their editor.
+   */
+  const entries: Entry[] = [
+    ...trustedPlugins.map(({ snapshot, presentation }): Entry => ({
+      id: snapshot.id,
+      name: snapshot.name,
+      group: 'installed',
+      kind: 'Editor plugin',
+      section: 'renderer',
+      presentation,
+      lifecycle: snapshot.lifecycle,
+    })),
+    {
+      id: rendererProofManifest.id,
+      name: rendererProofManifest.name,
+      group: 'examples',
+      kind: 'Editor plugin',
+      section: 'renderer',
+      presentation: rendererPresentation,
+      lifecycle: renderer?.lifecycle ?? 'absent',
+    },
+    {
+      id: filesystemProofManifest.id,
+      name: filesystemProofManifest.name,
+      group: 'examples',
+      kind: 'Service plugin',
+      section: 'filesystem',
+      presentation: filesystemPresentation,
+      lifecycle: filesystem?.lifecycle ?? 'absent',
+    },
+  ];
+  const selected = entries.find((entry) => entry.id === selectedId) ?? entries[0];
+  const pending = selected ? pendingAction[selected.section] !== null : false;
+
+  const primaryFor = (entry: Entry) => {
+    if (entry.id === rendererProofManifest.id) return () => rendererPresentation.primaryAction
+      && void rendererAction(rendererPresentation.primaryAction);
+    if (entry.id === filesystemProofManifest.id) return () => filesystemPresentation.primaryAction
+      && void filesystemAction(filesystemPresentation.primaryAction);
+    return () => entry.presentation.primaryAction
+      && void trustedAction(entry.id, entry.presentation.primaryAction as RendererPrimaryAction);
+  };
+
+  const detailTestId = (entry: Entry) => {
+    if (entry.id === rendererProofManifest.id) return 'renderer-plugin-state';
+    if (entry.id === filesystemProofManifest.id) return 'service-state';
+    return `plugin-${entry.id}`;
+  };
+
+  const renderIndexGroup = (group: Entry['group'], label: string) => (
+    <div className="plugin-index-group" key={group}>
+      <span className="pref-group-label">{label}</span>
+      {entries.filter((entry) => entry.group === group).map((entry) => (
+        <button key={entry.id} type="button"
+          className={entry.id === selected?.id ? 'plugin-pick is-current' : 'plugin-pick'}
+          data-testid={`plugin-pick-${entry.id}`}
+          aria-current={entry.id === selected?.id ? 'true' : undefined}
+          onClick={() => setSelectedId(entry.id)}>
+          <span className="plugin-dot" data-state={dotState(entry.lifecycle)} aria-hidden="true" />
+          <span className="plugin-pick-name">{entry.name}</span>
+        </button>
       ))}
+    </div>
+  );
 
-      {/* The two below are bundled examples, not product features. They exist
-          so a plugin author can read a working plugin of each runtime kind, and
-          so the capability broker has something that exercises it: one decorates
-          the document, the other asks for a filesystem grant and can be made to
-          prove a denied path. Saying so here keeps a reader from wondering what
-          a "Fixture Reader" is doing in their editor. */}
-      <div className="plugin-group-heading">
-        <span className="pref-group-label">Examples</span>
-        <p>Two small plugins that ship with Noto, one of each kind, so there is a
-          working example to read before writing your own.</p>
-      </div>
+  return (
+    <div className="plugin-center" id="plugin-drawer">
+      <nav className="plugin-index" aria-label="Plugins">
+        {renderIndexGroup('installed', 'Installed')}
+        {renderIndexGroup('examples', 'Examples')}
+      </nav>
 
-      <section className={`plugin-section plugin-tone-${rendererPresentation.tone}`}
-        data-testid="renderer-plugin-state" aria-busy={pendingAction.renderer !== null}>
-        <div className="plugin-name-row"><strong>{rendererProofManifest.name}</strong></div>
-        <p className="plugin-status" aria-live="polite" data-testid="renderer-plugin-lifecycle">
-          {rendererPresentation.status}
-        </p>
-        <p className="plugin-scope">{pluginDescriptions.get(rendererProofManifest.id) ?? rendererPresentation.scope}</p>
-        <button type="button" className="plugin-primary"
-          disabled={rendererPresentation.actionDisabled || pendingAction.renderer !== null}
-          onClick={() => rendererPresentation.primaryAction
-            && void rendererAction(rendererPresentation.primaryAction)}>
-          {pendingAction.renderer ? 'Working…' : rendererPresentation.primaryLabel}
-        </button>
-        <label className="setting-row">
-          <input type="checkbox" checked={renderer?.settings.focusEnabled ?? true}
-            disabled={!renderer || availability !== 'ready' || pendingAction.renderer !== null}
-            onChange={(event) => void run('renderer', 'renderer-setting',
-              { type: 'snapshot', pluginId: rendererProofManifest.id }, () => api.plugins.setSetting({
-              version: PLUGIN_LIFECYCLE_VERSION,
-              requestId: requestId('plugin-setting'),
-              pluginId: rendererProofManifest.id,
-              key: 'focusEnabled',
-              value: event.target.checked,
-              }))} />
-          Focus the active block
-        </label>
-        <p className="plugin-operation-message" aria-live="polite" aria-atomic="true" role="status">
-          {operationError.renderer ?? ''}
-        </p>
-        <details className="plugin-diagnostics">
-          <summary>Diagnostics</summary>
-          <div className="diagnostic-actions">
-            <button type="button" disabled={!renderer?.desiredEnabled || pendingAction.renderer !== null}
-              onClick={() => void run('renderer', 'renderer-command', { type: 'reply' }, () => api.plugins.executeCommand({
-                version: PLUGIN_LIFECYCLE_VERSION,
-                requestId: requestId('plugin-command'),
-                pluginId: rendererProofManifest.id,
-                commandId: 'semantic-focus.toggle',
-              }))}>Run command</button>
-            {(renderer?.lifecycle === 'failed' || renderer?.lifecycle === 'crashed') && (
-              <button type="button" disabled={pendingAction.renderer !== null}
-                onClick={() => void rendererAction('disable')}>Disable</button>
+      {selected && (
+        <section key={selected.id}
+          className={`plugin-detail plugin-section plugin-tone-${selected.presentation.tone}`}
+          data-testid={detailTestId(selected)} aria-busy={pending}>
+          <header className="plugin-detail-head">
+            <div className="plugin-name-row">
+              <strong>{selected.name}</strong>
+              <span className="plugin-kind">{selected.kind}</span>
+            </div>
+            <p className="plugin-scope">{pluginDescriptions.get(selected.id) ?? selected.presentation.scope}</p>
+            {selected.group === 'examples' && (
+              <p className="plugin-scope plugin-example-note">
+                A bundled example, one of each kind, to read before writing your own. Not a product feature.
+              </p>
             )}
+          </header>
+
+          <div className="plugin-state-row">
+            <p className="plugin-status" aria-live="polite"
+              data-testid={selected.id === rendererProofManifest.id ? 'renderer-plugin-lifecycle'
+                : selected.id === filesystemProofManifest.id ? 'filesystem-plugin-lifecycle' : undefined}>
+              {selected.presentation.status}
+            </p>
+            <button type="button" className="plugin-primary"
+              disabled={selected.presentation.actionDisabled || pending}
+              onClick={primaryFor(selected)}>
+              {pending ? 'Working…' : selected.presentation.primaryLabel}
+            </button>
           </div>
-          <p>Version {rendererProofManifest.version} · trusted renderer · editor.decorate · hotkey ⌘⇧J</p>
-          <p>Generation {renderer?.activeGeneration ?? 'none'} · registrations {renderer?.rendererRegistrations ?? 0} · leases {renderer?.leaseCount ?? 0}</p>
-          <p>Persistence {renderer?.persistenceHealth ?? 'indeterminate'}</p>
-          {renderer?.lastFailure && <p className="plugin-failure" role="status">{renderer.lastFailure}</p>}
-        </details>
-      </section>
 
-      <section className={`plugin-section plugin-tone-${filesystemPresentation.tone}`}
-        data-testid="service-state" aria-busy={pendingAction.filesystem !== null}>
-        <div className="plugin-name-row"><strong>{filesystemProofManifest.name}</strong></div>
-        <p className="plugin-status" aria-live="polite" data-testid="filesystem-plugin-lifecycle">
-          {filesystemPresentation.status}
-        </p>
-        <p className="plugin-scope">{pluginDescriptions.get(filesystemProofManifest.id) ?? filesystemPresentation.scope}</p>
-        <button type="button" className="plugin-primary"
-          disabled={filesystemPresentation.actionDisabled || pendingAction.filesystem !== null}
-          onClick={() => filesystemPresentation.primaryAction
-            && void filesystemAction(filesystemPresentation.primaryAction)}>
-          {pendingAction.filesystem ? 'Working…' : filesystemPresentation.primaryLabel}
-        </button>
-        <p className="plugin-operation-message" aria-live="polite" aria-atomic="true" role="status">
-          {operationError.filesystem ?? ''}
-        </p>
-        <details className="plugin-diagnostics">
-          <summary>Diagnostics</summary>
-          <div className="diagnostic-actions">
-            <button type="button" disabled={!activeGrant || activeRequest?.state === 'pending' || pendingAction.filesystem !== null}
-              onClick={() => activeGrant && filesystem?.activeGeneration && void serviceRequest('read-granted', {
-                action: 'read-granted', grantId: activeGrant.id, generation: filesystem.activeGeneration,
-              })}>Read granted fixture</button>
-            <button type="button" disabled={!activeGrant || activeRequest?.state === 'pending' || pendingAction.filesystem !== null}
-              onClick={() => activeGrant && filesystem?.activeGeneration && void serviceRequest('deny-probe', {
-                action: 'deny-probe', grantId: activeGrant.id, generation: filesystem.activeGeneration,
-              })}>Prove denied path</button>
-            <button type="button" disabled={!activeGrant || pendingAction.filesystem !== null}
-              onClick={() => activeGrant && filesystem?.activeGeneration && void serviceRequest('revoke-grant', {
-                action: 'revoke-grant', grantId: activeGrant.id, generation: filesystem.activeGeneration,
-              })}>Revoke access</button>
-            {filesystem?.desiredEnabled && (
-              <button type="button" disabled={pendingAction.filesystem !== null}
-                onClick={() => void lifecycle('filesystem', 'filesystem-disable', filesystemProofManifest.id, () => api.plugins.disable({
-                  version: PLUGIN_LIFECYCLE_VERSION,
-                  requestId: requestId('plugin-disable-filesystem'),
-                  pluginId: filesystemProofManifest.id,
-                }))}>Disable</button>
-            )}
-            {filesystem?.lifecycle === 'active' && (
-              <button type="button" disabled={pendingAction.filesystem !== null}
-                onClick={() => void filesystemAction('restart')}>
-                Restart service (revokes current access)
-              </button>
-            )}
-          </div>
-          <p>Version {filesystemProofManifest.version} · bundled utility process · filesystem.read</p>
-          <p>{activeRequest
-            ? `${activeRequest.action} · ${activeRequest.state} · ${activeRequest.detail}`
-            : 'No service operation yet'}</p>
-          <p>Generation {filesystem?.activeGeneration ?? 'none'} · persistence {filesystem?.persistenceHealth ?? 'indeterminate'}</p>
-          {filesystem?.lastFailure && <p className="plugin-failure" role="status">{filesystem.lastFailure}</p>}
-          <p>The main-process grant broker limits cooperative bundled code to the selected folder. It does not contain hostile code.</p>
-          {filesystem?.lifecycle === 'active' && activeGrant && (
-            <p>Restarting stops the service and revokes the current folder grant before a new generation starts.</p>
+          {(pluginCommands.get(selected.id)?.length ?? 0) > 0 && (
+            <p className="plugin-commands">
+              <span className="plugin-commands-label">In the palette (⌘K)</span>
+              {pluginCommands.get(selected.id)?.join(' · ')}
+            </p>
           )}
-        </details>
-      </section>
 
-      {evidenceControls && <details className="plugin-evidence"><summary>G001 evidence controls</summary>{evidenceControls}</details>}
+          {selected.id === rendererProofManifest.id && (
+            <label className="setting-row">
+              <input type="checkbox" checked={renderer?.settings.focusEnabled ?? true}
+                disabled={!renderer || availability !== 'ready' || pending}
+                onChange={(event) => void run('renderer', 'renderer-setting',
+                  { type: 'snapshot', pluginId: rendererProofManifest.id }, () => api.plugins.setSetting({
+                  version: PLUGIN_LIFECYCLE_VERSION,
+                  requestId: requestId('plugin-setting'),
+                  pluginId: rendererProofManifest.id,
+                  key: 'focusEnabled',
+                  value: event.target.checked,
+                  }))} />
+              Focus the active block
+            </label>
+          )}
+
+          <p className="plugin-operation-message" aria-live="polite" aria-atomic="true" role="status">
+            {operationError[selected.section] ?? ''}
+          </p>
+
+          {selected.id === rendererProofManifest.id && (
+            <details className="plugin-diagnostics">
+              <summary>Diagnostics</summary>
+              <div className="diagnostic-actions">
+                <button type="button" disabled={!renderer?.desiredEnabled || pending}
+                  onClick={() => void run('renderer', 'renderer-command', { type: 'reply' }, () => api.plugins.executeCommand({
+                    version: PLUGIN_LIFECYCLE_VERSION,
+                    requestId: requestId('plugin-command'),
+                    pluginId: rendererProofManifest.id,
+                    commandId: 'semantic-focus.toggle',
+                  }))}>Run command</button>
+                {(renderer?.lifecycle === 'failed' || renderer?.lifecycle === 'crashed') && (
+                  <button type="button" disabled={pending}
+                    onClick={() => void rendererAction('disable')}>Disable</button>
+                )}
+              </div>
+              <p>Version {rendererProofManifest.version} · trusted renderer · editor.decorate · hotkey ⌘⇧J</p>
+              <p>Generation {renderer?.activeGeneration ?? 'none'} · registrations {renderer?.rendererRegistrations ?? 0} · leases {renderer?.leaseCount ?? 0}</p>
+              <p>Persistence {renderer?.persistenceHealth ?? 'indeterminate'}</p>
+              {renderer?.lastFailure && <p className="plugin-failure" role="status">{renderer.lastFailure}</p>}
+            </details>
+          )}
+
+          {selected.id === filesystemProofManifest.id && (
+            <details className="plugin-diagnostics">
+              <summary>Diagnostics</summary>
+              <div className="diagnostic-actions">
+                <button type="button" disabled={!activeGrant || activeRequest?.state === 'pending' || pending}
+                  onClick={() => activeGrant && filesystem?.activeGeneration && void serviceRequest('read-granted', {
+                    action: 'read-granted', grantId: activeGrant.id, generation: filesystem.activeGeneration,
+                  })}>Read granted fixture</button>
+                <button type="button" disabled={!activeGrant || activeRequest?.state === 'pending' || pending}
+                  onClick={() => activeGrant && filesystem?.activeGeneration && void serviceRequest('deny-probe', {
+                    action: 'deny-probe', grantId: activeGrant.id, generation: filesystem.activeGeneration,
+                  })}>Prove denied path</button>
+                <button type="button" disabled={!activeGrant || pending}
+                  onClick={() => activeGrant && filesystem?.activeGeneration && void serviceRequest('revoke-grant', {
+                    action: 'revoke-grant', grantId: activeGrant.id, generation: filesystem.activeGeneration,
+                  })}>Revoke access</button>
+                {filesystem?.desiredEnabled && (
+                  <button type="button" disabled={pending}
+                    onClick={() => void lifecycle('filesystem', 'filesystem-disable', filesystemProofManifest.id, () => api.plugins.disable({
+                      version: PLUGIN_LIFECYCLE_VERSION,
+                      requestId: requestId('plugin-disable-filesystem'),
+                      pluginId: filesystemProofManifest.id,
+                    }))}>Disable</button>
+                )}
+                {filesystem?.lifecycle === 'active' && (
+                  <button type="button" disabled={pending}
+                    onClick={() => void filesystemAction('restart')}>
+                    Restart service (revokes current access)
+                  </button>
+                )}
+              </div>
+              <p>Version {filesystemProofManifest.version} · bundled utility process · filesystem.read</p>
+              <p>{activeRequest
+                ? `${activeRequest.action} · ${activeRequest.state} · ${activeRequest.detail}`
+                : 'No service operation yet'}</p>
+              <p>Generation {filesystem?.activeGeneration ?? 'none'} · persistence {filesystem?.persistenceHealth ?? 'indeterminate'}</p>
+              {filesystem?.lastFailure && <p className="plugin-failure" role="status">{filesystem.lastFailure}</p>}
+              <p>The main-process grant broker limits cooperative bundled code to the selected folder. It does not contain hostile code.</p>
+              {filesystem?.lifecycle === 'active' && activeGrant && (
+                <p>Restarting stops the service and revokes the current folder grant before a new generation starts.</p>
+              )}
+            </details>
+          )}
+
+          {selected.id === filesystemProofManifest.id && evidenceControls && (
+            <details className="plugin-evidence"><summary>G001 evidence controls</summary>{evidenceControls}</details>
+          )}
+        </section>
+      )}
     </div>
   );
 }
