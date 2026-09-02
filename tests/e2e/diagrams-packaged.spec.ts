@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, test, _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
-import { packagedExecutable } from './packaged-app';
+import { packagedExecutable, placeCaret } from './packaged-app';
 
 const resultRoot = path.join(process.cwd(), 'test-results', 'diagrams');
 
@@ -56,15 +56,24 @@ test.describe('diagrams', () => {
       await expect(fence).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 
       // A press on the drawing puts the caret in the source, which comes back.
-      await diagram.click({ position: { x: 30, y: 30 } });
+      // Through the helper, which waits for the selection to settle before
+      // any key is sent; a key sent sooner is lost to the editor's own sync.
+      await placeCaret(page, diagram);
       await expect(fence).toHaveClass(/noto-active-block/);
       const shown = await fence.locator('.noto-fence-code').evaluate((element) => element.getBoundingClientRect().height);
       expect(shown).toBeGreaterThan(20);
 
-      // A change redraws, taller. The caret is at the top of the source; End
-      // scrolls on macOS rather than moving, so the line's end is Command+Right.
-      await page.keyboard.press('ArrowDown');
-      await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End');
+      // A change redraws, taller. The caret goes to the end of the last line by
+      // a press there: an arrow key sent right after the click that entered the
+      // fence is lost to the editor's own selection sync.
+      const code = fence.locator('.noto-fence-code');
+      const box = (await code.boundingBox())!;
+      const settled = page.evaluate(() => new Promise<void>((resolve) => {
+        document.addEventListener('selectionchange', () => resolve(), { once: true });
+        setTimeout(resolve, 400);
+      }));
+      await code.click({ position: { x: box.width - 6, y: box.height - 8 } });
+      await settled;
       await page.keyboard.type('\n  B --> C[Then]\n  C --> D[Last]');
       await expect(diagram).toHaveAttribute('data-state', 'rendered');
       await expect.poll(async () => frame.evaluate((element) => element.getBoundingClientRect().height), { timeout: 10_000 })

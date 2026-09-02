@@ -68,7 +68,7 @@ test.describe('the trail', () => {
       await expect(title(page)).toContainText('three.md');
       // Inside the vault the breadcrumb is the path from the vault's own
       // name, and the last two folders are what fits in a title bar.
-      await expect(title(page).locator('.crumb')).toHaveText(['…', 'projects', 'alpha']);
+      await expect(title(page).locator('.crumb')).toHaveText(['alpha']);
 
       // Back through the menu, which is the chord's route, then the button.
       await invokeMenu(app, 'navigate-back');

@@ -145,7 +145,7 @@ export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   remoteImages: true,
   codeLineNumbers: true,
   sidebarOnLaunch: false,
-  railWidth: 248,
+  railWidth: 272,
   autoSave: false,
   autoSaveDelayMs: 1_200,
   customCssPath: '',
