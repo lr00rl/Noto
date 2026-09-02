@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, test, _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
-import { packagedExecutable, LINE_START } from './packaged-app';
+import { packagedExecutable, LINE_START, placeCaret } from './packaged-app';
 
 /**
  * The constructs the product promises are editable rather than read-only source
@@ -75,7 +75,7 @@ test.describe('constructs stay editable', () => {
     try {
       // Click at the end of the last frontmatter line and add another key.
       // Not a document-end shortcut, which would leave the block entirely.
-      await page.getByText('status: draft').click();
+      await placeCaret(page, page.getByText('status: draft'));
       await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End');
       await page.keyboard.type('\nreviewed: yes');
 
@@ -96,7 +96,7 @@ test.describe('constructs stay editable', () => {
   test('edits a footnote definition in place', async () => {
     const { app, page, file } = await launch('footnote');
     try {
-      await page.locator('.noto-footnote-definition').click();
+      await placeCaret(page, page.locator('.noto-footnote-definition'));
       await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End');
       await page.keyboard.type(' Reprinted 2004.');
 
@@ -121,7 +121,7 @@ test.describe('constructs stay editable', () => {
       // a real element with that class inside the editor instead.
       await expect(page.locator('.ProseMirror div.callout')).toHaveCount(0);
 
-      await html.click();
+      await placeCaret(page, html);
       await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End');
       await page.keyboard.type(' edited');
 
@@ -140,7 +140,7 @@ test.describe('constructs stay editable', () => {
     const { app, page, file } = await launch('fidelity');
     try {
       // One edit somewhere unrelated, so there is something to save.
-      await page.locator('.ProseMirror p').last().click();
+      await placeCaret(page, page.locator('.ProseMirror p').last());
       await page.keyboard.press(LINE_START);
       await page.keyboard.type('Yes. ');
 
@@ -170,7 +170,7 @@ test.describe('save a copy', () => {
     const { app, page, file } = await launch('save-copy');
     const destination = path.join(path.dirname(file), 'copy.md');
     try {
-      await page.locator('.ProseMirror p').last().click();
+      await placeCaret(page, page.locator('.ProseMirror p').last());
       await page.keyboard.press(LINE_START);
       await page.keyboard.type('Copied. ');
 

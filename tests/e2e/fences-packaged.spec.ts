@@ -1,7 +1,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, test, _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
-import { packagedExecutable } from './packaged-app';
+import { packagedExecutable, placeCaret } from './packaged-app';
 
 const resultRoot = path.join(process.cwd(), 'test-results', 'fences');
 
@@ -61,7 +61,7 @@ test.describe('code fences', () => {
 
       // A new line in the block is a new number in the gutter, at once.
       const code = page.locator('.ProseMirror pre').nth(1).locator('code');
-      await code.click();
+      await placeCaret(page, code);
       await page.keyboard.press('End');
       await page.keyboard.press('Enter');
       await page.keyboard.type('more');

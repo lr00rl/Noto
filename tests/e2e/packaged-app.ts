@@ -12,6 +12,7 @@
  */
 
 import path from 'node:path';
+import type { Locator, Page } from '@playwright/test';
 
 export type PackageVariant = 'e2e' | 'release';
 
@@ -68,3 +69,24 @@ export const MOD = process.platform === 'darwin' ? 'Meta' : 'Control';
  * that types at a known position has to ask for the right one.
  */
 export const LINE_START = process.platform === 'darwin' ? 'Meta+ArrowLeft' : 'Home';
+
+/**
+ * Click to place the caret, and wait until the editor knows where it is.
+ *
+ * A click lets the browser put the caret where it landed, and ProseMirror
+ * learns of the new position from the `selectionchange` event, which the
+ * browser delivers a moment later. A test can press a key inside that moment;
+ * a person cannot. Keys pressed in it are handled against the selection the
+ * editor still holds from before the click, at the top of the document, which
+ * is where the intermittent failures of the constructs suite came from. So
+ * the wait is for the event itself, with a short ceiling for the case where
+ * the click lands where the caret already was and no event follows.
+ */
+export async function placeCaret(page: Page, target: Locator): Promise<void> {
+  const settled = page.evaluate(() => new Promise<void>((resolve) => {
+    document.addEventListener('selectionchange', () => resolve(), { once: true });
+    setTimeout(resolve, 400);
+  }));
+  await target.click();
+  await settled;
+}
