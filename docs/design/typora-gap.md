@@ -1,10 +1,17 @@
 # Where Noto stands against Typora
 
-Measured on 2026-09-01 against the Typora on this machine, its stylesheets on
-disk, the author's own theme (`Typora_Claude-Like_Theme`), and the author's
-vault: 7,066 notes, 82.5 MB of markdown, 343 image files, six levels deep.
-Assessments below are ordered by how much each one accounts for the difference
-in feel, and each names its evidence.
+Measured against the Typora on this machine, its stylesheets on disk, the
+author's own theme (`Typora_Claude-Like_Theme`), and the author's vault: 7,066
+notes, 82.5 MB of markdown, 343 image files, six levels deep. Every assessment
+names its evidence, and where a number appears it was measured rather than
+estimated: from the running Typora through its remote control, from the
+packaged app through a driver, or from the vault itself.
+
+Grouped by what part of the experience each one is about, rather than by when
+it was found. Speed is not here: `docs/performance/large-documents.md` carries
+what a large document costs and where the cost is.
+
+# The document, as it is drawn
 
 ## 1. Images did not render. Closed.
 
@@ -92,17 +99,7 @@ the author's Typora is set. The plugin's indent guides and tab markers are not
 ported; each needs a per-line element inside the fence, which the editor does
 not have, and they are listed with the plugins below.
 
-## 5. The file tree had no icons. Closed.
-
-Typora prefixes every row with a file or folder glyph; the author's tree shows
-them. Noto's rows were text and a twisty. With the connector lines in place the
-tree was legible without them, but they are what makes a row of names read as
-files rather than as an outline. Every row now carries one, drawn inline in
-the title bar's stroke style in the muted tier, a folder's flap lifting when
-it is open; a file row carries the twisty's width as a spacer so the glyphs of
-one level form a column.
-
-## 5b. Blocks did not share the text's left edge. Closed.
+## 5. Blocks did not share the text's left edge. Closed.
 
 Every top-level block carried a 14px padding for the heading markers, so a
 paragraph's first letter sat 14px in from the block's edge while a fence, a
@@ -111,7 +108,16 @@ the left of the text it sat between, which the author drew a red line against.
 The gutter is now the document's, once, on the editor itself, and a block's
 box and a paragraph's first glyph share one left edge.
 
-## 5c. Alerts rendered as plain quotes. Closed.
+## 6. Inline code was bare. Closed.
+
+The theme gives inline code a border, a fill, a small radius and `0.9em`. Noto
+set a monospace face at 14px and nothing else, so `A400_Languages` sat in a
+sentence with no edge. Small, but it is in nearly every paragraph of this
+vault. Inline code now has the theme's hairline, fill, radius and its own warm
+ink, at 0.9em of the prose so it follows the size setting; a fence has the
+same hairline and no edge on the code inside it, since the fence is the edge.
+
+## 7. Alerts rendered as plain quotes. Closed.
 
 `> [!NOTE]` and its four siblings, which the vault holds by the hundred, drew
 as a quote with the marker showing. They are now callouts as Typora draws
@@ -119,13 +125,7 @@ them: a rule and a tint in the kind's colour, an icon and a title in place of
 the marker, the marker itself back while the caret is inside. Decorations over
 an ordinary quote, so the file keeps its marker line byte for byte.
 
-## 5d. A fence had a label but no way to set its language. Closed.
-
-The language in the fence's corner is now a field, with the highlighter's
-names offered as you type, and setting it writes the fence's info string as
-one undoable change and colours the block.
-
-## 5e. Typora's own inline marks were plain text. Closed.
+## 8. Typora's own inline marks were plain text. Closed.
 
 `==highlight==` is in 960 places in the vault, `^superscript^` in 363 and
 `~subscript~` in 254. None is CommonMark, so the parser kept them as text and
@@ -135,7 +135,7 @@ both come back muted while the selection touches the block. The file keeps
 every delimiter. The scan is incremental, one paragraph per keystroke, so the
 two-megabyte corpus documents pay nothing for it.
 
-## 5f. The inline HTML a note writes for a key, a formula or a break showed as source. Closed.
+## 9. The inline HTML a note writes for a key, a formula or a break showed as source. Closed.
 
 `<br>` sits in 567 lines of the vault, `<sub>` in 86, `<kbd>` in 81, `<sup>`
 in 37 and `<u>` in 20. A bare formatting tag with no attributes, and the text
@@ -145,17 +145,7 @@ only while the block is being edited. A tag carrying attributes, `<span
 style>` above all, is left as source, since drawing an author's inline
 style would mean trusting it.
 
-## 5g. The highlighter knew twenty languages; the vault fences forty. Closed.
-
-Haskell alone is fenced 319 times, and it was not loaded; nor were Ruby, Lua,
-PHP, C#, PowerShell, HTTP, Vim script, Nginx, INI, Dockerfile or Makefile,
-which together account for a thousand more. Every language the vault fences
-more than fifty times now has its grammar, with the short names an author
-actually types (`hs`, `rb`, `ps1`, `dockerfile`, `jsonc`, `elisp`) mapped to
-it. `text`, `console` output and the odd `undefined` stay unpainted, which is
-right for them.
-
-## 5h. A mermaid fence showed its source. Closed.
+## 10. A mermaid fence showed its source. Closed.
 
 The vault fences 121 mermaid diagrams in 77 notes, flowcharts and sequence
 diagrams above all, and Typora draws every one. Noto showed the source in a
@@ -175,7 +165,123 @@ holds it, and the only thing that crosses is the source and the palette going
 in and a height or an error coming out. The file keeps its bytes: the drawing
 is a view of the fence, never its content.
 
-## 5i. Frame by frame against the author's window. Closed, for this frame.
+## 11. A formula was drawn as an exhibit. Closed.
+
+Typora gives a block of maths no box at all: centred on the page at the
+body's own size, with room above and below and nothing drawn around it. This
+put a rule and a fill and a smaller size around every one, so a document of
+working read as a document of quotations. Inline maths was boxed too, and set
+smaller than the sentence holding it.
+
+## 12. A line the author broke is now drawn broken. Closed.
+
+CommonMark reads a single newline inside a paragraph as a space, and so did
+this. Typora draws it as a break, and the difference showed on any note with
+a two-line quote or a wrapped sentence. The reasoning for collapsing had been
+that such a newline is only where an editor happened to wrap the source; a
+census of the vault says otherwise. There is no wrapping convention in it at
+all, lines running from a few characters to nearly three thousand, and 2.7%
+of its 213,471 paragraphs hold a newline. These notes were written in Typora,
+where Enter starts a paragraph and only Shift+Enter puts a newline inside
+one, so every one of those is a break somebody typed. They are kept now, and
+drawn where they were typed.
+
+## 13. Bold beside Chinese was not bold. Closed.
+
+The largest single fault found in this run, and it was found by re-serializing
+the vault rather than by looking at it. CommonMark decides whether a `**` run
+can close from what sits either side of it, and it counts CJK punctuation as
+punctuation, so `**注意：**一定` never closes: the reader saw asterisks where
+they had written bold. A census of 300 notes found 596 of their 3,220 bold
+runs unparsed for this reason, in a quarter of the files. Typora closes them,
+and so does anybody reading the file.
+
+Both halves of the CommonMark community's own CJK-friendly amendment are in
+now, the reading half and the writing half. The reading half fixes the
+rendering; the writing half matters just as much, because without it the
+serializer keeps the old rules, decides the run cannot close, and escapes the
+Chinese character after it into a numeric reference. Missed runs fell from 596
+to 179.
+
+## 14. A bare URL was not left as one. Closed.
+
+Found by rendering real notes rather than a made-up one. Two faults, both on a
+construct the vault uses 6,200 times.
+
+Editing any paragraph holding a bare URL wrote it back as `<url>`. That is the
+serializer's own default for a link whose text is its address, and it is
+correct markdown, but it is not what these files say: 6,200 bare against 145
+in angle brackets. A bare URL is written bare now, and only where that is
+unambiguous, since GFM trims a trailing full stop or bracket off a bare
+address and one that ends in punctuation has to keep its brackets or come back
+a character shorter.
+
+The other fault was on screen. Putting the caret in a paragraph reveals the
+markdown of the inline thing it is in, and a bare URL was revealed as
+`[url](url)`, showing syntax the file does not contain and inviting an edit
+that would turn it into a different construct. A link whose text is its own
+address now reveals nothing, because there is nothing to reveal.
+
+# The window around it
+
+## 15. The file tree had no icons. Closed.
+
+Typora prefixes every row with a file or folder glyph; the author's tree shows
+them. Noto's rows were text and a twisty. With the connector lines in place the
+tree was legible without them, but they are what makes a row of names read as
+files rather than as an outline. Every row now carries one, drawn inline in
+the title bar's stroke style in the muted tier, a folder's flap lifting when
+it is open; a file row carries the twisty's width as a spacer so the glyphs of
+one level form a column.
+
+## 16. The title bar was a band across the window. Closed.
+
+Typora's sidebar and page each carry their own ground from the top of the
+window to the bottom, so the two columns read as columns. This drew a single
+panel-coloured bar across the whole width, which cut the page off from its
+own title. The bar now carries the rail's ground above the rail and the
+page's above the page, and the divide runs floor to ceiling.
+
+## 17. Three bars of furniture where Typora has one. Closed.
+
+Typora spends the top 28px of its window on the file's name and draws nothing
+else: no bar down the side of the rail, no strip along the foot. This had
+three. The rail carried a footer naming the folder, which the tree's own
+first row already names, with the folder's actions behind it; those actions
+now live on that first row, as a quiet ellipsis that comes up when the
+pointer is on it, which is where an action belongs, on the thing it acts on.
+The foot of the window carried a sentence that was always there, and a
+promise that is always on screen stops being read; it is said when it
+changes and fades. The title bar is 32 rather than 38.
+
+## 18. Quick open read as ten copies of one path. Closed.
+
+Every result showed its whole path, truncated at the right, and in a vault
+whose paths share long prefixes that left ten rows reading identically: the
+same forty characters, then an ellipsis. What tells two results apart is the
+folder the note is in, so the filename goes, since the row already names it,
+and the last two folders are what survives. The whole path is still there on
+hover.
+
+The keyboard's focus ring was drawn in near-black ink, which on a bordered
+control read as a second border or as something being wrong. It is the accent
+now, which is the one thing this interface uses to say where you are.
+
+## 19. The outline never said which heading you were in. Closed.
+
+A list of headings is asked two different questions. Navigating, it is asked
+where to go, and this answered that. Writing, it is asked where am I, and this
+said nothing: the outline looked the same whatever the caret was doing.
+Typora marks the heading you are under; so does this now, in the same warm
+grey the current file gets in the tree, following the caret as it moves and
+resolving a paragraph to the heading above it.
+
+The editor reports the top level block the caret is in whenever it changes,
+which is a thing worth having anyway and cost one comparison per transaction.
+
+# Measured against the running Typora
+
+## 20. Frame by frame against the author's window. Closed, for this frame.
 
 The author's Typora window and Noto were put on the same note at the same
 size, 1274 by 698, and compared. What differed, and what changed:
@@ -209,7 +315,7 @@ as faint as the theme draws it; a picture has the theme's inside hairline;
 the caret is the accent, and a selection is the accent at a wash, where
 before it was the system blue because nothing had set it.
 
-## 5j. Measured against the running Typora, not guessed at. Closed.
+## 21. Measured against the running Typora, not guessed at. Closed.
 
 With the remote control working, both editors could be asked the same
 question at the same window size and their answers compared field by field:
@@ -246,40 +352,48 @@ when it is a loose item, which is the theme's own rule.
 
 An alert's title sat on the same line as its first sentence.
 
-## 5m. Quick open read as ten copies of one path. Closed.
+## 22. A second pass with fresh eyes. Closed.
 
-Every result showed its whole path, truncated at the right, and in a vault
-whose paths share long prefixes that left ten rows reading identically: the
-same forty characters, then an ellipsis. What tells two results apart is the
-folder the note is in, so the filename goes, since the row already names it,
-and the last two folders are what survives. The whole path is still there on
-hover.
+Six things a reader who had not been staring at it all day picked out.
+Preferences opened with a focus ring around its Done button, so the eye landed
+on a button before the settings; the dialog takes the focus now, which traps
+the keys without drawing anything, and the ring appears when somebody actually
+tabs. The panel was a fixed 560 tall, which left the shortest section a void
+under its last control and a footnote pinned to an edge it had nothing to do
+with; it is as tall as what is in it. The sidebar toggle turned into a filled
+box when the rail was open, making the heaviest mark in the title bar an
+accident of state; a mode that is on says so in colour, as the rail's own tabs
+do, and the fill is kept for a button holding a menu open below it. In the
+dark theme the lit branch was the loudest thing in the window, because the
+same accent carries much further on a near-black rail than on paper; the tree
+has its own accent now, the same hue at 62% in the dark. The scrollbars left
+an opaque square where they met. And focus mode dimmed text but not fills, so
+a quote or a callout still read as a solid rectangle beside a nearly
+vanished paragraph; the author's theme answers this the same way, by taking
+the fill off a callout in focus mode.
 
-The keyboard's focus ring was drawn in near-black ink, which on a bordered
-control read as a second border or as something being wrong. It is the accent
-now, which is the one thing this interface uses to say where you are.
+Frontmatter, which 3,440 notes in the vault carry, had a rule down its left
+and 12px of padding against Typora's none and 16.
 
-## 5n. Three bars of furniture where Typora has one. Closed.
+# Editing
 
-Typora spends the top 28px of its window on the file's name and draws nothing
-else: no bar down the side of the rail, no strip along the foot. This had
-three. The rail carried a footer naming the folder, which the tree's own
-first row already names, with the folder's actions behind it; those actions
-now live on that first row, as a quiet ellipsis that comes up when the
-pointer is on it, which is where an action belongs, on the thing it acts on.
-The foot of the window carried a sentence that was always there, and a
-promise that is always on screen stops being read; it is said when it
-changes and fades. The title bar is 32 rather than 38.
+## 23. A fence had a label but no way to set its language. Closed.
 
-## 5o. A formula was drawn as an exhibit. Closed.
+The language in the fence's corner is now a field, with the highlighter's
+names offered as you type, and setting it writes the fence's info string as
+one undoable change and colours the block.
 
-Typora gives a block of maths no box at all: centred on the page at the
-body's own size, with room above and below and nothing drawn around it. This
-put a rule and a fill and a smaller size around every one, so a document of
-working read as a document of quotations. Inline maths was boxed too, and set
-smaller than the sentence holding it.
+## 24. The highlighter knew twenty languages; the vault fences forty. Closed.
 
-## 5p. The keys Typora gives to the marks markdown has no key for. Closed.
+Haskell alone is fenced 319 times, and it was not loaded; nor were Ruby, Lua,
+PHP, C#, PowerShell, HTTP, Vim script, Nginx, INI, Dockerfile or Makefile,
+which together account for a thousand more. Every language the vault fences
+more than fifty times now has its grammar, with the short names an author
+actually types (`hs`, `rb`, `ps1`, `dockerfile`, `jsonc`, `elisp`) mapped to
+it. `text`, `console` output and the odd `undefined` stay unpainted, which is
+right for them.
+
+## 25. The keys Typora gives to the marks markdown has no key for. Closed.
 
 Read out of Typora's own menus rather than from memory. Its headings, strong
 and emphasis were already the same. What was missing: Underline on Command+U,
@@ -303,7 +417,7 @@ goes in as inline HTML nodes and maths as a maths node, so each is what it
 says it is and survives the round trip. Highlight is plain `==`, which needs
 no escaping and so can be exactly the characters the file will hold.
 
-## 5q. Typora's two writing modes were missing. Closed.
+## 26. Typora's two writing modes were missing. Closed.
 
 Focus mode and typewriter mode are in Typora's View menu and are part of what
 people mean when they say they write in Typora. Focus mode quietens every
@@ -321,63 +435,7 @@ where Typora keeps them. Neither has a shortcut, which is also Typora's
 choice: they are settled once for a session rather than reached for mid
 sentence.
 
-## 5r. A second pass with fresh eyes. Closed.
-
-Six things a reader who had not been staring at it all day picked out.
-Preferences opened with a focus ring around its Done button, so the eye landed
-on a button before the settings; the dialog takes the focus now, which traps
-the keys without drawing anything, and the ring appears when somebody actually
-tabs. The panel was a fixed 560 tall, which left the shortest section a void
-under its last control and a footnote pinned to an edge it had nothing to do
-with; it is as tall as what is in it. The sidebar toggle turned into a filled
-box when the rail was open, making the heaviest mark in the title bar an
-accident of state; a mode that is on says so in colour, as the rail's own tabs
-do, and the fill is kept for a button holding a menu open below it. In the
-dark theme the lit branch was the loudest thing in the window, because the
-same accent carries much further on a near-black rail than on paper; the tree
-has its own accent now, the same hue at 62% in the dark. The scrollbars left
-an opaque square where they met. And focus mode dimmed text but not fills, so
-a quote or a callout still read as a solid rectangle beside a nearly
-vanished paragraph; the author's theme answers this the same way, by taking
-the fill off a callout in focus mode.
-
-Frontmatter, which 3,440 notes in the vault carry, had a rule down its left
-and 12px of padding against Typora's none and 16.
-
-## 5s. A plugin enabled last time did not always come back. Closed.
-
-Found through a test that failed about one run in three under load and passed
-every time on its own, which is the shape of a race rather than of slowness.
-An enabled plugin waits for an editor, and the announcement that one exists
-was made from the editor's side only, guarded by a snapshot of the plugin
-lifecycle. On a restart those two arrive independently, the editor from
-opening the document and the snapshots from main over IPC; whenever the
-snapshots were second, nothing ever announced the editor and the plugin sat at
-"enabled, waiting for editor" for the life of the window.
-
-The editor now announces if it can and arms a one-shot if it cannot, which the
-first snapshot batch of that same startup spends. Deliberately one shot: a
-plugin the reader enables later is meant to stay idle until they activate it,
-and an announcement left standing would start it the moment it was enabled.
-
-## 5t. There was no menu on a right click, so spell check had no answers. Closed.
-
-Nothing at all came up on a right click, which meant the spell checker could
-underline a word and offer nothing to do about it. There is a menu now, built
-in main because that is where the clipboard roles and the dictionary's own
-suggestions live. It shows only what the click is about: the spelling
-section over a misspelled word, with up to five suggestions and a way to add
-the word; a link's or a picture's address when the click is on one; and
-otherwise the clipboard, including pasting as plain text, which for a file
-made of markdown is what is wanted more often than the fragment's own markup.
-
-Pasting itself was already right and had no test. A fragment copied from a web
-page arrives as the markdown it means, headings at their own level, bold and
-links as marks, lists as lists, and the file it saves has no HTML in it. A
-fragment pasted into the middle of a sentence merges with that sentence, which
-is what every editor does; on a line of its own the blocks survive.
-
-## 5u. A table could be read but not edited. Closed.
+## 27. A table could be read but not edited. Closed.
 
 The vault holds 42,330 table rows and there was no way to add one. Tab moved
 between cells and stopped at the last; nothing anywhere could insert a row or
@@ -394,7 +452,7 @@ were real but invisible, reachable only by somebody who already knew them.
 Every item in that menu runs the same editor command its shortcut runs, so
 the two cannot drift apart, and the menu is where a hand goes looking.
 
-## 5v. A bracket did not close itself. Closed.
+## 28. A bracket did not close itself. Closed.
 
 The author's Typora pairs brackets and quotes, which its own settings confirm,
 and this did not. Typing an opening bracket now writes its partner and leaves
@@ -410,55 +468,24 @@ nearly always meant as one character. It is a setting, on by default, because
 this is the kind of help that is either invisible or infuriating and which of
 the two depends on the person.
 
-## 5w. The outline never said which heading you were in. Closed.
+## 29. There was no menu on a right click, so spell check had no answers. Closed.
 
-A list of headings is asked two different questions. Navigating, it is asked
-where to go, and this answered that. Writing, it is asked where am I, and this
-said nothing: the outline looked the same whatever the caret was doing.
-Typora marks the heading you are under; so does this now, in the same warm
-grey the current file gets in the tree, following the caret as it moves and
-resolving a paragraph to the heading above it.
+Nothing at all came up on a right click, which meant the spell checker could
+underline a word and offer nothing to do about it. There is a menu now, built
+in main because that is where the clipboard roles and the dictionary's own
+suggestions live. It shows only what the click is about: the spelling
+section over a misspelled word, with up to five suggestions and a way to add
+the word; a link's or a picture's address when the click is on one; and
+otherwise the clipboard, including pasting as plain text, which for a file
+made of markdown is what is wanted more often than the fragment's own markup.
 
-The editor reports the top level block the caret is in whenever it changes,
-which is a thing worth having anyway and cost one comparison per transaction.
+Pasting itself was already right and had no test. A fragment copied from a web
+page arrives as the markdown it means, headings at their own level, bold and
+links as marks, lists as lists, and the file it saves has no HTML in it. A
+fragment pasted into the middle of a sentence merges with that sentence, which
+is what every editor does; on a line of its own the blocks survive.
 
-## 5x. A bare URL was not left as one. Closed.
-
-Found by rendering real notes rather than a made-up one. Two faults, both on a
-construct the vault uses 6,200 times.
-
-Editing any paragraph holding a bare URL wrote it back as `<url>`. That is the
-serializer's own default for a link whose text is its address, and it is
-correct markdown, but it is not what these files say: 6,200 bare against 145
-in angle brackets. A bare URL is written bare now, and only where that is
-unambiguous, since GFM trims a trailing full stop or bracket off a bare
-address and one that ends in punctuation has to keep its brackets or come back
-a character shorter.
-
-The other fault was on screen. Putting the caret in a paragraph reveals the
-markdown of the inline thing it is in, and a bare URL was revealed as
-`[url](url)`, showing syntax the file does not contain and inviting an edit
-that would turn it into a different construct. A link whose text is its own
-address now reveals nothing, because there is nothing to reveal.
-
-## 5y. Bold beside Chinese was not bold. Closed.
-
-The largest single fault found in this run, and it was found by re-serializing
-the vault rather than by looking at it. CommonMark decides whether a `**` run
-can close from what sits either side of it, and it counts CJK punctuation as
-punctuation, so `**注意：**一定` never closes: the reader saw asterisks where
-they had written bold. A census of 300 notes found 596 of their 3,220 bold
-runs unparsed for this reason, in a quarter of the files. Typora closes them,
-and so does anybody reading the file.
-
-Both halves of the CommonMark community's own CJK-friendly amendment are in
-now, the reading half and the writing half. The reading half fixes the
-rendering; the writing half matters just as much, because without it the
-serializer keeps the old rules, decides the run cannot close, and escapes the
-Chinese character after it into a numeric reference. Missed runs fell from 596
-to 179.
-
-## 5z. Editing a block rewrote more of it than it had to. Closed, in part.
+## 30. Editing a block rewrote more of it than it had to. Closed, in part.
 
 A block nobody touches is copied from the original bytes, but an edited one is
 written afresh, and the serializer's dialect is not this vault's. Measured by
@@ -480,37 +507,27 @@ return at a fence's first line. Each is a normalisation rather than a loss,
 and the vault is of two minds about table padding, so there is no form to
 prefer.
 
-## 5k. A line the author broke is now drawn broken. Closed.
+# Faults found on the way
 
-CommonMark reads a single newline inside a paragraph as a space, and so did
-this. Typora draws it as a break, and the difference showed on any note with
-a two-line quote or a wrapped sentence. The reasoning for collapsing had been
-that such a newline is only where an editor happened to wrap the source; a
-census of the vault says otherwise. There is no wrapping convention in it at
-all, lines running from a few characters to nearly three thousand, and 2.7%
-of its 213,471 paragraphs hold a newline. These notes were written in Typora,
-where Enter starts a paragraph and only Shift+Enter puts a newline inside
-one, so every one of those is a break somebody typed. They are kept now, and
-drawn where they were typed.
+## 31. A plugin enabled last time did not always come back. Closed.
 
-## 5l. The title bar was a band across the window. Closed.
+Found through a test that failed about one run in three under load and passed
+every time on its own, which is the shape of a race rather than of slowness.
+An enabled plugin waits for an editor, and the announcement that one exists
+was made from the editor's side only, guarded by a snapshot of the plugin
+lifecycle. On a restart those two arrive independently, the editor from
+opening the document and the snapshots from main over IPC; whenever the
+snapshots were second, nothing ever announced the editor and the plugin sat at
+"enabled, waiting for editor" for the life of the window.
 
-Typora's sidebar and page each carry their own ground from the top of the
-window to the bottom, so the two columns read as columns. This drew a single
-panel-coloured bar across the whole width, which cut the page off from its
-own title. The bar now carries the rail's ground above the rail and the
-page's above the page, and the divide runs floor to ceiling.
+The editor now announces if it can and arms a one-shot if it cannot, which the
+first snapshot batch of that same startup spends. Deliberately one shot: a
+plugin the reader enables later is meant to stay idle until they activate it,
+and an announcement left standing would start it the moment it was enabled.
 
-## 6. Inline code was bare. Closed.
+# Where things stand
 
-The theme gives inline code a border, a fill, a small radius and `0.9em`. Noto
-set a monospace face at 14px and nothing else, so `A400_Languages` sat in a
-sentence with no edge. Small, but it is in nearly every paragraph of this
-vault. Inline code now has the theme's hairline, fill, radius and its own warm
-ink, at 0.9em of the prose so it follows the size setting; a fence has the
-same hairline and no edge on the code inside it, since the fence is the edge.
-
-## 7. Plugins: eight of sixteen, in some form
+## Plugins: eight of sixteen, in some form
 
 Real ports: Title Shift, Markdown Padding. Native equivalents: `wider` is the
 width modes, `tree-guides` is the connector lines and the sticky folders,
