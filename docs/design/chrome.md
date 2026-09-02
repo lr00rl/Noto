@@ -132,10 +132,14 @@ at rest, `--raised` on hover, and the current file gets a tint plus the spine.
 The folder itself is the first row, set in ink at weight 600 with nothing to
 press, and the first level hangs from it the way every deeper level hangs from
 its parent: a tree whose lines began one level down read as a list with a tree
-inside it. Open folders are sticky, each holding a row below its parent while
-its contents scroll past, so a deep folder always shows the path you are in; a
-row that is actually stuck, which the tree marks with an observer per depth,
-carries a rule beneath it, and a row that is merely open does not.
+inside it. The path to the current file is sticky, which is the rule measured
+from the author's own Typora theme rather than the one first guessed: each open
+ancestor of the current file holds a row below its parent while its contents
+scroll past, and the file's own row holds beneath them, so the top of the rail
+always reads as where the file you are in lives. Other open folders scroll like
+anything else, and so does the folder's own row. A row that is actually stuck,
+which the tree tells by how far the browser has displaced it from its own
+node, carries a rule beneath it; one merely resting in place does not.
 Every row carries a glyph, a folder or a file, drawn inline in the title bar's
 stroke style in the muted tier; they are what makes a column of names read as
 files rather than as an outline, and a file row carries the twisty's width as

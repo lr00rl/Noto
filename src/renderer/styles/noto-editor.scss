@@ -166,7 +166,7 @@
 .ProseMirror .noto-frontmatter {
   max-height: 2.6em;
   overflow: hidden;
-  transition: max-height 140ms ease;
+  transition: max-height var(--motion-medium) var(--ease-out);
 }
 
 .ProseMirror > .noto-active-block.noto-frontmatter {
@@ -342,7 +342,7 @@
   font-weight: 400;
   line-height: inherit;
   opacity: 0;
-  transition: opacity 120ms ease;
+  transition: opacity var(--motion-micro) var(--ease-out);
   pointer-events: none;
   user-select: none;
 }
@@ -395,7 +395,7 @@
   align-items: center;
   gap: 7px;
   opacity: 0;
-  transition: opacity 120ms ease;
+  transition: opacity var(--motion-micro) var(--ease-out);
 }
 
 .ProseMirror pre:hover .noto-fence-tools,
@@ -890,21 +890,30 @@
   &:hover { background: none; }
 }
 
-/* Open folders hold at the top while their contents scroll past, each one a
-   row below its parent, so a deep folder always shows the path you are in.
-   The offset is the row's depth in rows; the panel colour covers the stem
-   and the arms sliding under it. A row that is actually stuck, which the
-   tree marks, gets a rule beneath it; a row that is merely open does not. */
-.tree-directory[aria-expanded='true'],
-.tree-row.tree-vault-row {
+/* The path to the current file holds at the top while its contents scroll
+   past: each open ancestor a row below its parent, and the file's own row
+   beneath them, which is the author's Typora theme's rule. Other open folders
+   scroll like anything else, and so does the folder's own row, so the top of
+   the rail reads as where the file you are in lives, never as a stack of
+   every folder you opened. The offset is the row's depth in rows, counted
+   from the first level; the panel colour covers the stem and the arms
+   sliding under it. A row that is actually stuck, which the tree marks, gets
+   a rule beneath it; one merely resting in place does not. */
+.tree-directory.tree-on-path[aria-expanded='true'],
+.tree-node.tree-node-active {
   position: sticky;
-  top: calc(var(--tree-depth, 0) * 26px);
+  top: calc((var(--tree-depth, 1) - 1) * 26px);
   z-index: 2;
-  background: var(--panel);
 }
 
+/* The file's whole node is the sticky thing, as in the theme: a leaf's row
+   fills its node and would have no room to hold. The node paints the panel
+   so the stem does not show through it while it is stuck. */
+.tree-directory.tree-on-path[aria-expanded='true'],
+.tree-node.tree-node-active { background: var(--panel); }
+
 .tree-directory[data-stuck],
-.tree-vault-row[data-stuck] {
+.tree-node-active[data-stuck] > .tree-row {
   border-radius: 0;
   box-shadow: 0 1px 0 var(--line-strong), 0 4px 10px -4px var(--scrim);
 }
@@ -968,7 +977,7 @@
   border-top: 4px solid transparent;
   border-bottom: 4px solid transparent;
   border-left: 5px solid currentcolor;
-  transition: rotate 140ms cubic-bezier(0.2, 0, 0, 1);
+  transition: rotate var(--motion-default) var(--ease-out);
 }
 
 .tree-twisty-open { rotate: 90deg; }

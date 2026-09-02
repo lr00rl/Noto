@@ -30,6 +30,45 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Motion
+   -------------------------------------------------------------------------
+   The budget is an editor's, not a website's: someone who lives in a text
+   editor feels a 16ms difference, so most of the chrome moves in under 100ms
+   and the document surface never moves at all. Entering things decelerate
+   hard, so they seem to arrive before the press has registered; leaving
+   things are gone at once, because the interface should clear faster than it
+   fills. Nothing overshoots. Under reduced motion every value here collapses
+   to zero at the bottom of this file. */
+:root {
+  --motion-micro: 60ms;
+  --motion-fast: 80ms;
+  --motion-default: 100ms;
+  --motion-medium: 140ms;
+  --motion-slow: 200ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Arrival: a breath of scale and opacity, never a slide across the page. */
+@keyframes noto-arrive {
+  from { opacity: 0; scale: 0.98; }
+}
+
+@keyframes noto-fade {
+  from { opacity: 0; }
+}
+
+/* A panel comes in from its own edge with the weight of a physical thing,
+   decelerating rather than stopping on a timer. */
+@keyframes noto-rail-in {
+  from { opacity: 0; translate: -12px 0; }
+}
+
+@keyframes noto-rise {
+  from { opacity: 0; translate: 0 6px; }
+}
+
 button,
 input {
   min-width: 0;
@@ -48,7 +87,8 @@ button {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   transition-property: background-color, border-color, color;
-  transition-duration: 90ms;
+  transition-duration: var(--motion-micro);
+  transition-timing-function: var(--ease-out);
 }
 
 button:hover:not(:disabled) { background: var(--raised); }
@@ -228,7 +268,9 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 }
 
 .icon-button:hover:not(:disabled) { background: var(--raised); color: var(--ink); }
-.icon-button:active:not(:disabled) { background: var(--hairline); }
+/* A press is felt as a small physical give, released on pointer-up. */
+.icon-button { transition-property: background-color, color, scale; transition-duration: var(--motion-micro); transition-timing-function: var(--ease-out); }
+.icon-button:active:not(:disabled) { background: var(--hairline); scale: 0.96; }
 .icon-button[aria-pressed='true'],
 .icon-button[aria-expanded='true'] { background: var(--raised); color: var(--ink); }
 /* Save is the exception: it is drawn only when it is the thing to do, so it is
@@ -261,6 +303,7 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 }
 
 .workspace-rail {
+  animation: noto-rail-in var(--motion-slow) var(--ease-out);
   /* Set by the reader and held: it does not follow the window, because a rail
      that resizes with the window rewraps filenames while you type in the
      document beside it. A vault six levels deep spends 70 pixels on indent
@@ -322,8 +365,8 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   border-radius: 1px;
   background: var(--ink);
   transition-property: left, width;
-  transition-duration: 180ms;
-  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  transition-duration: var(--motion-medium);
+  transition-timing-function: var(--ease-out);
 }
 
 .rail-tab {
@@ -337,7 +380,8 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   letter-spacing: 0.005em;
   text-align: left;
   transition-property: color;
-  transition-duration: 120ms;
+  transition-duration: var(--motion-fast);
+  transition-timing-function: var(--ease-out);
 }
 
 .rail-tab:hover { color: var(--ink); background: transparent; }
@@ -372,7 +416,8 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   background: var(--accent);
   opacity: 0;
   transition-property: opacity;
-  transition-duration: 120ms;
+  transition-duration: var(--motion-micro);
+  transition-timing-function: var(--ease-out);
 }
 
 .rail-resize:hover::after,
@@ -423,7 +468,8 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   color: var(--muted);
   font-size: 12px;
   transition-property: color, background-color;
-  transition-duration: 100ms;
+  transition-duration: var(--motion-micro);
+  transition-timing-function: var(--ease-out);
 }
 
 .recent-chip:hover { background: var(--raised); color: var(--ink); }
@@ -488,6 +534,7 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 /* Opens upward, because it is anchored to the bottom of the window and a menu
    that opened downward would have nowhere to go. */
 .rail-menu {
+  animation: noto-arrive var(--motion-default) var(--ease-out);
   position: absolute;
   z-index: 40;
   right: 6px;
@@ -595,6 +642,7 @@ button:disabled { color: var(--muted); opacity: 0.7; }
    that lived on opposite sides of the window. */
 
 .pref-scrim {
+  animation: noto-fade var(--motion-micro) var(--ease-out);
   position: fixed;
   z-index: 60;
   inset: 0;
@@ -605,6 +653,7 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 }
 
 .pref-dialog {
+  animation: noto-arrive var(--motion-default) var(--ease-out);
   display: grid;
   grid-template-columns: 172px minmax(0, 1fr);
   width: min(720px, 100%);
@@ -820,7 +869,8 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   border-radius: 50%;
   background: var(--ink);
   transition-property: scale;
-  transition-duration: 120ms;
+  transition-duration: var(--motion-micro);
+  transition-timing-function: var(--ease-out);
 }
 
 .pref-slider input[type='range']:active::-webkit-slider-thumb { scale: 1.15; }
@@ -897,7 +947,8 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   border-radius: 999px;
   background: var(--panel);
   transition-property: background-color, border-color;
-  transition-duration: 120ms;
+  transition-duration: var(--motion-micro);
+  transition-timing-function: var(--ease-out);
 }
 
 .pref-track::after {
@@ -910,7 +961,8 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   border-radius: 50%;
   background: var(--muted);
   transition-property: translate, background-color;
-  transition-duration: 120ms;
+  transition-duration: var(--motion-fast);
+  transition-timing-function: var(--ease-out);
 }
 
 .pref-switch input:checked ~ .pref-track {
@@ -1169,7 +1221,7 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   border-top: 4px solid transparent;
   border-bottom: 4px solid transparent;
   border-left: 5px solid currentcolor;
-  transition: rotate 120ms ease;
+  transition: rotate var(--motion-default) var(--ease-out);
 }
 
 .plugin-diagnostics[open] summary::before,
@@ -1271,13 +1323,14 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   white-space: nowrap;
 
   /* A plugin's word, for a moment, in ink rather than the resting grey. */
-  &.is-notice { color: var(--ink); }
+  &.is-notice { color: var(--ink); animation: noto-rise var(--motion-medium) var(--ease-out); }
 }
 
 /* Command palette
    ------------------------------------------------------------------------- */
 
 .command-palette {
+  animation: noto-arrive var(--motion-default) var(--ease-out);
   position: fixed;
   z-index: 30;
   top: 64px;
@@ -1333,6 +1386,7 @@ button:disabled { color: var(--muted); opacity: 0.7; }
    stays still and only the rows beneath it change. */
 
 .quick-scrim {
+  animation: noto-fade var(--motion-micro) var(--ease-out);
   position: fixed;
   z-index: 70;
   inset: 0;
@@ -1340,6 +1394,7 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 }
 
 .quick-open {
+  animation: noto-arrive var(--motion-default) var(--ease-out);
   position: absolute;
   top: 12vh;
   left: 50%;

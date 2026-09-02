@@ -55,32 +55,48 @@ test.describe('the rail tree', () => {
     }
   });
 
-  test('holds open folders at the top while their contents scroll', async () => {
+  test('holds the path to the current file at the top while the rest scrolls', async () => {
     const { app, page } = await launch('sticky');
     try {
       const chapters = page.getByTestId('tree-directory').filter({ hasText: 'chapters' });
       await chapters.click();
-      await expect(page.getByTestId('tree-file').filter({ hasText: 'chapter-60' })).toBeVisible();
+      const first = page.getByTestId('tree-file').filter({ hasText: 'chapter-01' });
+      await expect(first).toBeVisible();
+      // An open folder that is not on the way to the current file scrolls
+      // like anything else; there is no current file yet.
+      await expect(chapters).not.toHaveCSS('position', 'sticky');
+
+      // Open the first chapter: the folder is now on the path and holds at the
+      // top of the first level; the file's own row holds a row beneath it.
+      await first.click();
+      const firstNode = page.locator('.tree-node-active');
       await expect(chapters).toHaveCSS('position', 'sticky');
-      // Depth one: one row below the vault's own row.
-      await expect(chapters).toHaveCSS('top', '26px');
+      await expect(chapters).toHaveCSS('top', '0px');
+      // The file's whole node holds, since its row fills the node.
+      await expect(firstNode).toHaveCSS('position', 'sticky');
+      await expect(firstNode).toHaveCSS('top', '26px');
+      await expect(page.getByTestId('tree-vault')).not.toHaveCSS('position', 'sticky');
       await expect(chapters).not.toHaveAttribute('data-stuck');
 
-      // Scroll the rail down into the chapters, and the folder holds.
-      const last = page.getByTestId('tree-file').filter({ hasText: 'chapter-60' });
-      await last.scrollIntoViewIfNeeded();
+      // Scroll the rail down through the chapters, and both hold.
+      await page.getByTestId('tree-file').filter({ hasText: 'chapter-60' }).scrollIntoViewIfNeeded();
       await expect(chapters).toHaveAttribute('data-stuck');
-      await expect(page.getByTestId('tree-vault')).toHaveAttribute('data-stuck');
-      // One row below the top of the scroller's content, under its padding.
+      await expect(firstNode).toHaveAttribute('data-stuck');
       const offset = await page.evaluate(() => {
         const scroller = document.querySelector<HTMLElement>('.rail-view')!;
-        const row = document.querySelector<HTMLElement>('.tree-directory[aria-expanded="true"]')!;
+        const row = document.querySelector<HTMLElement>('.tree-file-active')!;
         return row.getBoundingClientRect().top - scroller.getBoundingClientRect().top
           - Number.parseFloat(getComputedStyle(scroller).paddingTop);
       });
       expect(Math.round(offset)).toBe(26);
 
-      // Back at the top, it is an ordinary open folder again.
+      // A sibling folder opened off the path does not join the stack.
+      const drafts = page.getByTestId('tree-directory').filter({ hasText: 'drafts' });
+      await drafts.scrollIntoViewIfNeeded();
+      await drafts.click();
+      await expect(drafts).not.toHaveCSS('position', 'sticky');
+
+      // Back at the top, the folder rests in place again.
       await page.locator('.rail-view').evaluate((element) => element.scrollTo(0, 0));
       await expect(chapters).not.toHaveAttribute('data-stuck');
     } finally {
