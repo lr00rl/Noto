@@ -27,7 +27,7 @@ import type {
 import type { StructuredLogger } from '../logger';
 import type { FileTruthStoreV1 } from '../file-truth/v1/file-truth-store';
 import type { RecentFiles } from './recent-files';
-import { listDirectory, type FileTreeEntryV1 } from './file-tree';
+import { isEditableFile, listDirectory, type FileTreeEntryV1 } from './file-tree';
 import { buildFileIndex } from './file-index';
 import { searchContent } from './content-search';
 
@@ -110,6 +110,20 @@ export class WorkspaceSession {
    */
   async openPath(filePath: string): Promise<FileTruthOpenReplyV1> {
     const resolved = path.resolve(filePath);
+    /*
+     * The same answer the tree, the index and the Open dialog give.
+     *
+     * This is the one way in that took anything, so `Noto main.ts` opened a
+     * source file and drew it as prose: its indentation gone, its template
+     * literals read as code spans, and any block the reader touched written
+     * back as markdown rather than as the code it is. Refusing says what the
+     * editor is for instead of quietly making a mess of the file.
+     */
+    if (!isEditableFile(resolved)) {
+      throw new Error(
+        `Noto edits Markdown, and ${path.basename(resolved)} is not a Markdown file.`,
+      );
+    }
     const existing = this.documents.get(resolved);
     if (existing) {
       this.activate(resolved);

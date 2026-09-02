@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { isInside, listDirectory } from '../../src/main/workspace/file-tree';
+import { isInside, listDirectory, isEditableFile } from '../../src/main/workspace/file-tree';
 
 const roots: string[] = [];
 
@@ -104,5 +104,19 @@ describe('containment check', () => {
     expect(isInside('/a/b', '/a/bc')).toBe(false);
     expect(isInside('/a/b', '/a')).toBe(false);
     expect(isInside('/a/b', '/other')).toBe(false);
+  });
+});
+
+describe('what the editor opens', () => {
+  it('says yes to the markdown spellings and to plain text', () => {
+    for (const name of ['a.md', 'a.markdown', 'a.mdown', 'a.mkd', 'a.txt', 'A.MD']) {
+      expect(isEditableFile(`/vault/${name}`)).toBe(true);
+    }
+  });
+
+  it('says no to source files and to anything with no extension', () => {
+    for (const name of ['main.ts', 'run.py', 'a.json', 'a.png', 'Makefile', 'a.mdx']) {
+      expect(isEditableFile(`/vault/${name}`)).toBe(false);
+    }
   });
 });
