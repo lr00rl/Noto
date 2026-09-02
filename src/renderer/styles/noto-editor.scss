@@ -521,53 +521,59 @@
  * colour, and structure stays quiet. A rainbow competes with the prose.
  */
 .ProseMirror pre .token {
+  /* The five colours the author's theme actually gives code, read from its
+     own rules rather than borrowed from a Prism theme: a purple for what the
+     language reserves, a green for text, a warm brown for numbers, a blue for
+     the names a file defines, and the muted tier for comments. Status colours
+     are not used here. A string is not a success, and a tag is not a danger;
+     spending those words on syntax leaves nothing to say when something has
+     actually gone wrong. */
   &.comment,
   &.prolog,
   &.doctype,
-  &.cdata {
-    color: var(--muted);
+  &.cdata,
+  &.meta {
+    color: var(--code-muted);
     font-style: italic;
   }
 
   &.punctuation,
   &.operator,
-  &.entity {
-    color: var(--muted);
+  &.entity,
+  &.variable {
+    color: var(--code-text);
   }
 
   &.keyword,
   &.rule,
   &.important,
-  &.atrule {
-    color: var(--accent);
+  &.atrule,
+  &.atom,
+  &.builtin {
+    color: var(--code-keyword);
   }
 
   &.string,
   &.char,
   &.attr-value,
   &.regex {
-    color: var(--success);
+    color: var(--code-string);
   }
 
   &.number,
-  &.boolean,
-  &.constant,
-  &.symbol {
-    color: var(--warning);
+  &.boolean {
+    color: var(--code-number);
   }
 
   &.function,
   &.class-name,
-  &.builtin {
-    color: var(--ink);
-    font-weight: 600;
-  }
-
+  &.constant,
+  &.symbol,
   &.property,
   &.tag,
   &.attr-name,
   &.selector {
-    color: var(--danger);
+    color: var(--code-symbol);
   }
 
   &.deleted {
@@ -575,7 +581,7 @@
   }
 
   &.inserted {
-    color: var(--success);
+    color: var(--code-string);
   }
 
   &.bold { font-weight: 600; }

@@ -49,6 +49,7 @@ distinguished by `data-theme="light"` and `data-theme="dark"` on the root.
 | `--line-strong` | A table's outer rules, the rule under a stuck folder row |
 | `--accent` | The one mark for where you are, links, the caret |
 | `--code-ink`, `--code-fill` | Inline code's text and fill |
+| `--code-text` | The text of a fenced block, before any highlighting |
 | `--code-keyword`, `--code-string`, `--code-number`, `--code-symbol`, `--code-muted` | The five colours a fenced block is drawn in: reserved words, text, numbers, names the code defines, and comments |
 | `--surface-active` | The fill behind the current file's row |
 | `--quote-ink`, `--quote-line` | A blockquote's text and its rule |

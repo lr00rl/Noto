@@ -95,6 +95,9 @@ button:hover:not(:disabled) { background: var(--raised); }
 button:active:not(:disabled) { background: var(--hairline); }
 button:disabled { color: var(--muted); opacity: 0.7; }
 
+/* The keyboard's place in the window is where you are, so it is drawn in the
+   one accent rather than in ink: a near-black ring on a bordered control read
+   as a second border, or as something being wrong. */
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;

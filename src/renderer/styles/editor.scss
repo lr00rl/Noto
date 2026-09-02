@@ -190,6 +190,9 @@
   border: 1px solid var(--hairline);
   border-radius: 6px;
   background: var(--raised);
+  /* Code has its own text colour, a touch darker than prose, which is what
+     the theme gives it; the brown of inline code belongs to inline code. */
+  color: var(--code-text);
   padding: 0;
   font-family: tokens.$mono;
   font-size: 0.9em;

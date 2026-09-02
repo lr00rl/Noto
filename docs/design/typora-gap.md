@@ -246,6 +246,19 @@ when it is a loose item, which is the theme's own rule.
 
 An alert's title sat on the same line as its first sentence.
 
+## 5m. Quick open read as ten copies of one path. Closed.
+
+Every result showed its whole path, truncated at the right, and in a vault
+whose paths share long prefixes that left ten rows reading identically: the
+same forty characters, then an ellipsis. What tells two results apart is the
+folder the note is in, so the filename goes, since the row already names it,
+and the last two folders are what survives. The whole path is still there on
+hover.
+
+The keyboard's focus ring was drawn in near-black ink, which on a bordered
+control read as a second border or as something being wrong. It is the accent
+now, which is the one thing this interface uses to say where you are.
+
 ## 5k. A line the author broke is now drawn broken. Closed.
 
 CommonMark reads a single newline inside a paragraph as a space, and so did

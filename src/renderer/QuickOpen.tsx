@@ -25,6 +25,7 @@ import {
   contentDebounceMs, isPathQuery, matchPositions, rankCandidates, type ScoreKeys,
 } from '../shared/search/v1/fuzzy';
 import { searchBoost, type FrecencyStoreV1 } from '../shared/search/v1/frecency';
+import { pathContext } from './quick-open-path';
 
 /** How many results are drawn. Beyond this nobody is reading, they are retyping. */
 const LIMIT = 12;
@@ -278,6 +279,7 @@ export function QuickOpen({
                   aria-selected={index === selected}
                   className={index === selected ? 'quick-result is-selected' : 'quick-result'}
                   data-testid="quick-match"
+                  title={match.relativePath}
                   onMouseMove={() => setSelected(index)}
                   onClick={() => chooseMatch(match)}
                 >
@@ -297,7 +299,7 @@ export function QuickOpen({
                       </span>
                     </span>
                   ))}
-                  <span className="quick-path">{match.relativePath}</span>
+                  <span className="quick-path">{pathContext(match.relativePath)}</span>
                 </button>
               ))
           ) : results.length === 0
@@ -319,6 +321,7 @@ export function QuickOpen({
                 aria-selected={index === selected}
                 className={index === selected ? 'quick-result is-selected' : 'quick-result'}
                 data-testid="quick-result"
+                title={candidate.entry.relativePath}
                 // Selecting on hover rather than on click, so the keyboard and
                 // the pointer never disagree about which row is next.
                 onMouseMove={() => setSelected(index)}
@@ -328,7 +331,7 @@ export function QuickOpen({
                   <Highlighted text={candidate.entry.name} query={query.trim()} />
                 </span>
                 <span className="quick-path">
-                  <Highlighted text={candidate.entry.relativePath} query={query.trim()} />
+                  <Highlighted text={pathContext(candidate.entry.relativePath)} query={query.trim()} />
                 </span>
               </button>
             ))}
