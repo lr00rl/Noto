@@ -554,6 +554,19 @@ The four now give the same answer, from one list rather than the two copies
 that each carried a comment saying they had to match. Opening something else
 says what the editor is for instead of quietly making a mess of the file.
 
+## 33. Opened against the vault, note by note. Nothing broke.
+
+220 notes spread across the whole vault were opened one after another in a
+packaged window, with every console error collected and every render compared
+against the file's own length. Four notes reported a problem and all four were
+the same thing: an image whose remote address no longer answers, which the
+editor draws as a labelled frame carrying the note's alt text and the reason.
+No note failed to open, none rendered empty, and none lost its content.
+
+The script is `scratchpad/probe/sweep.mjs`, and it is worth running again after
+any change to the parser or the editor's plugins: it exercises constructs no
+made-up document contains.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
