@@ -88,3 +88,14 @@ describe('code fence highlighting', () => {
     expect(ranges.at(-1)!.to).toBeLessThanOrEqual(code.length);
   });
 });
+
+describe('the language list a fence offers', () => {
+  it("holds the vault's languages and none of the scaffolding grammars", () => {
+    const languages = supportedLanguages();
+    for (const name of ['haskell', 'docker', 'ruby', 'php', 'csharp', 'powershell', 'lua', 'nginx', 'ini', 'makefile', 'vim', 'http']) {
+      expect(languages).toContain(name);
+    }
+    expect(languages).not.toContain('markup-templating');
+    expect(languages).not.toContain('clike');
+  });
+});

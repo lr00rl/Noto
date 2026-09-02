@@ -20,7 +20,8 @@ import type { Nodes, Root, RootContent } from 'mdast';
 // YAML only. TOML frontmatter has no mdast node type and no meaningful adoption
 // in the editors Noto has to interoperate with.
 const micromarkExtensions = [
-  gfm(),
+  // One tilde is Typora's subscript, drawn in the editor; only a pair strikes.
+  gfm({ singleTilde: false }),
   math({ singleDollarTextMath: true }),
   frontmatter(),
 ];
@@ -56,6 +57,25 @@ const mdastExtensions = [
  * wiki link in the vault, this is the better trade, and it is recorded here so
  * the trade is visible rather than discovered.
  */
+/**
+ * One tilde is text.
+ *
+ * The parser reads `~2~` as the two characters and the digit, which is what
+ * Typora does and what the vault writes for a subscript. The strikethrough
+ * serializer, though, escapes every tilde in phrasing, so editing a paragraph
+ * holding `H~2~O` saved it as `H\~2\~O`. Only a pair can strike now, so
+ * only a tilde followed by another needs the escape.
+ */
+function tildeOnlyInPairs(extension: ToMarkdownOptions): ToMarkdownOptions {
+  return {
+    ...extension,
+    unsafe: extension.unsafe?.map((rule) =>
+      rule.character === '~' && rule.after === undefined ? { ...rule, after: '~' } : rule,
+    ),
+    extensions: extension.extensions?.map(tildeOnlyInPairs),
+  };
+}
+
 const WIKI_LINK_RUN = /\[\[[^[\]\n|]+(?:\|[^[\]\n]*)?\]\]/g;
 
 const wikiLinkSafeText: ToMarkdownOptions = {
@@ -108,7 +128,7 @@ const serializerOptions: ToMarkdownOptions = {
   rule: '-',
   ruleSpaces: false,
   tightDefinitions: true,
-  extensions: [gfmToMarkdown(), mathToMarkdown(), frontmatterToMarkdown(), wikiLinkSafeText],
+  extensions: [tildeOnlyInPairs(gfmToMarkdown()), mathToMarkdown(), frontmatterToMarkdown(), wikiLinkSafeText],
 };
 
 /**

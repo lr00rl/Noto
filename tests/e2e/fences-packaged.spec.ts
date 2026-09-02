@@ -56,8 +56,8 @@ test.describe('code fences', () => {
       await expect.poll(() => gutterLines(page, 0)).toEqual(TWELVE.map((_, index) => String(index + 1)));
       await expect.poll(() => gutterLines(page, 1)).toEqual(['1', '2', '3']);
       await expect.poll(() => digitsOf(page, 0)).toBe('2');
-      await expect(page.locator('.ProseMirror pre').first().locator('.noto-fence-lang')).toHaveText('ts');
-      await expect(page.locator('.ProseMirror pre').nth(1).locator('.noto-fence-lang')).toHaveText('');
+      await expect(page.locator('.ProseMirror pre').first().locator('.noto-fence-lang')).toHaveValue('ts');
+      await expect(page.locator('.ProseMirror pre').nth(1).locator('.noto-fence-lang')).toHaveValue('');
 
       // A new line in the block is a new number in the gutter, at once.
       const code = page.locator('.ProseMirror pre').nth(1).locator('code');

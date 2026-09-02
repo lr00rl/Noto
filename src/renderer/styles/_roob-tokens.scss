@@ -49,6 +49,14 @@
   --line-strong: #C9C3BB;
   --code-ink: #8E4F37;
   --code-fill: #EEECE8;
+  /* The five alert kinds, the author's theme's values. Status colours that
+     stay under the one accent: none of them is as saturated as it. */
+  --alert-note: #2F6F9F;
+  --alert-tip: #3F7652;
+  --alert-important: #70559C;
+  --alert-warning: #85620F;
+  --alert-caution: #A4473F;
+  --mark-fill: #F6DF7A;
 }
 
 :root[data-theme='dark'] {
@@ -75,6 +83,12 @@
   --line-strong: #5C584F;
   --code-ink: #D9A98C;
   --code-fill: #2A2926;
+  --alert-note: #7FB3D5;
+  --alert-tip: #8BB697;
+  --alert-important: #B49AD8;
+  --alert-warning: #D0A45F;
+  --alert-caution: #D88780;
+  --mark-fill: #7A6A2A;
 }
 
 }

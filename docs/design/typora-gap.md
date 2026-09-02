@@ -102,6 +102,59 @@ the title bar's stroke style in the muted tier, a folder's flap lifting when
 it is open; a file row carries the twisty's width as a spacer so the glyphs of
 one level form a column.
 
+## 5b. Blocks did not share the text's left edge. Closed.
+
+Every top-level block carried a 14px padding for the heading markers, so a
+paragraph's first letter sat 14px in from the block's edge while a fence, a
+table or a quote drew its box from that edge: every filled block stuck out to
+the left of the text it sat between, which the author drew a red line against.
+The gutter is now the document's, once, on the editor itself, and a block's
+box and a paragraph's first glyph share one left edge.
+
+## 5c. Alerts rendered as plain quotes. Closed.
+
+`> [!NOTE]` and its four siblings, which the vault holds by the hundred, drew
+as a quote with the marker showing. They are now callouts as Typora draws
+them: a rule and a tint in the kind's colour, an icon and a title in place of
+the marker, the marker itself back while the caret is inside. Decorations over
+an ordinary quote, so the file keeps its marker line byte for byte.
+
+## 5d. A fence had a label but no way to set its language. Closed.
+
+The language in the fence's corner is now a field, with the highlighter's
+names offered as you type, and setting it writes the fence's info string as
+one undoable change and colours the block.
+
+## 5e. Typora's own inline marks were plain text. Closed.
+
+`==highlight==` is in 960 places in the vault, `^superscript^` in 363 and
+`~subscript~` in 254. None is CommonMark, so the parser kept them as text and
+the editor showed the delimiters. They are now drawn as Typora draws them,
+through decorations: the inner text takes the mark, the delimiters hide, and
+both come back muted while the selection touches the block. The file keeps
+every delimiter. The scan is incremental, one paragraph per keystroke, so the
+two-megabyte corpus documents pay nothing for it.
+
+## 5f. The inline HTML a note writes for a key, a formula or a break showed as source. Closed.
+
+`<br>` sits in 567 lines of the vault, `<sub>` in 86, `<kbd>` in 81, `<sup>`
+in 37 and `<u>` in 20. A bare formatting tag with no attributes, and the text
+between it and its closing tag, is now drawn as the shape it names; the tags
+hide and return with the caret. A `<br>` breaks the line and shows its source
+only while the block is being edited. A tag carrying attributes, `<span
+style>` above all, is left as source, since drawing an author's inline
+style would mean trusting it.
+
+## 5g. The highlighter knew twenty languages; the vault fences forty. Closed.
+
+Haskell alone is fenced 319 times, and it was not loaded; nor were Ruby, Lua,
+PHP, C#, PowerShell, HTTP, Vim script, Nginx, INI, Dockerfile or Makefile,
+which together account for a thousand more. Every language the vault fences
+more than fifty times now has its grammar, with the short names an author
+actually types (`hs`, `rb`, `ps1`, `dockerfile`, `jsonc`, `elisp`) mapped to
+it. `text`, `console` output and the odd `undefined` stay unpainted, which is
+right for them.
+
 ## 6. Inline code was bare. Closed.
 
 The theme gives inline code a border, a fill, a small radius and `0.9em`. Noto

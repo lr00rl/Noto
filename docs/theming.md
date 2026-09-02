@@ -49,6 +49,8 @@ distinguished by `data-theme="light"` and `data-theme="dark"` on the root.
 | `--line-strong` | A table's outer rules, the rule under a stuck folder row |
 | `--accent` | The one mark for where you are, links, the caret |
 | `--code-ink`, `--code-fill` | Inline code's text and fill |
+| `--alert-note`, `--alert-tip`, `--alert-important`, `--alert-warning`, `--alert-caution` | The rule, tint and title of each kind of `[!NOTE]` callout |
+| `--mark-fill` | The fill behind `==highlighted==` text and `<mark>` |
 | `--success`, `--warning`, `--danger` | Status only |
 | `--focus` | Keyboard focus rings |
 | `--scrim` | The wash behind preferences and quick open |
@@ -107,6 +109,17 @@ want:
 - Tables draw horizontal rules only, from `--line-strong` and a mix of
   `--muted`; a raw HTML block is `.noto-html-block`, a math block
   `.noto-math-block`, frontmatter `.noto-frontmatter`.
+- A GitHub alert is a `blockquote.noto-alert` with `.noto-alert-note` or one
+  of the other four kinds, carrying `--alert-color`; its title chip is
+  `.noto-alert-title` and the hidden marker `.noto-alert-marker`. While the
+  caret is inside, the quote carries `.noto-alert-editing`.
+- Typora's inline marks are decorations over plain text: `.noto-mark-highlight`,
+  `.noto-mark-sup`, `.noto-mark-sub`, with the delimiters in
+  `.noto-typora-delim`. Bare inline HTML tags are drawn the same way: the tag
+  is `.noto-inline-tag`, the text between carries `.noto-html-kbd`,
+  `.noto-html-sub`, `.noto-html-sup`, `.noto-html-u` and so on, and a `<br>`
+  is `.noto-inline-break`. A text block whose selection is touching any of
+  these carries `.noto-marks-editing`, and that is when the syntax shows.
 - Task list items are `li.noto-task-item` with `data-checked`; the box is drawn
   with `::before` and `::after`.
 

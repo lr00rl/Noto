@@ -137,9 +137,32 @@ from the author's own Typora theme rather than the one first guessed: each open
 ancestor of the current file holds a row below its parent while its contents
 scroll past, and the file's own row holds beneath them, so the top of the rail
 always reads as where the file you are in lives. Other open folders scroll like
-anything else, and so does the folder's own row. A row that is actually stuck,
-which the tree tells by how far the browser has displaced it from its own
-node, carries a rule beneath it; one merely resting in place does not.
+anything else, and so does the folder's own row. A stuck row spans the whole
+rail, flush against the top of the scrollport, with a rule beneath it and the
+corner of its own branch drawn on the row itself: as an indented box it left
+the stems of every level to its left sliding past in the open, which read as
+light leaking through the stack. The tree tells a stuck row from one merely
+resting in place by how far the browser has displaced it from its own node.
+
+The branch to the current file is lit. Each level on the way down draws its
+stem in the accent as far as the child on the path, and the arms to those
+children and to the file are in the accent too. This is the second of the
+author's four guide-line schemes, "one stroke, current branch lit", and it
+answers the one question a tree is asked, which branch am I in, without an
+element of its own: the tree sets the lit length on each level and the
+stylesheet stacks the accent stem over the quiet one.
+
+A branch can only light up to a row that is there, so the tree opens to the
+current file. A note opened from the shell, from quick open or through a link
+has every folder between the root and itself expanded and loaded, and its row
+is brought into view once, the first time it exists. After that the rail is
+the reader's: a folder they close on the path stays closed until the file
+changes, and a folder opening elsewhere never moves the rail.
+
+A name that does not fit the rail is scrolled to, never cut to an ellipsis.
+Rows are as wide as their names and at least the rail, so the pane scrolls
+sideways the way Typora's does, which is what a vault of long Chinese
+filenames needs.
 Every row carries a glyph, a folder or a file, drawn inline in the title bar's
 stroke style in the muted tier; they are what makes a column of names read as
 files rather than as an outline, and a file row carries the twisty's width as

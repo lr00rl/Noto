@@ -390,9 +390,13 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 .rail-view {
   flex: 1 1 auto;
   min-height: 0;
+  /* Both ways. A name that does not fit is scrolled to, never cut to an
+     ellipsis, which is what Typora does and what a vault of long Chinese
+     filenames needs. No top padding: a stuck row must sit flush against the
+     top of the scrollport, or the rows sliding under it show through the gap. */
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 2px 6px 12px;
+  padding: 0 6px 12px;
 }
 
 /* The drag target is wider than the line it moves, because a 1px border is not

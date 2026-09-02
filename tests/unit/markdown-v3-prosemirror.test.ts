@@ -167,3 +167,23 @@ describe('ProseMirror round trip over the fixture corpus', () => {
     });
   }
 });
+
+describe('Typora inline syntax the parser must leave alone', () => {
+  it('reads one tilde as text and a pair as strikethrough', () => {
+    const doc = pmDoc('H~2~O and ~~gone~~');
+    const paragraph = doc.firstChild!;
+    const struck: string[] = [];
+    let text = '';
+    paragraph.forEach((child) => {
+      text += child.text ?? '';
+      if (child.marks.some((mark) => mark.type.name === 'strikethrough')) struck.push(child.text ?? '');
+    });
+    expect(text).toBe('H~2~O and gone');
+    expect(struck).toEqual(['gone']);
+  });
+
+  it('writes the marks back as they were', () => {
+    const source = 'Mark ==key== and x^2^ and H~2~O, then ~~gone~~.';
+    expect(roundTrip(source)).toBe(source);
+  });
+});

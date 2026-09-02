@@ -59,6 +59,13 @@
 .ProseMirror {
   outline: 0;
   min-width: 0;
+  /* The marker gutter is the document's, not each block's. It used to be
+     padding on every block, which put the text of a paragraph 14px in from
+     the block's edge while a fence or a table drew its box from that edge:
+     every filled block stuck out to the left of the text it sat between.
+     With the gutter here, a block's box and a paragraph's first letter share
+     one left edge, and the heading markers hang in the gutter as before. */
+  padding-left: 14px;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   color: var(--ink);
@@ -84,7 +91,6 @@
      table, which are set smaller, keeps the same distance from its
      neighbours as a paragraph does. */
   margin: calc(0.74 * var(--doc-font-size)) 0;
-  padding-left: 14px;
 }
 
 .ProseMirror > :first-child { margin-top: 0; }
@@ -123,8 +129,6 @@
    with no space between its items. A loose list, which the parser marks, gets
    the paragraph rhythm back inside each item. */
 .ProseMirror :where(ul, ol) { padding-left: 1.45em; }
-/* A top-level list keeps the 14px marker gutter every other block has. */
-.ProseMirror > :is(ul, ol) { padding-left: calc(14px + 1.45em); }
 .ProseMirror li { padding-left: 0.15em; }
 .ProseMirror li::marker { color: var(--muted); }
 .ProseMirror li > :is(ul, ol) { margin: 0; }
@@ -137,7 +141,7 @@
    by its text turning grey, and grey already means completed task, disabled
    control and syntax marker. The accent tint gives it a mark of its own. */
 .ProseMirror blockquote {
-  margin-left: 14px;
+  margin-left: 0;
   padding-left: 16px;
   border-left: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
   color: var(--muted);

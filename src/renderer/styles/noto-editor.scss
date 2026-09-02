@@ -146,6 +146,66 @@
   font-size: 0.92em;
 }
 
+/* Alerts ------------------------------------------------------------------ */
+
+/* A quote that opens with [!NOTE] and its four siblings, drawn as Typora
+   draws them: a tinted callout with a rule in its colour, an icon and a
+   title in place of the marker. The quote is still a quote in the file; the
+   marker is hidden and the title is a decoration, and while the caret is
+   inside, the two trade places so the syntax can be edited like any other. */
+.ProseMirror .noto-alert {
+  --alert-color: var(--hairline);
+  margin-left: 0;
+  border-left: 3px solid var(--alert-color);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--alert-color) 7%, transparent);
+  padding: 0.7em 0.9em 0.7em 1em;
+  color: var(--ink);
+  line-height: 1.56;
+}
+
+.ProseMirror .noto-alert-note { --alert-color: var(--alert-note); }
+.ProseMirror .noto-alert-tip { --alert-color: var(--alert-tip); }
+.ProseMirror .noto-alert-important { --alert-color: var(--alert-important); }
+.ProseMirror .noto-alert-warning { --alert-color: var(--alert-warning); }
+.ProseMirror .noto-alert-caution { --alert-color: var(--alert-caution); }
+
+.ProseMirror .noto-alert > p { margin: 0.35em 0; }
+.ProseMirror .noto-alert :not(pre) > code {
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  border-color: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.ProseMirror .noto-alert-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 0.25em;
+  color: var(--alert-color);
+  font: 600 12px/1.4 tokens.$ui;
+  letter-spacing: 0.02em;
+  user-select: none;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentcolor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
+/* The marker and the title trade places with the caret. */
+.ProseMirror .noto-alert:not(.noto-alert-editing) .noto-alert-marker { display: none; }
+.ProseMirror .noto-alert.noto-alert-editing .noto-alert-title { display: none; }
+.ProseMirror .noto-alert-editing .noto-alert-marker {
+  color: var(--muted);
+  font-family: tokens.$mono;
+  font-size: 0.85em;
+}
+
 /* Frontmatter and raw HTML ------------------------------------------------ */
 
 .ProseMirror .noto-frontmatter,
@@ -404,10 +464,24 @@
   opacity: 1;
 }
 
+/* A field that reads as a label until it is touched: no box, the muted
+   tier, right-aligned against the copy button. It takes a box on focus so
+   the caret has somewhere to be. */
 .ProseMirror .noto-fence-lang {
+  width: auto;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  padding: 1px 5px;
   color: var(--muted);
-  font: 10px tokens.$ui;
-  letter-spacing: 0.04em;
+  font: 11px tokens.$mono;
+  text-align: right;
+  outline: none;
+
+  &::placeholder { color: var(--muted); opacity: 0.6; }
+  &:hover { color: var(--ink); }
+  &:focus { border-color: var(--hairline); background: var(--paper); color: var(--ink); text-align: left; }
 }
 
 .ProseMirror .noto-fence-copy {
@@ -832,10 +906,18 @@
   --tree-indent: 13px;
   padding-left: var(--tree-indent);
   margin-left: 8px;
-  background-image: linear-gradient(var(--tree-line), var(--tree-line));
-  background-size: 1px 100%;
+  /* Two stems on top of each other: the branch to the file in front in the
+     accent, down to that child's arm, over the quiet stem the whole way.
+     The tree sets `--path-stop` on the levels along the path; everywhere
+     else the lit stem has no length. This is the second of the author's four
+     guide-line schemes, the one that answers "which branch am I in" without
+     a single extra element. */
+  background-image:
+    linear-gradient(var(--accent), var(--accent)),
+    linear-gradient(var(--tree-line), var(--tree-line));
+  background-size: 1px var(--path-stop, 0px), 1px 100%;
   background-repeat: no-repeat;
-  background-position: left top;
+  background-position: left top, left top;
 }
 
 /* The outermost level has nothing to its left to connect to. */
@@ -879,6 +961,14 @@
   pointer-events: none;
 }
 
+/* The arm to a node on the path, and to the file itself, in the accent.
+   After the plain arm and the corner, and a class heavier, so it wins on
+   weight rather than on its place in the file. */
+.tree-level:not(.is-root) > .tree-node.tree-node:has(> .tree-on-path)::before,
+.tree-level:not(.is-root) > .tree-node.tree-node-active::before {
+  border-color: var(--accent);
+}
+
 /* The folder's own row, at the head of the tree. Not a button: there is
    nothing to open and nothing to fold, so it is set in ink at weight 600 and
    the pointer stays an arrow. */
@@ -907,18 +997,60 @@
 }
 
 /* The file's whole node is the sticky thing, as in the theme: a leaf's row
-   fills its node and would have no room to hold. The node paints the panel
-   so the stem does not show through it while it is stuck. */
-.tree-directory.tree-on-path[aria-expanded='true'],
-.tree-node.tree-node-active { background: var(--panel); }
+   fills its node and would have no room to hold. */
 
+/* A stuck row spans the whole rail, flush, as Typora's does. The row is an
+   indented box inside its level, so on its own it left the stems of every
+   level to its left sliding past in the open, which read as light leaking
+   through the stack. A pseudo-element behind the row reaches far past the
+   rail's left edge, where the scrollport clips it, and carries the panel
+   colour, the rule beneath and the faint edge; the hover fill moves onto it
+   too, since it paints over the row's own background. */
 .tree-directory[data-stuck],
 .tree-node-active[data-stuck] > .tree-row {
   border-radius: 0;
-  box-shadow: 0 1px 0 var(--line-strong), 0 4px 10px -4px var(--scrim);
+  background: transparent;
 }
 
-.tree-directory[data-stuck]:hover { background: var(--raised); }
+.tree-directory[data-stuck]::before,
+.tree-node-active[data-stuck]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -600px;
+  right: 0;
+  z-index: -1;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--panel);
+  box-shadow: 0 1px 2px var(--scrim);
+  pointer-events: none;
+}
+
+.tree-directory[data-stuck]:hover::before { background: var(--raised); }
+.tree-node-active[data-stuck]::before { background: color-mix(in srgb, var(--ink) 7%, var(--panel)); }
+
+/* The row's own corner of the branch, drawn on the row so it holds while
+   the row does; the arm on the node scrolled away with the node. Lit, since
+   a stuck row is by definition on the path to the file in front. */
+.tree-directory[data-stuck]::after,
+.tree-node-active[data-stuck]::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--tree-indent) * -1 - 1px);
+  top: -1px;
+  bottom: auto;
+  width: var(--tree-indent);
+  height: 14px;
+  background: none;
+  border-left: 1px solid var(--accent);
+  border-bottom: 1px solid var(--accent);
+  border-bottom-left-radius: 6px;
+  pointer-events: none;
+}
 
 .tree-root.is-empty {
   display: flex;
@@ -942,22 +1074,32 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  padding-top: 2px;
+  /* As wide as its widest row, so the rail scrolls sideways to a long name. */
+  width: max-content;
+  min-width: 100%;
 }
 
+/* Exactly 26px tall, so the sticky offsets, which are multiples of it, meet
+   with no seam. As wide as the name needs and at least the rail, so a long
+   name is scrolled to rather than cut. */
 .tree-row {
   position: relative;
   display: flex;
   align-items: center;
   gap: 4px;
-  width: 100%;
-  min-height: 26px;
-  padding: 3px 6px;
+  width: max-content;
+  min-width: 100%;
+  /* The generic button floor is 28px, which would beat the height and put
+     a two-pixel overhang on every stuck row. */
+  min-height: 0;
+  height: 26px;
+  padding: 0 6px;
   font: inherit;
   font-size: 13px;
   color: var(--ink);
   text-align: left;
   white-space: nowrap;
-  overflow: hidden;
   background: none;
   border: none;
   border-radius: 5px;
@@ -1012,9 +1154,6 @@
    reach a bare text node inside one. */
 .tree-name {
   position: relative;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -1278,4 +1417,89 @@
    see docs/performance/measurements.md. */
 .ProseMirror > * {
   contain: layout;
+}
+
+/* Typora's inline marks, and the inline HTML a note uses for them ----------
+ *
+ * `==text==`, `^text^` and `~text~` are not markdown, so the parser keeps them
+ * as text and the typora-marks plugin draws them. The delimiters stay in the
+ * document and are hidden while the caret is elsewhere; they return, muted,
+ * while the selection touches the block, which is the reveal every other
+ * inline syntax gets. `<kbd>`, `<sub>`, `<sup>`, `<u>` and `<br>` are drawn
+ * the same way: the tag hides, the text between takes the shape.
+ */
+.ProseMirror .noto-mark-highlight {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--mark-fill) 62%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mark-fill) 62%, transparent);
+  color: var(--ink-strong);
+}
+.ProseMirror .noto-mark-sup,
+.ProseMirror .noto-html-sup {
+  vertical-align: super;
+  font-size: 0.75em;
+  line-height: 0;
+}
+.ProseMirror .noto-mark-sub,
+.ProseMirror .noto-html-sub {
+  vertical-align: sub;
+  font-size: 0.75em;
+  line-height: 0;
+}
+.ProseMirror .noto-html-u { text-decoration: underline; text-underline-offset: 0.12em; }
+.ProseMirror .noto-html-mark { background: color-mix(in srgb, var(--mark-fill) 62%, transparent); border-radius: 2px; }
+.ProseMirror .noto-html-b,
+.ProseMirror .noto-html-strong { font-weight: 600; color: var(--ink-strong); }
+.ProseMirror .noto-html-i,
+.ProseMirror .noto-html-em { font-style: italic; }
+.ProseMirror .noto-html-s,
+.ProseMirror .noto-html-del { text-decoration: line-through; }
+.ProseMirror .noto-html-ins { text-decoration: underline; }
+.ProseMirror .noto-html-small { font-size: 0.85em; }
+.ProseMirror .noto-html-kbd {
+  display: inline-block;
+  margin: 0 0.08em;
+  border: 1px solid var(--hairline);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 0.4em;
+  background: var(--raised);
+  color: var(--ink-strong);
+  font-family: tokens.$mono;
+  font-size: 0.8em;
+  line-height: 1.5;
+  vertical-align: 0.05em;
+}
+
+.ProseMirror .noto-typora-delim,
+.ProseMirror .noto-inline-html.noto-inline-tag { display: none; }
+.ProseMirror .noto-marks-editing .noto-typora-delim,
+.ProseMirror .noto-marks-editing .noto-inline-html.noto-inline-tag {
+  display: inline;
+  color: var(--muted);
+  font-family: tokens.$mono;
+  font-size: 0.85em;
+  font-style: normal;
+  font-weight: 400;
+  background: none;
+  padding: 0;
+  opacity: 0.7;
+}
+
+/* A break is drawn as the break it is, its source shown only while editing. */
+.ProseMirror .noto-inline-html.noto-inline-break {
+  display: inline;
+  background: none;
+  padding: 0;
+  font: inherit;
+
+  > .noto-inline-html-source { display: none; }
+  &::after { content: '\A'; white-space: pre; }
+}
+.ProseMirror .noto-marks-editing .noto-inline-html.noto-inline-break > .noto-inline-html-source {
+  display: inline;
+  color: var(--muted);
+  font-family: tokens.$mono;
+  font-size: 0.85em;
+  opacity: 0.7;
 }
