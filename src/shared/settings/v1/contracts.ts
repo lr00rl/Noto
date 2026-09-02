@@ -108,6 +108,14 @@ export interface NotoSettingsV1 {
    */
   readonly codeLineNumbers: boolean;
   /**
+   * Vertical rules at each tab stop of a code line's indentation.
+   *
+   * On by default, as the author's `fence-enhance` plugin is set. Drawn on the
+   * indentation itself, so a document of ten thousand code lines gains no
+   * elements for them.
+   */
+  readonly codeIndentGuides: boolean;
+  /**
    * Close a bracket or a quote as it is opened.
    *
    * On, as the author's Typora is set. It never pairs in the middle of a word,
@@ -167,6 +175,7 @@ export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   spellCheck: true,
   remoteImages: true,
   codeLineNumbers: true,
+  codeIndentGuides: true,
   autoPair: true,
   focusMode: false,
   typewriterMode: false,

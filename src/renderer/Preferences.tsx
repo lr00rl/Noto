@@ -326,6 +326,13 @@ export function Preferences({
                   testId="setting-auto-pair"
                 />
                 <Switch
+                  label="Indent guides in code blocks"
+                  hint="A rule at each tab stop of a line's indentation."
+                  checked={settings.codeIndentGuides}
+                  onChange={(value) => onChange({ codeIndentGuides: value })}
+                  testId="setting-code-indent-guides"
+                />
+                <Switch
                   label="Focus mode"
                   hint="Everything but the block you are writing recedes."
                   checked={settings.focusMode}

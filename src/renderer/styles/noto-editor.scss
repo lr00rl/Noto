@@ -1632,3 +1632,8 @@
   background: var(--surface-active);
 }
 .outline-entry.is-current:hover { background: var(--surface-active); }
+
+/* The indent guides are a gradient carried by each line's own whitespace, so
+   turning them off is a matter of taking the colour away rather than removing
+   anything from the document. A theme can do the same by setting the property. */
+:root[data-code-indent-guides='off'] { --code-guide: transparent; }

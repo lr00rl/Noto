@@ -70,6 +70,9 @@ export function coerceSettings(value: unknown): NotoSettingsV1 {
     codeLineNumbers: typeof value.codeLineNumbers === 'boolean'
       ? value.codeLineNumbers
       : DEFAULT_SETTINGS.codeLineNumbers,
+    codeIndentGuides: typeof value.codeIndentGuides === 'boolean'
+      ? value.codeIndentGuides
+      : DEFAULT_SETTINGS.codeIndentGuides,
     autoPair: typeof value.autoPair === 'boolean' ? value.autoPair : DEFAULT_SETTINGS.autoPair,
     focusMode: typeof value.focusMode === 'boolean' ? value.focusMode : DEFAULT_SETTINGS.focusMode,
     typewriterMode: typeof value.typewriterMode === 'boolean'
@@ -136,6 +139,7 @@ export function isSettingsReplyV1(value: unknown): value is SettingsReplyV1 {
     && typeof settings.spellCheck === 'boolean'
     && typeof settings.remoteImages === 'boolean'
     && typeof settings.codeLineNumbers === 'boolean'
+    && typeof settings.codeIndentGuides === 'boolean'
     && typeof settings.autoPair === 'boolean'
     && typeof settings.focusMode === 'boolean'
     && typeof settings.typewriterMode === 'boolean'

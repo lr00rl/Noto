@@ -15,6 +15,7 @@ import Prism from 'prismjs';
 import { Plugin, PluginKey, type EditorState, type Transaction } from 'prosemirror-state';
 import { Decoration, DecorationSet } from 'prosemirror-view';
 import type { Node as ProseNode } from 'prosemirror-model';
+import { guideRanges } from './indent-guides';
 
 // Prism resolves languages from a registry its component files write into, and
 // the order matters: several build on `clike` or `javascript`.
@@ -182,10 +183,33 @@ export function rangesFor(node: ProseNode): readonly TokenRange[] {
 }
 
 /** Decorations for every code block overlapping a range of the document. */
+/**
+ * How wide a tab is inside a fence, matching the stylesheet's `tab-size`.
+ * Kept here rather than read from the DOM: the decorations are built in the
+ * state, where there is no element to measure.
+ */
+const TAB_SIZE = 4;
+
+/**
+ * The rule's colour, as a custom property so a theme can restyle it. It has to
+ * be a colour in the gradient rather than a class, because each line's rules
+ * stand at that line's own columns.
+ */
+const GUIDE_COLOUR = 'var(--code-guide, color-mix(in srgb, currentcolor 16%, transparent))';
+
 function decorationsIn(doc: ProseNode, from: number, to: number): Decoration[] {
   const decorations: Decoration[] = [];
   doc.nodesBetween(from, to, (node, position) => {
     if (node.type.name !== 'code_block') return true;
+    // A rule at each tab stop of a line's indentation, drawn on the whitespace
+    // itself so a document of ten thousand code lines gains no elements.
+    for (const guide of guideRanges(node.textContent, TAB_SIZE, GUIDE_COLOUR)) {
+      decorations.push(Decoration.inline(
+        position + 1 + guide.from,
+        position + 1 + guide.to,
+        { style: guide.style },
+      ));
+    }
     for (const range of rangesFor(node)) {
       // `position + 1` steps past the node's own opening token into its text.
       decorations.push(Decoration.inline(

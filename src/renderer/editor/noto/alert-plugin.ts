@@ -130,8 +130,15 @@ export function alertDecorations(state: EditorState): DecorationSet {
  */
 function topLevelRange(doc: ProseNode, from: number, to: number): [number, number] {
   const size = doc.content.size;
-  const start = doc.resolve(Math.max(0, Math.min(from, size)));
-  const end = doc.resolve(Math.max(0, Math.min(to, size)));
+  /*
+   * Widened by one on each side before resolving, so a position sitting
+   * exactly between two blocks belongs to both. Without it a caret at the very
+   * start of the document resolved to an empty range, which removed the
+   * decorations touching that point and rescanned nothing to replace them:
+   * the first alert in a file lost its callout the moment the caret moved.
+   */
+  const start = doc.resolve(Math.max(0, Math.min(from, size) - 1));
+  const end = doc.resolve(Math.min(size, Math.max(0, to) + 1));
   return [
     start.depth === 0 ? start.pos : start.before(1),
     end.depth === 0 ? end.pos : end.after(1),
@@ -168,7 +175,14 @@ function apply(transaction: Transaction, current: DecorationSet, old: EditorStat
   }
 
   for (const [from, to] of ranges) {
-    const stale = next.find(from, to);
+    /*
+     * Only what lies wholly inside. `find` also returns what merely touches a
+     * boundary, and a quote's own decoration ends exactly where the next
+     * block begins, so rescanning that next block removed the quote's callout
+     * and had nothing to put back. The ranges are whole blocks, so anything
+     * this scan will redraw is inside one of them.
+     */
+    const stale = next.find(from, to).filter((d) => d.from >= from && d.to <= to);
     if (stale.length > 0) next = next.remove(stale);
     const fresh = decorationsIn(state, from, to);
     if (fresh.length > 0) next = next.add(state.doc, fresh);
