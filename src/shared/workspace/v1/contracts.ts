@@ -28,6 +28,9 @@ export const WORKSPACE_CHANNELS = {
   openFolder: 'noto:v1:workspace:open-folder',
   listFolder: 'noto:v1:workspace:list-folder',
   folderChanged: 'noto:v1:workspace:folder-changed',
+  /** The folder open right now, for a renderer that has just subscribed:
+   *  a folder named on the command line opens before the page can listen. */
+  folder: 'noto:v1:workspace:folder',
   menuCommand: 'noto:v1:workspace:menu-command',
   /** The whole openable file list for the current folder, sent once per
    *  folder so ranking can happen in the renderer without a round trip. */
@@ -264,6 +267,7 @@ export interface NotoWorkspaceApiV1 {
   fileIndex(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceIndexReplyV1>>;
   recentFolders(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceRecentReplyV1>>;
   openRecentFolder(request: WorkspaceOpenPathRequestV1): Promise<WorkspaceResultV1<WorkspaceFolderEventV1>>;
+  folder(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceFolderEventV1>>;
   reveal(request: WorkspaceRevealRequestV1): Promise<WorkspaceResultV1<WorkspaceRevealReplyV1>>;
   searchContent(request: WorkspaceContentRequestV1): Promise<WorkspaceResultV1<WorkspaceContentReplyV1>>;
 }

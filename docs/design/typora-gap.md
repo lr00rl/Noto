@@ -54,7 +54,9 @@ the theme the author reads all day. And the text size setting moved the body
 and left the headings where they were, because a pixel does not know what an
 em is.
 
-Now the default is the theme's 16px at 1.58, the headings are the theme's em
+Now the default is 15px at the theme's 1.58 (a step under the theme's own 16:
+set beside Typora, 16 still read a size louder to the author's eye, and 15 is
+where the two windows matched), the headings are the theme's em
 ratios with its margins scaled by the document size rather than the root, and
 the block rhythm is its 0.74em above and below, collapsing. Bold is 600 in the
 strong ink tier, links are in the accent with the underline held to a third,

@@ -10,7 +10,7 @@
  * cost a round trip once the children have been read.
  */
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { WorkspaceEntryV1 } from '../shared/workspace/v1/contracts';
 
 export interface FileTreeProps {
@@ -23,10 +23,14 @@ export interface FileTreeProps {
   readonly onChooseFolder: () => void;
 }
 
-export function FileTree({ root, activePath, list, onOpenFile, onChooseFolder }: FileTreeProps) {
+/** The height of one row, which the sticky offsets are multiples of. */
+export const TREE_ROW_HEIGHT = 26;
+
+export function FileTree({ root, rootName, activePath, list, onOpenFile, onChooseFolder }: FileTreeProps) {
   const [children, setChildren] = useState<ReadonlyMap<string, readonly WorkspaceEntryV1[]>>(new Map());
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [failed, setFailed] = useState<string | null>(null);
+  const bodyRef = useRef<HTMLElement>(null);
 
   const load = useCallback(async (directory: string) => {
     try {
@@ -46,6 +50,44 @@ export function FileTree({ root, activePath, list, onOpenFile, onChooseFolder }:
     setFailed(null);
     if (root) void load(root);
   }, [root, load]);
+
+  /*
+   * Which open folders are stuck to the top.
+   *
+   * An open folder's row is sticky, so while you scroll through its contents
+   * the row holds at the top and the rows of its open ancestors stack above
+   * it, each one a row lower than the last. That is what the stylesheet does
+   * on its own. What it cannot do is tell a row that is stuck from one that is
+   * merely open, and only the stuck one should carry the rule that separates
+   * it from the rows sliding under it.
+   *
+   * A stuck row is one the browser has displaced from the top of its own
+   * node, so the test is the distance between the two, read on scroll and
+   * once per frame at most. Not an intersection observer: a row resting on
+   * its sticky line at scroll zero looks the same to an observer as one that
+   * has scrolled up to it, and only the second is stuck.
+   */
+  useEffect(() => {
+    const body = bodyRef.current;
+    const scroller = body?.closest('.rail-view');
+    if (!body || !scroller) return;
+    let frame = 0;
+    const mark = () => {
+      frame = 0;
+      for (const row of body.querySelectorAll<HTMLElement>('.tree-directory[aria-expanded="true"], .tree-vault-row')) {
+        const node = row.parentElement;
+        if (!node) continue;
+        row.toggleAttribute('data-stuck', row.getBoundingClientRect().top - node.getBoundingClientRect().top > 0.5);
+      }
+    };
+    const onScroll = () => { if (frame === 0) frame = requestAnimationFrame(mark); };
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    mark();
+    return () => {
+      scroller.removeEventListener('scroll', onScroll);
+      if (frame !== 0) cancelAnimationFrame(frame);
+    };
+  }, [children, expanded, root]);
 
   if (!root) {
     return (
@@ -79,6 +121,9 @@ export function FileTree({ root, activePath, list, onOpenFile, onChooseFolder }:
    * stem, and `:last-child` is what tells a node to end that stem with a
    * rounded corner instead of a tee. A flat list cannot express "last sibling"
    * and so cannot be given a tree's shape in CSS.
+   *
+   * Depth starts at one under the folder's own row, so the first level hangs
+   * from the folder the way every deeper level hangs from its parent.
    */
   const renderLevel = (directory: string, depth: number): ReactNode => {
     const entries = children.get(directory);
@@ -86,7 +131,7 @@ export function FileTree({ root, activePath, list, onOpenFile, onChooseFolder }:
     if (entries.length === 0) return <p className="tree-empty">Nothing here.</p>;
 
     return (
-      <div className={depth === 0 ? 'tree-level is-root' : 'tree-level'}>
+      <div className="tree-level" style={{ '--tree-depth': depth } as React.CSSProperties}>
         {entries.map((entry) => {
           if (entry.kind === 'directory') {
             const isOpen = expanded.has(entry.path);
@@ -96,6 +141,7 @@ export function FileTree({ root, activePath, list, onOpenFile, onChooseFolder }:
                   type="button"
                   className="tree-row tree-directory"
                   data-testid="tree-directory"
+                  data-depth={depth}
                   title={entry.name}
                   aria-expanded={isOpen}
                   onClick={() => toggle(entry.path)}
@@ -132,10 +178,24 @@ export function FileTree({ root, activePath, list, onOpenFile, onChooseFolder }:
     );
   };
 
+  const vaultName = rootName ?? root.split(/[\\/]/).filter(Boolean).at(-1) ?? root;
+
   return (
     <div className="tree-root" data-testid="file-tree">
       {failed && <p role="alert" className="tree-error">{failed}</p>}
-      <nav className="tree-body">{renderLevel(root, 0)}</nav>
+      <nav className="tree-body" ref={bodyRef}>
+        {/* The folder itself is the first row, and the first level hangs from
+            it: a tree whose lines begin one level down reads as a list with a
+            tree inside it. */}
+        <div className="tree-node tree-vault">
+          <div className="tree-row tree-directory tree-vault-row" data-testid="tree-vault" data-depth={0} title={root}>
+            <span className="tree-twisty tree-twisty-blank" aria-hidden="true" />
+            <FolderGlyph open />
+            <span className="tree-name">{vaultName}</span>
+          </div>
+          {renderLevel(root, 1)}
+        </div>
+      </nav>
     </div>
   );
 }

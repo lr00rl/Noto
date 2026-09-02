@@ -521,8 +521,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       setActiveId(activeTab?.documentId ?? null);
       activeIdRef.current = activeTab?.documentId ?? null;
     });
-    const unsubscribeFolder = window.notoWorkspace.onFolderChanged((event) => {
-      if (!active) return;
+    const adoptFolder = (event: { root: string | null; name: string | null }) => {
       setFolder({ root: event.root, name: event.name });
       // A new folder changes what main will serve as an image, so notes that
       // are already open draw theirs again rather than keeping a stale refusal.
@@ -535,7 +534,17 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       // through it. Following a wiki link needs the same index quick open does,
       // and it has no moment of its own to ask for it.
       void ensureFileIndexRef.current();
+    };
+    const unsubscribeFolder = window.notoWorkspace.onFolderChanged((event) => {
+      if (active) adoptFolder(event);
     });
+    // A folder named on the command line opens before this page can listen,
+    // so ask, the way the document is asked for below.
+    void window.notoWorkspace.folder({ version: 1, requestId: rid('ws-folder') })
+      .then((result) => {
+        if (active && result.ok && result.value.root) adoptFolder(result.value);
+      })
+      .catch(() => { /* Nothing to adopt is the ordinary answer. */ });
     const unsubscribeClosed = window.notoWorkspace.onDocumentClosed(() => {
       if (!active) return;
       setActiveId(null);
@@ -1283,9 +1292,13 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
               ? <div className="opening-state">Starting…</div>
               : <section className="empty-state" data-testid="empty-state">
                   <h1>No document open</h1>
-                  <p>Open a Markdown file to start writing.</p>
-                  <button type="button" className="primary" data-testid="empty-open"
-                    onClick={() => void openWithDialog()}>Open a document…</button>
+                  <p>Open a folder to browse its notes, or a single file to start writing.</p>
+                  <div className="empty-actions">
+                    <button type="button" className="primary" data-testid="empty-open-folder"
+                      onClick={chooseFolder}>Open a folder…</button>
+                    <button type="button" data-testid="empty-open"
+                      onClick={() => void openWithDialog()}>Open a document…</button>
+                  </div>
                   {openError && <p role="alert" className="empty-error">{openError}</p>}
                   {recent.length > 0 && (
                     <div className="recent-list">

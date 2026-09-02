@@ -84,6 +84,9 @@ export function registerWorkspaceHandlers(deps: {
   register(WORKSPACE_CHANNELS.openRecentFolder, isWorkspaceOpenPathRequestV1,
     (request: WorkspaceOpenPathRequestV1) => deps.session.openFolderPath(request.path));
 
+  register(WORKSPACE_CHANNELS.folder, isWorkspaceRequestV1,
+    () => deps.session.currentFolder());
+
   register(WORKSPACE_CHANNELS.reveal, isWorkspaceRevealRequestV1,
     (request: WorkspaceRevealRequestV1) => deps.session.reveal(request.target));
 

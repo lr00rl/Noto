@@ -119,6 +119,13 @@ broken.
 
 Tree rows are 26px, which is the density a four-level tree needs. No background
 at rest, `--raised` on hover, and the current file gets a tint plus the spine.
+The folder itself is the first row, set in ink at weight 600 with nothing to
+press, and the first level hangs from it the way every deeper level hangs from
+its parent: a tree whose lines began one level down read as a list with a tree
+inside it. Open folders are sticky, each holding a row below its parent while
+its contents scroll past, so a deep folder always shows the path you are in; a
+row that is actually stuck, which the tree marks with an observer per depth,
+carries a rule beneath it, and a row that is merely open does not.
 Every row carries a glyph, a folder or a file, drawn inline in the title bar's
 stroke style in the muted tier; they are what makes a column of names read as
 files rather than as an outline, and a file row carries the twisty's width as

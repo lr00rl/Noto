@@ -308,6 +308,9 @@ const workspaceApi: NotoWorkspaceApiV1 = Object.freeze({
   openRecentFolder: (request: WorkspaceOpenPathRequestV1) => isWorkspaceOpenPathRequestV1(request)
     ? invokeWorkspace<WorkspaceFolderEventV1>(WORKSPACE_CHANNELS.openRecentFolder, request, request.requestId, isWorkspaceFolderResultV1)
     : Promise.resolve(rejectedWorkspace<WorkspaceFolderEventV1>('invalid', 'Invalid open recent folder request')),
+  folder: (request: WorkspaceRequestV1) => isWorkspaceRequestV1(request)
+    ? invokeWorkspace<WorkspaceFolderEventV1>(WORKSPACE_CHANNELS.folder, request, request.requestId, isWorkspaceFolderResultV1)
+    : Promise.resolve(rejectedWorkspace<WorkspaceFolderEventV1>('invalid', 'Invalid folder request')),
   searchContent: (request: WorkspaceContentRequestV1) => isWorkspaceContentRequestV1(request)
     ? invokeWorkspace<WorkspaceContentReplyV1>(WORKSPACE_CHANNELS.searchContent, request, request.requestId, isWorkspaceContentResultV1)
     : Promise.resolve(rejectedWorkspace<WorkspaceContentReplyV1>('invalid', 'Invalid content search request')),
