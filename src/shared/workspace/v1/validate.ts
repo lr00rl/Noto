@@ -212,15 +212,30 @@ export function isWorkspaceRevealRequestV1(value: unknown): value is WorkspaceRe
  */
 const OPENABLE_SCHEMES: ReadonlySet<string> = new Set(['http:', 'https:', 'mailto:']);
 
-export function isOpenableExternalUrl(value: string): boolean {
-  if (value.length === 0 || value.length > 2048) return false;
+/**
+ * The URL to open, normalised, or null when it is not one to open.
+ *
+ * The normalised form is what the caller must hand on, not the string it was
+ * given. The parser this checks with and the one the operating system opens
+ * with do not have to agree, and they do not: `https:/\/\evil.com` parses
+ * here as `https://evil.com/`, a tab inside a host is dropped, a newline
+ * inside a scheme is dropped. Checking one string and opening another is the
+ * whole of that bug class, so only the checked string is ever opened.
+ */
+export function openableExternalUrl(value: string): string | null {
+  if (value.length === 0 || value.length > 2048) return null;
   let parsed: URL;
   try {
     parsed = new URL(value);
   } catch {
-    return false;
+    return null;
   }
-  return OPENABLE_SCHEMES.has(parsed.protocol);
+  if (!OPENABLE_SCHEMES.has(parsed.protocol)) return null;
+  return parsed.href;
+}
+
+export function isOpenableExternalUrl(value: string): boolean {
+  return openableExternalUrl(value) !== null;
 }
 
 export function isWorkspaceOpenExternalRequestV1(value: unknown): value is WorkspaceOpenExternalRequestV1 {

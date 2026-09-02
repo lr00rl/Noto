@@ -15,7 +15,7 @@ import path from 'node:path';
 import { stat } from 'node:fs/promises';
 import { BrowserWindow, dialog, shell } from 'electron';
 import type { FileTruthOpenReplyV1 } from '../../shared/file-truth/v1/contracts';
-import { isOpenableExternalUrl } from '../../shared/workspace/v1/validate';
+import { openableExternalUrl } from '../../shared/workspace/v1/validate';
 import {
   NOTO_WORKSPACE_VERSION,
   WORKSPACE_CHANNELS,
@@ -300,6 +300,11 @@ export class WorkspaceSession {
   /**
    * Hand a link in a note to the browser.
    *
+   * What is opened is the normalised URL this check returns, never the string
+   * that arrived: the parser here and the one the operating system opens with
+   * do not have to agree, and checking one string while opening another is
+   * how that difference becomes a bug.
+   *
    * The scheme is checked here as well as in the renderer and the preload,
    * because this is the side that calls `shell.openExternal`, and that hands
    * the string to the operating system, which will launch a handler for any
@@ -309,11 +314,13 @@ export class WorkspaceSession {
    * reason there are three checks.
    */
   openExternal(url: string): WorkspaceOpenExternalReplyV1 {
-    if (!isOpenableExternalUrl(url)) {
+    const safe = openableExternalUrl(url);
+    if (safe === null) {
       this.logger.log('external_link_refused', { length: url.length });
       return { version: NOTO_WORKSPACE_VERSION, opened: false };
     }
-    void shell.openExternal(url);
+    // The normalised form, never the string that arrived.
+    void shell.openExternal(safe);
     this.logger.log('external_link_opened', {});
     return { version: NOTO_WORKSPACE_VERSION, opened: true };
   }

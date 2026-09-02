@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isOpenableExternalUrl, isWorkspaceOpenExternalRequestV1 } from '../../src/shared/workspace/v1/validate';
+import { isOpenableExternalUrl, isWorkspaceOpenExternalRequestV1, openableExternalUrl } from '../../src/shared/workspace/v1/validate';
 
 /**
  * A URL in a note is text somebody else may have written, and the call it ends
@@ -27,6 +27,25 @@ describe('the links a note may open', () => {
     expect(isOpenableExternalUrl('example.com')).toBe(false);
     expect(isOpenableExternalUrl('./notes/other.md')).toBe(false);
     expect(isOpenableExternalUrl(`https://example.com/${'a'.repeat(2100)}`)).toBe(false);
+  });
+
+  it('gives back the normalised URL, which is the one that may be opened', () => {
+    // The parser here and the one the operating system opens with do not have
+    // to agree. Checking one string and opening another is the bug; only the
+    // string that was checked is handed on.
+    expect(openableExternalUrl('https:/\\/\\evil.com')).toBe('https://evil.com/');
+    expect(openableExternalUrl('HTTPS://Example.COM')).toBe('https://example.com/');
+    expect(openableExternalUrl('https://example.com/a\tb')).toBe('https://example.com/ab');
+    expect(openableExternalUrl('https://exa\nmple.com/a')).toBe('https://example.com/a');
+    expect(openableExternalUrl('file:///etc/passwd')).toBeNull();
+  });
+
+  it('refuses a scheme hidden behind whitespace inside it', () => {
+    // The check runs on the parsed URL, so the parser's own stripping cannot
+    // be used to smuggle a scheme past a check on the raw text.
+    expect(isOpenableExternalUrl(' javascript:alert(1)')).toBe(false);
+    expect(isOpenableExternalUrl('java\nscript:alert(1)')).toBe(false);
+    expect(isOpenableExternalUrl('jav\tascript:alert(1)')).toBe(false);
   });
 
   it('is applied by the request validator, not only available to it', () => {
