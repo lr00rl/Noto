@@ -1,5 +1,5 @@
 /**
- * The image node on screen.
+ * Pictures on screen: the image node, and the frame it is drawn in.
  *
  * A node view rather than the schema's `toDOM`, because what goes in the
  * `src` depends on two things the schema cannot know: the folder the note is
@@ -7,23 +7,41 @@
  * the serialisation, so copying an image copies its markdown, not the asset
  * URL it was shown from.
  *
- * Every state the image can be in has a face. A picture that loads is a
- * picture. One that main refuses, or that is not there, or that is on the web
- * while web images are off, or whose `[reference]` has no definition, becomes
- * a small labelled frame with the note's own words for it, because an empty
- * gap where a picture should be is the one outcome that tells the reader
- * nothing.
+ * The frame is its own class because a picture arrives two ways, as a
+ * markdown image and as an `<img>` tag kept as raw HTML, and both should be
+ * drawn by the one piece of code that knows the rules. Every state the
+ * picture can be in has a face. One that loads is a picture. One that main
+ * refuses, or that is not there, or that is on the web while web images are
+ * off, or whose `[reference]` has no definition, becomes a small labelled
+ * frame with the note's own words for it, because an empty gap where a
+ * picture should be is the one outcome that tells the reader nothing.
  *
- * Live views register themselves so the editor can redraw the images, and
- * only the images, when the context changes under an open note: a folder
- * opened after the note, or web images switched. Rebuilding the node views
- * would do it too, and would tear down and rebuild the view of the whole
- * document to change a handful of pictures.
+ * Live frames register themselves so the editor can redraw the pictures, and
+ * only the pictures, when the context changes under an open note: a folder
+ * opened after the note, or web images switched.
  */
 
 import type { Node as ProseNode } from 'prosemirror-model';
 import type { EditorView, NodeView } from 'prosemirror-view';
 import { imageName, resolveImageSource, type ImageContext } from './image-source';
+
+/** Anything the editor can ask to draw itself again. */
+export interface Refreshable {
+  refresh(): void;
+}
+
+/** What a picture needs, wherever it was written. */
+export interface Picture {
+  readonly src: string;
+  readonly alt: string;
+  readonly title: string | null;
+  readonly width?: number | null;
+  readonly height?: number | null;
+  /** A factor, as Typora writes when a picture is resized in place. */
+  readonly zoom?: number;
+  /** A width in pixels or a percentage, from an HTML style attribute. */
+  readonly styleWidth?: string | null;
+}
 
 type Reason = 'remote-off' | 'missing' | 'no-document' | 'no-definition' | 'unsupported';
 
@@ -49,59 +67,32 @@ interface Shown {
   readonly title: string | null;
 }
 
-export class ImageView implements NodeView {
+export class ImageFrame implements Refreshable {
   readonly dom: HTMLElement;
+  private picture: Picture | null = null;
   private shown: Shown | null = null;
   /** The last request for this picture was refused or failed. */
   private failed = false;
 
   constructor(
-    private node: ProseNode,
-    private readonly view: EditorView,
     private readonly context: () => ImageContext,
-    private readonly registry: Set<ImageView>,
+    private readonly registry: Set<Refreshable>,
   ) {
     this.dom = document.createElement('span');
     this.dom.className = 'noto-image-frame';
     registry.add(this);
-    this.render();
   }
 
-  update(node: ProseNode): boolean {
-    if (node.type !== this.node.type) return false;
-    this.node = node;
-    this.render();
-    return true;
-  }
-
-  /**
-   * Draw again under a changed context.
-   *
-   * A picture that loaded is left alone. One that failed is asked for again,
-   * because the context changing is exactly what may make it load now. An
-   * ordinary node update does not retry: the cursor moving past an image
-   * changes its decorations, and that must not cost a request each time.
-   */
-  refresh(): void {
-    this.render(this.failed);
-  }
-
-  destroy(): void {
-    this.registry.delete(this);
-  }
-
-  /** The frame's children are ours; the editor must not read them as edits. */
-  ignoreMutation(): boolean {
-    return true;
-  }
-
-  private render(retry = false): void {
-    const { alt, title } = this.node.attrs as { alt: string; title: string | null };
-    const src = this.sourceOf();
-    const source = src === null
+  /** Draw `picture`, or the "no definition" face for null. Unchanged parts are left alone. */
+  render(picture: Picture | null, retry = false): void {
+    this.picture = picture;
+    const alt = picture?.alt ?? '';
+    const title = picture?.title ?? null;
+    const source = picture === null
       ? { kind: 'unresolved' as const, reason: 'no-definition' as const }
-      : resolveImageSource(src, this.context());
-    const key = source.kind === 'unresolved' ? `unresolved:${source.reason}` : `${source.kind}:${source.url}`;
+      : resolveImageSource(picture.src, this.context());
+    const sizing = picture ? `${picture.width ?? ''}x${picture.height ?? ''}|${picture.zoom ?? 1}|${picture.styleWidth ?? ''}` : '';
+    const key = source.kind === 'unresolved' ? `unresolved:${source.reason}` : `${source.kind}:${source.url}|${sizing}`;
 
     // The same picture with new words: patch the words rather than reload it.
     if (this.shown?.key === key && !retry) {
@@ -110,7 +101,7 @@ export class ImageView implements NodeView {
         const img = this.dom.querySelector('img');
         if (img) img.alt = alt;
         const name = this.dom.querySelector('.noto-image-name');
-        if (name) name.textContent = displayName(src ?? '', alt);
+        if (name) name.textContent = displayName(picture?.src ?? '', alt);
         this.shown = { key, alt, title };
       }
       return;
@@ -126,7 +117,7 @@ export class ImageView implements NodeView {
         : source.reason === 'no-document' ? 'no-document'
           : source.reason === 'no-definition' ? 'no-definition'
             : 'unsupported';
-      this.dom.append(placeholder(src ?? '', alt, reason));
+      this.dom.append(placeholder(picture?.src ?? '', alt, reason));
       return;
     }
 
@@ -135,12 +126,70 @@ export class ImageView implements NodeView {
     img.alt = alt;
     img.draggable = false;
     img.decoding = 'async';
+    if (picture?.width) img.width = picture.width;
+    if (picture?.height) img.height = picture.height;
+    if (picture?.styleWidth) img.style.width = picture.styleWidth;
+    if (picture?.zoom && picture.zoom !== 1) img.style.zoom = String(picture.zoom);
     img.addEventListener('error', () => {
       this.failed = true;
-      img.replaceWith(placeholder(src ?? '', alt, 'missing'));
+      img.replaceWith(placeholder(picture?.src ?? '', alt, 'missing'));
     }, { once: true });
     img.src = source.url;
     this.dom.append(img);
+  }
+
+  /**
+   * Draw again under a changed context.
+   *
+   * A picture that loaded is left alone. One that failed is asked for again,
+   * because the context changing is exactly what may make it load now. An
+   * ordinary node update does not retry: the cursor moving past an image
+   * changes its decorations, and that must not cost a request each time.
+   */
+  refresh(): void {
+    this.render(this.picture, this.failed);
+  }
+
+  destroy(): void {
+    this.registry.delete(this);
+  }
+}
+
+export class ImageView implements NodeView {
+  readonly dom: HTMLElement;
+  private readonly frame: ImageFrame;
+
+  constructor(
+    private node: ProseNode,
+    private readonly view: EditorView,
+    context: () => ImageContext,
+    registry: Set<Refreshable>,
+  ) {
+    this.frame = new ImageFrame(context, registry);
+    this.dom = this.frame.dom;
+    this.render();
+  }
+
+  update(node: ProseNode): boolean {
+    if (node.type !== this.node.type) return false;
+    this.node = node;
+    this.render();
+    return true;
+  }
+
+  destroy(): void {
+    this.frame.destroy();
+  }
+
+  /** The frame's children are ours; the editor must not read them as edits. */
+  ignoreMutation(): boolean {
+    return true;
+  }
+
+  private render(): void {
+    const { alt, title } = this.node.attrs as { alt: string; title: string | null };
+    const src = this.sourceOf();
+    this.frame.render(src === null ? null : { src, alt, title });
   }
 
   /**
@@ -190,7 +239,7 @@ function placeholder(src: string, alt: string, reason: Reason): HTMLElement {
   return frame;
 }
 
-export function imageNodeViews(registry: Set<ImageView>, context: () => ImageContext) {
+export function imageNodeViews(registry: Set<Refreshable>, context: () => ImageContext) {
   return {
     image: (node: ProseNode, view: EditorView) => new ImageView(node, view, context, registry),
   };

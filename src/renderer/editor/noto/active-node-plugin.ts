@@ -25,7 +25,7 @@
  */
 
 import { Plugin, PluginKey, type EditorState } from 'prosemirror-state';
-import type { Mark } from 'prosemirror-model';
+import type { Mark, Node as ProseNode } from 'prosemirror-model';
 import { Decoration, DecorationSet } from 'prosemirror-view';
 
 export const activeNodeKey = new PluginKey<DecorationSet>('noto-active-node');
@@ -118,6 +118,12 @@ export function innermostRange(ranges: readonly MarkRange[]): MarkRange | null {
   );
 }
 
+function holdsInlineHtml(textblock: ProseNode): boolean {
+  let found = false;
+  textblock.forEach((child) => { if (child.type.name === 'inline_html') found = true; });
+  return found;
+}
+
 function activeDecorations(state: EditorState): DecorationSet {
   const { from, to, empty } = state.selection;
   const decorations: Decoration[] = [];
@@ -132,6 +138,30 @@ function activeDecorations(state: EditorState): DecorationSet {
     }));
     return false;
   });
+
+  /*
+   * Raw HTML that is shown as a picture shows its source while the caret is
+   * in it, at whatever depth it sits. The top-level class above cannot say
+   * that: an image tag inside a list item would show its source whenever the
+   * caret was anywhere in the list. So the block holding the caret, and the
+   * textblock holding the caret when it contains inline HTML, are marked on
+   * their own, from the selection's ends up through their ancestors.
+   */
+  const marked = new Set<number>();
+  for (const $pos of [state.selection.$from, state.selection.$to]) {
+    for (let depth = $pos.depth; depth >= 1; depth -= 1) {
+      const node = $pos.node(depth);
+      const start = $pos.before(depth);
+      if (marked.has(start)) continue;
+      if (node.type.name === 'html_block') {
+        marked.add(start);
+        decorations.push(Decoration.node(start, $pos.after(depth), { class: 'noto-html-editing' }));
+      } else if (node.isTextblock && holdsInlineHtml(node)) {
+        marked.add(start);
+        decorations.push(Decoration.node(start, $pos.after(depth), { class: 'noto-inline-editing' }));
+      }
+    }
+  }
 
   /*
    * Only for a collapsed selection.

@@ -182,6 +182,48 @@
   font: 0.88em tokens.$mono;
 }
 
+/* A lone <img> tag is shown as its picture while the caret is elsewhere and
+   as its source while the caret is in the block, which is Typora's rule. The
+   block's source is never removed, only kept out of sight, so the caret's
+   path into it is the same as for any other text. */
+.ProseMirror .noto-html-block { position: relative; }
+.ProseMirror .noto-html-block[data-preview='image']:not(.noto-html-editing) {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  white-space: normal;
+
+  > .noto-html-source {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+.ProseMirror .noto-html-block.noto-html-editing > .noto-html-preview { display: none; }
+
+.ProseMirror .noto-inline-html[data-preview='image'] {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+
+  > .noto-inline-html-source { display: none; }
+}
+.ProseMirror .noto-inline-editing .noto-inline-html[data-preview='image'] {
+  border-radius: 3px;
+  background: var(--raised);
+  padding: 0 3px;
+  color: var(--muted);
+  font: 0.88em tokens.$mono;
+
+  > .noto-inline-html-source { display: inline; }
+  > .noto-html-preview { display: none; }
+}
+
 /* Footnotes and link definitions ------------------------------------------ */
 
 .ProseMirror .noto-footnote-definition {

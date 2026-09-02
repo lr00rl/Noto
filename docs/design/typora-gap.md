@@ -6,7 +6,7 @@ vault: 7,066 notes, 82.5 MB of markdown, 343 image files, six levels deep.
 Assessments below are ordered by how much each one accounts for the difference
 in feel, and each names its evidence.
 
-## 1. Images did not render. Closed, with one remainder.
+## 1. Images did not render. Closed.
 
 2,466 of the 7,066 notes embed an image, and until this week Noto showed none
 of them. A local `![](./pic.png)` failed with `net::ERR_UNEXPECTED`; a remote
@@ -32,10 +32,17 @@ text and the reason, not a gap. Opening a folder after the note redraws the
 note's images, so a picture in a sibling folder that was refused a moment ago
 appears without the note being reopened.
 
-The remainder: 960 pictures in this vault are raw HTML `<img>` tags rather
-than markdown images, and those render as the opaque HTML block they are in.
-Recognising an `<img>` inside inline or block HTML is a separate pass over a
-different node type, and it is listed below with the plugins.
+The remainder, now closed: 960 pictures in this vault are raw HTML `<img>`
+tags rather than markdown images, 767 of them in the shape Typora pastes
+(`<img src alt style="zoom:50%" />`), 736 alone on a line and 164 inside a
+sentence. Raw HTML is still never rendered live. A lone `<img>` tag is parsed,
+strictly, into the few attributes a picture needs, the source, alt, title,
+width, height, and a zoom or width from the style, and everything else is
+dropped; those are drawn through the same frame as a markdown image, so the
+zoom Typora wrote is honoured. While the caret is elsewhere the tag shows as
+its picture; when the caret enters the block the source comes back, which is
+Typora's rule. The source is never removed from the block, only kept out of
+sight, so editing is unchanged.
 
 ## 2. The prose was a size louder than the theme, and headings did not scale. Closed.
 
@@ -124,9 +131,8 @@ a plugin model Typora does not have.
 ## Order of work
 
 Images first, because the gap was functional and a third of the vault was
-behind it; done, bar the HTML `<img>` remainder. Then the prose scale, tables
+behind it; done, including `<img>` inside HTML. Then the prose scale, tables
 and inline code together, since they are one stylesheet and one pass with the
-theme open beside it; done. Then line numbers and tree icons; both done. Then
-`<img>` inside HTML, which is the last of the pictures. The remaining plugins
-after that, in the order the author names them, with `fence-enhance`'s indent
-guides and tab markers among them.
+theme open beside it; done. Then line numbers and tree icons; both done. The
+remaining plugins after that, in the order the author names them, with
+`fence-enhance`'s indent guides and tab markers among them.

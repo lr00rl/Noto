@@ -65,6 +65,17 @@ async function launch(name: string): Promise<Workspace> {
     '',
     '[dot]: ../assets/dot.png',
     '',
+    // The shape Typora pastes, alone on its line, and a tag inside a sentence.
+    '<img src="./pics/with%20space.png" alt="html" style="zoom:50%;" />',
+    '',
+    'Inline <img src="../assets/dot.png" alt="inl"> here.',
+    '',
+    // The same two shapes inside a list item, where the top-level block is
+    // the whole list and cannot say which item the caret is in.
+    '1. Step with <img src="../assets/dot.png" alt="nested"> inline',
+    '',
+    '   <img src="../assets/dot.png" alt="deep" />',
+    '',
   ].join('\n'), 'utf8');
 
   const app = await electron.launch({
@@ -122,6 +133,31 @@ test.describe('images', () => {
       // A reference image resolves through its definition line. (One without a
       // definition is not an image at all to the parser, so it is plain text.)
       await expect.poll(() => loaded(page, 'ref')).toBe(true);
+
+      // An <img> tag kept as raw HTML shows as its picture, sized as the tag
+      // says, and shows its source again once the caret is in the block.
+      await expect.poll(() => loaded(page, 'html')).toBe(true);
+      await expect.poll(() => loaded(page, 'inl')).toBe(true);
+      await expect(page.locator('img.noto-image[alt="html"]')).toHaveCSS('zoom', '0.5');
+      const block = page.locator('.noto-html-block[data-preview="image"]').first();
+      await expect(block.locator('.noto-html-source')).not.toBeInViewport();
+      await block.locator('.noto-html-preview').click();
+      await expect(block).toHaveClass(/noto-html-editing/);
+      await expect(block.locator('.noto-html-source')).toBeVisible();
+      await expect(block.locator('.noto-html-preview')).toBeHidden();
+      await expect(block.locator('.noto-html-source')).toContainText('<img src="./pics/with%20space.png"');
+
+      // Inside a list item the same rules hold per node: the deep block shows
+      // its picture until its own preview is pressed, and only then its source.
+      await expect.poll(() => loaded(page, 'nested')).toBe(true);
+      await expect.poll(() => loaded(page, 'deep')).toBe(true);
+      const deep = page.locator('.noto-html-block[data-preview="image"]').nth(1);
+      await expect(deep).not.toHaveClass(/noto-html-editing/);
+      await deep.locator('.noto-html-preview').click();
+      await expect(deep).toHaveClass(/noto-html-editing/);
+      await expect(deep.locator('.noto-html-source')).toBeVisible();
+      await expect(block).not.toHaveClass(/noto-html-editing/);
+      await expect(page.locator('img.noto-image[alt="nested"]')).toBeVisible();
 
       // The origin itself refuses what the guard refuses, whatever the note says.
       await expect.poll(() => assetAnswers(page, path.join(vault, 'assets', 'dot.png'))).toBe('served');
