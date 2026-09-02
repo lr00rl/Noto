@@ -58,6 +58,7 @@ import { syntaxHighlightPlugin } from './highlight';
 import { wikiLinkPlugin } from './wiki-link-plugin';
 import { followLinkPlugin, linkEditorPlugin } from './link-plugin';
 import { countWords, type DocumentCount } from './word-count';
+import { sliceToMarkdown } from './clipboard';
 
 /** How long after the last keystroke the document is counted. */
 const COUNT_DELAY_MS = 400;
@@ -119,6 +120,8 @@ export class NotoEditor implements NotoEditorPort {
       state: EditorState.create({ doc, plugins: this.plugins(document) }),
       dispatchTransaction: (transaction) => this.apply(transaction),
       attributes: { spellcheck: String(this.options.spellCheck ?? true) },
+      // What leaves on the clipboard is the markdown, not the words without it.
+      clipboardTextSerializer: (slice) => sliceToMarkdown(slice),
       nodeViews: this.nodeViews(),
     });
     // The first count is for the document as opened, not for a change to it.
