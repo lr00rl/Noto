@@ -16,10 +16,10 @@
 import { readdir, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import type { WorkspaceIndexEntryV1 } from '../../shared/workspace/v1/contracts';
-import { isInside } from './file-tree';
+import { EDITABLE_EXTENSIONS, isInside } from './file-tree';
 
-/** Extensions the editor can open. Matches the tree, so both agree what a file is. */
-const OPENABLE = new Set(['.md', '.markdown', '.mdown', '.mkd', '.txt']);
+/** Extensions the editor can open, shared with the tree so the two agree. */
+const OPENABLE = EDITABLE_EXTENSIONS;
 
 const SKIPPED_DIRECTORIES = new Set([
   'node_modules', '.git', '.svn', '.hg', '__pycache__', '.venv', '.next', 'dist', 'build',

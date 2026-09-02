@@ -542,6 +542,18 @@ first snapshot batch of that same startup spends. Deliberately one shot: a
 plugin the reader enables later is meant to stay idle until they activate it,
 and an announcement left standing would start it the moment it was enabled.
 
+## 32. The shell would open anything, and draw it as prose. Closed.
+
+The tree lists Markdown and plain text, the search index holds the same, and
+the Open dialog filters to it. The command line took whatever it was given, so
+`Noto main.ts` opened a source file and drew it as prose: the indentation
+gone, a template literal read as a code span, and any block the reader touched
+written back as markdown rather than as the code it is.
+
+The four now give the same answer, from one list rather than the two copies
+that each carried a comment saying they had to match. Opening something else
+says what the editor is for instead of quietly making a mess of the file.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form

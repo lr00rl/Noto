@@ -22,7 +22,24 @@ export interface FileTreeEntryV1 {
 }
 
 /** Extensions the editor can actually open. Anything else is noise in a tree. */
-const MARKDOWN = new Set(['.md', '.markdown', '.mdown', '.mkd', '.txt']);
+/**
+ * What this editor opens, in one place.
+ *
+ * The tree, the search index, the Open dialog and the shell all have to agree,
+ * or a file shows in one and is refused by another. It was written out twice
+ * before, once here and once in the index, with a comment on each saying it
+ * had to match the other.
+ */
+export const EDITABLE_EXTENSIONS: ReadonlySet<string> = new Set([
+  '.md', '.markdown', '.mdown', '.mkd', '.txt',
+]);
+
+/** Whether this editor will open the file at `filePath`. */
+export function isEditableFile(filePath: string): boolean {
+  return EDITABLE_EXTENSIONS.has(path.extname(filePath).toLowerCase());
+}
+
+const MARKDOWN = EDITABLE_EXTENSIONS;
 
 /**
  * Directories never worth showing.
