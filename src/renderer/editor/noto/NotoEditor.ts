@@ -57,6 +57,10 @@ import {
 import { syntaxHighlightPlugin } from './highlight';
 import { wikiLinkPlugin } from './wiki-link-plugin';
 import { followLinkPlugin, linkEditorPlugin } from './link-plugin';
+import { countWords, type DocumentCount } from './word-count';
+
+/** How long after the last keystroke the document is counted. */
+const COUNT_DELAY_MS = 400;
 
 export interface NotoEditorOptions extends InputRuleOptions {
   readonly mac: boolean;
@@ -76,6 +80,8 @@ export interface NotoEditorOptions extends InputRuleOptions {
   readonly onActiveBlockChanged?: (index: number) => void;
   /** Cmd or Ctrl clicking an ordinary `[text](address)` link. */
   readonly onFollowLink?: (href: string) => void;
+  /** The document's size, after typing has stopped rather than during it. */
+  readonly onCountChanged?: (count: DocumentCount) => void;
   /** Cmd or Ctrl clicking a `[[wiki link]]`. Absent means links stay inert. */
   readonly onFollowWikiLink?: (target: string) => void;
   /** Where relative images resolve from, and whether web images load. */
@@ -115,6 +121,8 @@ export class NotoEditor implements NotoEditorPort {
       attributes: { spellcheck: String(this.options.spellCheck ?? true) },
       nodeViews: this.nodeViews(),
     });
+    // The first count is for the document as opened, not for a change to it.
+    this.scheduleCount();
   }
 
   private nodeViews() {
@@ -173,6 +181,8 @@ export class NotoEditor implements NotoEditorPort {
     return doc;
   }
 
+  private countTimer: ReturnType<typeof setTimeout> | null = null;
+
   private apply(transaction: Transaction): void {
     const view = this.view;
     if (!view) return;
@@ -184,6 +194,30 @@ export class NotoEditor implements NotoEditorPort {
     // debounce against typing, and a flag that flips once at the first
     // keystroke cannot tell it when typing stopped.
     this.options.onDocumentChanged?.();
+    this.scheduleCount();
+  }
+
+  /**
+   * Count the document once typing has stopped.
+   *
+   * Never on the keystroke. A megabyte of prose takes about 37 milliseconds to
+   * count, which is nothing to wait for after a pause and far too much to pay
+   * for a letter. The timer restarts on every change, so a burst of typing
+   * costs one count.
+   */
+  private scheduleCount(): void {
+    if (!this.options.onCountChanged) return;
+    if (this.countTimer !== null) clearTimeout(this.countTimer);
+    this.countTimer = setTimeout(() => {
+      this.countTimer = null;
+      this.reportCount();
+    }, COUNT_DELAY_MS);
+  }
+
+  private reportCount(): void {
+    const view = this.view;
+    if (!view || !this.options.onCountChanged) return;
+    this.options.onCountChanged(countWords(view.state.doc.textBetween(0, view.state.doc.content.size, '\n', '\n')));
   }
 
   /** Told only when it changes: this runs on every transaction, typing included. */
@@ -600,6 +634,8 @@ export class NotoEditor implements NotoEditorPort {
   }
 
   destroy(): void {
+    if (this.countTimer !== null) clearTimeout(this.countTimer);
+    this.countTimer = null;
     this.view?.destroy();
     this.view = null;
     this.pristine = new Map();

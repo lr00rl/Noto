@@ -1708,3 +1708,13 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 #document-canvas::-webkit-scrollbar-thumb { background: transparent; }
 .rail-view:hover::-webkit-scrollbar-thumb,
 #document-canvas:hover::-webkit-scrollbar-thumb { background: var(--hairline); }
+
+/* The document's size, at the end of the status line. Tabular figures so the
+   number does not shuffle its neighbours as it grows, and the same quiet grey
+   as the path it shares the line with. */
+.status-count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}

@@ -33,6 +33,7 @@ import {
 } from '../shared/plugins/proof-manifests';
 import { declaredHotkeys, matchHotkey } from './plugins/hotkeys';
 import { NotoCanvas } from './editor/noto/NotoCanvas';
+import type { DocumentCount } from './editor/noto/word-count';
 import { FindBar } from './FindBar';
 import { RecentStrip } from './RecentStrip';
 import { WorkspaceRail, type RailView } from './WorkspaceRail';
@@ -301,6 +302,8 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
    * signal that is allowed to be approximate.
    */
   const [frecency, setFrecency] = useState<FrecencyStoreV1>({});
+  /** The size of the document in front, or null before it has been counted. */
+  const [count, setCount] = useState<DocumentCount | null>(null);
 
   const editorsRef = useRef<Map<string, NotoEditor>>(new Map());
   /** Always the editor of the document in front, so call sites stay unchanged. */
@@ -1498,6 +1501,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                 }}
                 onFollowWikiLink={(target) => followWikiLinkRef.current(target)}
                 onFollowLink={(href) => followLinkRef.current(href)}
+                onCountChanged={doc.document.documentId === activeIdRef.current ? setCount : undefined}
                 onReady={(editor) => {
                   editorsRef.current.set(doc.document.documentId, editor);
                   if (doc.document.documentId === activeIdRef.current) {
@@ -1637,6 +1641,16 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
             data-testid={notice ? 'status-notice' : undefined} aria-live="polite">
             {notice ?? (state === 'Opened' ? 'Exact source preserved' : state === 'Saved' ? 'Exact source saved' : '')}
           </span>
+          {/* The one number a writer looks for, at the end of the line where
+              nothing else competes with it. Counted after typing stops, so it
+              settles a moment behind the words rather than flickering under
+              them. */}
+          {count !== null && (
+            <span className="status-count" data-testid="status-count"
+              title={`${count.characters.toLocaleString()} characters`}>
+              {count.words.toLocaleString()} {count.words === 1 ? 'word' : 'words'}
+            </span>
+          )}
         </footer>
       )}
     </div>
