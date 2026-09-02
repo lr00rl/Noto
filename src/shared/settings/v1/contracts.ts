@@ -108,6 +108,14 @@ export interface NotoSettingsV1 {
    */
   readonly codeLineNumbers: boolean;
   /**
+   * Close a bracket or a quote as it is opened.
+   *
+   * On, as the author's Typora is set. It never pairs in the middle of a word,
+   * so an apostrophe stays an apostrophe, and typing a closing bracket where
+   * one already sits walks past it rather than doubling it.
+   */
+  readonly autoPair: boolean;
+  /**
    * Dim every block but the one the caret is in.
    *
    * Typora calls this focus mode. It is off by default: it is a thing you
@@ -159,6 +167,7 @@ export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   spellCheck: true,
   remoteImages: true,
   codeLineNumbers: true,
+  autoPair: true,
   focusMode: false,
   typewriterMode: false,
   sidebarOnLaunch: false,

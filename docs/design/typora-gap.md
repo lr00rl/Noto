@@ -394,6 +394,22 @@ were real but invisible, reachable only by somebody who already knew them.
 Every item in that menu runs the same editor command its shortcut runs, so
 the two cannot drift apart, and the menu is where a hand goes looking.
 
+## 5v. A bracket did not close itself. Closed.
+
+The author's Typora pairs brackets and quotes, which its own settings confirm,
+and this did not. Typing an opening bracket now writes its partner and leaves
+the caret between them; typing it with something selected wraps the selection;
+typing a closing bracket where that same bracket already sits walks past it
+rather than doubling it; and a backspace between an empty pair takes both.
+The CJK brackets are in the set as well as the ASCII ones, since the notes are
+written in Chinese.
+
+The rule that makes it bearable is where it refuses. A quote after a letter is
+an apostrophe, so `don't` stays `don't`, and a bracket in front of a word is
+nearly always meant as one character. It is a setting, on by default, because
+this is the kind of help that is either invisible or infuriating and which of
+the two depends on the person.
+
 ## 5k. A line the author broke is now drawn broken. Closed.
 
 CommonMark reads a single newline inside a paragraph as a space, and so did

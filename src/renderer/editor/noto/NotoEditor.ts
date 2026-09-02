@@ -37,6 +37,7 @@ import { activeNodePlugin } from './active-node-plugin';
 import { alertPlugin } from './alert-plugin';
 import { typoraMarksPlugin } from './typora-marks-plugin';
 import { typewriterPlugin } from './typewriter-plugin';
+import { autoPairPlugin } from './auto-pair';
 import { mathEditingPlugin, mathNodeViews } from './math-view';
 import { fenceNodeViews } from './fence-view';
 import type { ImageContext } from './image-source';
@@ -74,6 +75,7 @@ export class NotoEditor implements NotoEditorPort {
   private document: NotoDocumentWire;
   private smartTypography = false;
   private typewriter = false;
+  private autoPair = true;
   private imageContext: ImageContext;
   /** The pictures on screen, so a changed context can redraw them and nothing else. */
   private readonly imageViews = new Set<Refreshable>();
@@ -124,6 +126,7 @@ export class NotoEditor implements NotoEditorPort {
       alertPlugin(),
       typoraMarksPlugin(),
       typewriterPlugin(() => this.typewriter),
+      autoPairPlugin(() => this.autoPair),
       columnResizing(),
       tableEditing(),
       activeNodePlugin(),
@@ -370,7 +373,11 @@ export class NotoEditor implements NotoEditorPort {
     smartTypography?: boolean;
     remoteImages?: boolean;
     typewriterMode?: boolean;
+    autoPair?: boolean;
   }): void {
+    if (settings.autoPair !== undefined) {
+      this.autoPair = settings.autoPair;
+    }
     if (settings.typewriterMode !== undefined) {
       this.typewriter = settings.typewriterMode;
     }

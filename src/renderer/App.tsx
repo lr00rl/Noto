@@ -1433,6 +1433,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                 documentPath={doc.opened.path}
                 remoteImages={settings.remoteImages}
                 typewriterMode={settings.typewriterMode}
+                autoPair={settings.autoPair}
                 onDirtyChange={(dirty) => onDocumentDirtyChange(doc.document.documentId, dirty)}
                 onDocumentChanged={() => {
                   if (doc.document.documentId === activeIdRef.current) bumpTyping();

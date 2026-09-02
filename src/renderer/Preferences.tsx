@@ -319,6 +319,13 @@ export function Preferences({
                   testId="setting-spell-check"
                 />
                 <Switch
+                  label="Close brackets and quotes"
+                  hint="Typing an opening bracket writes its partner. Never inside a word, so an apostrophe stays an apostrophe."
+                  checked={settings.autoPair}
+                  onChange={(value) => onChange({ autoPair: value })}
+                  testId="setting-auto-pair"
+                />
+                <Switch
                   label="Focus mode"
                   hint="Everything but the block you are writing recedes."
                   checked={settings.focusMode}
