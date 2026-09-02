@@ -63,12 +63,21 @@ describe('packaged renderer boundary configuration', () => {
   });
 
   it('keeps production CSP restrictive and test controls main-gated', async () => {
-    const [protocolSource, handlerSource] = await Promise.all([
+    const [protocolSource, handlerSource, shellSource] = await Promise.all([
       readFile(new URL('../../src/main/protocol/register-app-protocol.ts', import.meta.url), 'utf8'),
       readFile(new URL('../../src/main/ipc/register-handlers.ts', import.meta.url), 'utf8'),
+      readFile(new URL('../../index.html', import.meta.url), 'utf8'),
     ]);
     expect(protocolSource).toContain("default-src 'none'");
     expect(protocolSource).toContain("connect-src 'none'");
+    // Pictures may come from the bundle, the asset origin main guards, and the
+    // web; nothing else may, and nothing at all may be fetched. The policy is
+    // stated twice, as a header and as a meta tag, and the browser applies the
+    // stricter of the two, so a picture source added to one and not the other
+    // is silently blocked.
+    const pictures = "img-src 'self' noto://asset data: blob: https:";
+    expect(protocolSource).toContain(pictures);
+    expect(shellSource).toContain(pictures);
     expect(protocolSource).toContain('setPermissionCheckHandler(() => false)');
     expect(protocolSource).toContain('setPermissionRequestHandler');
     // Test controls used to exist behind a build-variant gate. They are gone,

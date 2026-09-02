@@ -1,14 +1,27 @@
+import { realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { net, protocol, session } from 'electron';
+import { ASSET_HOST, fromAssetUrl } from '../../shared/assets/v1/contracts';
 import type { StructuredLogger } from '../logger';
+import { resolveAssetPath } from './asset-guard';
 
 export const RENDERER_ORIGIN = 'noto://bundle';
+
+/* `img-src` names where a picture may come from: the bundle and data URLs as
+   before, the asset origin main serves local images from, and the web over
+   TLS. The web is allowed here and gated in the renderer, where the setting
+   lives: a policy header is fixed for the life of the page, and a preference
+   that only took effect after a restart would read as broken. Plain `http:`
+   is not allowed; the renderer asks for those pictures over `https:` instead,
+   which is what the browser would do on its own and leaves nothing for a
+   network in between to alter. `connect-src` stays `'none'`, so a note can
+   show a picture and still cannot fetch anything. */
 const productionCsp = [
   "default-src 'none'",
   "script-src 'self'",
   "style-src 'self'",
-  "img-src 'self' data: blob:",
+  "img-src 'self' noto://asset data: blob: https:",
   "font-src 'self'",
   "connect-src 'none'",
   "object-src 'none'",
@@ -42,17 +55,29 @@ export function registerNotoScheme(): void {
   ]);
 }
 
-export async function installNotoProtocol(rendererRoot: string, logger: StructuredLogger): Promise<void> {
+export interface AssetRoots {
+  /** The folders images may be read from right now. Asked per request, since they change. */
+  readonly roots: () => readonly string[];
+}
+
+const notFound = () => new Response('Not found', { status: 404 });
+
+export async function installNotoProtocol(
+  rendererRoot: string,
+  logger: StructuredLogger,
+  assets: AssetRoots,
+): Promise<void> {
   const root = path.resolve(rendererRoot);
   await protocol.handle('noto', async (request) => {
     const url = new URL(request.url);
-    if (url.hostname !== 'bundle') return new Response('Not found', { status: 404 });
+    if (url.hostname === ASSET_HOST) return serveAsset(url, assets.roots(), logger);
+    if (url.hostname !== 'bundle') return notFound();
     const relativePath = decodeURIComponent(url.pathname === '/' ? 'index.html' : url.pathname.slice(1));
     const candidate = path.resolve(root, relativePath);
     const relative = path.relative(root, candidate);
     if (relative.startsWith('..') || path.isAbsolute(relative)) {
       logger.log('protocol_traversal_denied', { pathname: url.pathname });
-      return new Response('Not found', { status: 404 });
+      return notFound();
     }
     return net.fetch(pathToFileURL(candidate).toString());
   });
@@ -68,6 +93,22 @@ export async function installNotoProtocol(rendererRoot: string, logger: Structur
       },
     });
   });
+}
+
+/**
+ * A local image, if the guard allows it.
+ *
+ * The path is not logged: a refusal is a note naming a file outside the
+ * folder, which is ordinary, and the file's name is the reader's business.
+ */
+async function serveAsset(url: URL, roots: readonly string[], logger: StructuredLogger): Promise<Response> {
+  const requested = fromAssetUrl(url);
+  const real = requested ? await resolveAssetPath(requested, { roots, realpath }) : null;
+  if (!real) {
+    logger.log('asset_refused', { roots: roots.length });
+    return notFound();
+  }
+  return net.fetch(pathToFileURL(real).toString());
 }
 
 export function isAllowedRendererUrl(rawUrl: string): boolean {

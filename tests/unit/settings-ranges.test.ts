@@ -48,6 +48,14 @@ describe('numeric settings', () => {
     expect(stored.widthMode).toBe('wide');
   });
 
+  it('reads web images as on unless the file says otherwise', () => {
+    expect(coerceSettings({}).remoteImages).toBe(true);
+    expect(coerceSettings({ remoteImages: false }).remoteImages).toBe(false);
+    expect(coerceSettings({ remoteImages: 'no' }).remoteImages).toBe(true);
+    expect(write({ remoteImages: false })).toBe(true);
+    expect(write({ remoteImages: 'no' })).toBe(false);
+  });
+
   it('refuses an out-of-range write rather than silently storing something else', () => {
     expect(write({ fontSize: 18 })).toBe(true);
     expect(write({ fontSize: SETTING_RANGES.fontSize.max + 1 })).toBe(false);

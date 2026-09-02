@@ -35,6 +35,8 @@ import { notoInputRules, type InputRuleOptions } from './input-rules';
 import { notoKeymap } from './keymap';
 import { activeNodePlugin } from './active-node-plugin';
 import { mathEditingPlugin, mathNodeViews } from './math-view';
+import type { ImageContext } from './image-source';
+import { imageNodeViews, type ImageView } from './image-view';
 import type { SearchOptions } from './search';
 import {
   getSearchState,
@@ -58,12 +60,17 @@ export interface NotoEditorOptions extends InputRuleOptions {
   readonly onError?: (message: string) => void;
   /** Cmd or Ctrl clicking a `[[wiki link]]`. Absent means links stay inert. */
   readonly onFollowWikiLink?: (target: string) => void;
+  /** Where relative images resolve from, and whether web images load. */
+  readonly images?: ImageContext;
 }
 
 export class NotoEditor implements NotoEditorPort {
   private view: EditorView | null = null;
   private document: NotoDocumentWire;
   private smartTypography = false;
+  private imageContext: ImageContext;
+  /** The images on screen, so a changed context can redraw them and nothing else. */
+  private readonly imageViews = new Set<ImageView>();
   private baselineDoc: ProseNode;
   private dirty = false;
   private readonly host: HTMLElement;
@@ -76,6 +83,7 @@ export class NotoEditor implements NotoEditorPort {
     this.options = options;
     this.host = host;
     this.smartTypography = options.smartTypography === true;
+    this.imageContext = options.images ?? { documentDir: null, remote: true };
 
     const doc = this.buildDoc(document);
     this.baselineDoc = doc;
@@ -84,8 +92,12 @@ export class NotoEditor implements NotoEditorPort {
       state: EditorState.create({ doc, plugins: this.plugins(document) }),
       dispatchTransaction: (transaction) => this.apply(transaction),
       attributes: { spellcheck: String(this.options.spellCheck ?? true) },
-      nodeViews: mathNodeViews(),
+      nodeViews: this.nodeViews(),
     });
+  }
+
+  private nodeViews() {
+    return { ...mathNodeViews(), ...imageNodeViews(this.imageViews, () => this.imageContext) };
   }
 
   private plugins(document: NotoDocumentWire): Plugin[] {
@@ -322,13 +334,31 @@ export class NotoEditor implements NotoEditorPort {
    * them that. Spell checking is a view property, and smart typography is read
    * by the input rules on each keystroke, so both take effect at once.
    */
-  applySettings(settings: { spellCheck?: boolean; smartTypography?: boolean }): void {
+  applySettings(settings: { spellCheck?: boolean; smartTypography?: boolean; remoteImages?: boolean }): void {
     if (settings.smartTypography !== undefined) {
       this.smartTypography = settings.smartTypography;
     }
     const view = this.view;
-    if (!view || settings.spellCheck === undefined) return;
+    if (!view) return;
+    if (settings.remoteImages !== undefined && settings.remoteImages !== this.imageContext.remote) {
+      this.imageContext = { ...this.imageContext, remote: settings.remoteImages };
+      this.refreshImages();
+    }
+    if (settings.spellCheck === undefined) return;
     view.setProps({ attributes: { spellcheck: String(settings.spellCheck) } });
+  }
+
+  /**
+   * Draw the images again.
+   *
+   * For when what main will serve has changed under a note that is already
+   * open: a folder opened after the note means a picture in a sibling folder
+   * that was refused a moment ago is allowed now, and a placeholder that
+   * stayed "not found" until the note was reopened would be wrong. Only the
+   * images are touched; the rest of the document is not redrawn.
+   */
+  refreshImages(): void {
+    for (const image of this.imageViews) image.refresh();
   }
 
   /** Drop the highlight, for when the find bar closes. */

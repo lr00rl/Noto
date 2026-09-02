@@ -6,27 +6,36 @@ vault: 7,066 notes, 82.5 MB of markdown, 343 image files, six levels deep.
 Assessments below are ordered by how much each one accounts for the difference
 in feel, and each names its evidence.
 
-## 1. Images do not render. This is the gap.
+## 1. Images did not render. Closed, with one remainder.
 
-2,466 of the 7,066 notes embed an image, and Noto shows none of them. A local
-`![](./pic.png)` fails with `net::ERR_UNEXPECTED`; a remote one is refused by
-the renderer's content security policy, which is `img-src 'self' data: blob:`
-with `connect-src 'none'`. Most of the vault's images are remote: 2,482 point at
-a Huawei OBS bucket and 2,871 at `nihaixiahope.com`. A third of the vault opens
-with broken pictures. Nothing else on this list matters as much, and no amount
-of typography closes it.
+2,466 of the 7,066 notes embed an image, and until this week Noto showed none
+of them. A local `![](./pic.png)` failed with `net::ERR_UNEXPECTED`; a remote
+one was refused by the renderer's content security policy, which was
+`img-src 'self' data: blob:` with `connect-src 'none'`. Most of the vault's
+images are remote: 5,516 are `https:` and 7 are `http:`, 2,482 of them on a
+Huawei OBS bucket and 2,871 on `nihaixiahope.com`. 204 are paths relative to
+the note, and most of those climb to a sibling assets folder
+(`../.gitbook/assets/...`); 136 are percent-encoded; 5 are absolute.
 
-The policy was chosen for a good reason: a notes app that fetches whatever a
-note names is a notes app that makes a network request for every tracking pixel
-anyone pastes in. Typora makes that trade in favour of showing the picture. So
-does every editor this is being measured against. The fix is a setting, on by
-default because that is what the reader expects, and a clear line in
-preferences saying what it does.
+What shipped. Web images load, behind a switch that is on by default because
+that is what a reader expects, with a line in preferences saying that every one
+is a request to the server that holds it. The switch is gated in the renderer,
+so turning it off takes effect on the page in front rather than after a
+restart; `connect-src` stays `'none'`, so a note can show a picture and still
+cannot fetch anything, and the seven `http:` pictures are asked for over TLS
+rather than in the clear. Local images are served by main through the app's own
+origin from two roots and no others: the open folder, and the folder the note
+in front is in. The real path is checked after every link is followed, and
+only names that end in an image extension are served. A picture that cannot be
+shown, for any reason, is a small labelled frame carrying the note's own alt
+text and the reason, not a gap. Opening a folder after the note redraws the
+note's images, so a picture in a sibling folder that was refused a moment ago
+appears without the note being reopened.
 
-Local images need a path from the renderer to the file, and the renderer must
-not be able to name arbitrary files. Serve them through the app's own protocol
-from a root main confines to the open folder and the document's directory,
-which is the same containment the file tree already enforces.
+The remainder: 960 pictures in this vault are raw HTML `<img>` tags rather
+than markdown images, and those render as the opaque HTML block they are in.
+Recognising an `<img>` inside inline or block HTML is a separate pass over a
+different node type, and it is listed below with the plugins.
 
 ## 2. The prose is a size louder than the theme, and headings do not scale
 
@@ -90,8 +99,9 @@ a plugin model Typora does not have.
 
 ## Order of work
 
-Images first, because the gap is functional and a third of the vault is behind
-it. Then the prose scale, tables and inline code together, since they are one
-stylesheet and one pass with the theme open beside it. Then line numbers and
-tree icons, which are each a morning. The remaining plugins after that, in the
-order the author names them.
+Images first, because the gap was functional and a third of the vault was
+behind it; done, bar the HTML `<img>` remainder. Then the prose scale, tables
+and inline code together, since they are one stylesheet and one pass with the
+theme open beside it. Then line numbers and tree icons, which are each a
+morning. Then `<img>` inside HTML, which is the last of the pictures. The
+remaining plugins after that, in the order the author names them.

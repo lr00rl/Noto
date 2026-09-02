@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useLayoutEffect, useRef } from 'react';
+import { documentDirOf } from './image-source';
 import type { NotoDocumentWire, NotoTransaction } from '../../../shared/markdown/v3/contracts';
 import { NotoEditor } from './NotoEditor';
 
@@ -15,6 +16,9 @@ export interface NotoCanvasProps {
   readonly mac: boolean;
   readonly smartTypography?: boolean;
   readonly spellCheck?: boolean;
+  /** Where the document lives, so its relative images know where to start. */
+  readonly documentPath: string | null;
+  readonly remoteImages?: boolean;
   readonly onDirtyChange: (dirty: boolean) => void;
   readonly onDocumentChanged?: () => void;
   readonly onFollowWikiLink?: (target: string) => void;
@@ -28,6 +32,8 @@ export function NotoCanvas({
   mac,
   smartTypography,
   spellCheck,
+  documentPath,
+  remoteImages,
   onDirtyChange,
   onDocumentChanged,
   onFollowWikiLink,
@@ -44,7 +50,16 @@ export function NotoCanvas({
 
     let editor: NotoEditor;
     try {
-      editor = new NotoEditor(host, document, { mac, smartTypography, spellCheck, onDirtyChange, onDocumentChanged, onFollowWikiLink, onError });
+      editor = new NotoEditor(host, document, {
+        mac,
+        smartTypography,
+        spellCheck,
+        images: { documentDir: documentDirOf(documentPath), remote: remoteImages ?? true },
+        onDirtyChange,
+        onDocumentChanged,
+        onFollowWikiLink,
+        onError,
+      });
     } catch (error) {
       onError(error instanceof Error ? error.message : 'The editor failed to start.');
       return;
@@ -70,8 +85,8 @@ export function NotoCanvas({
   // Settings reach the running editor rather than rebuilding it, so changing a
   // preference never costs the user their undo history or cursor.
   useEffect(() => {
-    editorRef.current?.applySettings({ smartTypography, spellCheck });
-  }, [smartTypography, spellCheck]);
+    editorRef.current?.applySettings({ smartTypography, spellCheck, remoteImages });
+  }, [smartTypography, spellCheck, remoteImages]);
 
   return <div ref={hostRef} className="noto-editor-host" data-testid="noto-editor" />;
 }

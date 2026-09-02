@@ -70,6 +70,16 @@ export class WorkspaceSession {
     return this.activePath;
   }
 
+  /**
+   * Where images may be read from: the open folder, and the folder the note
+   * in front is in. The same containment the file tree enforces, so a note
+   * can show what sits beside it and nothing that does not.
+   */
+  imageRoots(): string[] {
+    const roots = [this.folderRoot, this.activePath ? path.dirname(this.activePath) : null];
+    return roots.filter((root): root is string => root !== null);
+  }
+
   /** The store owning a document, so a save is routed to the right one. */
   storeForDocument(documentId: string): FileTruthStoreV1 | null {
     for (const document of this.documents.values()) {
