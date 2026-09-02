@@ -633,6 +633,26 @@ not make: it rebuilds the view and the drag dies on the first pointer move.
 Everything the drag touches now lives inside the rails, which the view is told
 to ignore.
 
+## 38. Every window, looked at rather than reasoned about. Three faults.
+
+Preferences, quick open, the plugin centre, find and the empty state were
+opened and photographed at 1280 by 820 in both themes. Three things were
+wrong, and all three were only visible in a picture.
+
+Opening a note from Finder left the workspace with no folder, so the tree was
+empty and quick open said there was nothing to search while sitting in a
+directory full of notes. That is written up above.
+
+The find bar reserved five and a half characters for a match count that never
+needs more than "No results", and closed with a button filled in the ink
+colour, which made the loudest thing in the window the one control that is not
+the reason the bar is open. Escape closes it anyway. The count now reserves
+what it needs and the button reads as one more control.
+
+The two buttons on the empty state sat at different heights, because the
+primary carried a top margin of its own inside a centred row. Both now take
+their shape from one rule and only the colours differ.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
