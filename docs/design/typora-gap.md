@@ -501,11 +501,16 @@ emitted whole. An alert's own `[!TIP]` marker was escaped, which turned the
 callout back into a plain quote the first time anybody edited it. And the CJK
 emphasis above. Together: 15.2% down to 9.4%.
 
+Tables were the next largest and are now mostly closed. The serializer padded
+every cell out to its column's width and shortened each delimiter cell to a
+single dash; the vault does neither, writing two thirds of its 43,076 table
+rows unpadded and 4,039 of its delimiter rows with three dashes. Padding is
+off and the delimiter cells are widened back, colons kept where they were.
+Table churn fell by 44%, and the total from 9.4% to 8.7%.
+
 What is left is deliberate. A rule written as six dashes comes back as three,
-a table's cells are padded to their column, and a CRLF file loses one carriage
-return at a fence's first line. Each is a normalisation rather than a loss,
-and the vault is of two minds about table padding, so there is no form to
-prefer.
+and a CRLF file loses one carriage return at a fence's first line. Each is a
+normalisation rather than a loss.
 
 ## 30. A code block had no indent guides. Closed.
 

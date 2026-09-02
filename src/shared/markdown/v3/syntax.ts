@@ -149,6 +149,56 @@ const VERBATIM_RUN = new RegExp(
  */
 const BARE_URL = /^https?:\/\/[^\s<>]*[^\s<>.,:;!?)\]]$/;
 
+/**
+ * A table's delimiter row, written the way the vault writes it.
+ *
+ * The serializer shortens each delimiter cell to a single dash, and pads every
+ * cell out to its column's width when it is aligning. The vault does neither:
+ * 4,039 of its delimiter rows are written with three dashes and two thirds of
+ * its 43,076 table rows are unpadded. Alignment is turned off, which stops the
+ * padding, and each delimiter cell is widened back to three dashes, which is
+ * what a table looks like when a person writes one.
+ *
+ * The colons that carry a column's alignment are kept exactly where they were.
+ */
+export function widenDelimiterCells(line: string): string {
+  return line.split('|').map((cell) => {
+    const trimmed = cell.trim();
+    if (!/^:?-+:?$/.test(trimmed)) return cell;
+    const left = trimmed.startsWith(':') ? ':' : '';
+    const right = trimmed.endsWith(':') ? ':' : '';
+    const dashes = '-'.repeat(Math.max(3, trimmed.length - left.length - right.length));
+    const lead = cell.startsWith(' ') ? ' ' : '';
+    const tail = cell.endsWith(' ') ? ' ' : '';
+    return `${lead}${left}${dashes}${right}${tail}`;
+  }).join('|');
+}
+
+/** The table handler, with its delimiter row rewritten on the way out. */
+function tablesAsTheVaultWritesThem(extension: ToMarkdownOptions): ToMarkdownOptions {
+  const table = extension.handlers?.table;
+  // The table handler lives in one of the GFM bundle's own sub-extensions
+  // rather than at its top level, so the search goes down as well as across.
+  const nested = extension.extensions?.map(tablesAsTheVaultWritesThem);
+  if (typeof table !== 'function') {
+    return nested ? { ...extension, extensions: nested } : extension;
+  }
+  return {
+    ...extension,
+    ...(nested ? { extensions: nested } : {}),
+    handlers: {
+      ...extension.handlers,
+      table(node, parent, state, info) {
+        const out = table.call(this, node, parent, state, info) as string;
+        const lines = out.split('\n');
+        if (lines.length < 2) return out;
+        lines[1] = widenDelimiterCells(lines[1]);
+        return lines.join('\n');
+      },
+    },
+  };
+}
+
 const bareAutolink: ToMarkdownOptions = {
   handlers: {
     link(node, parent, state, info) {
@@ -224,7 +274,7 @@ const serializerOptions: ToMarkdownOptions = {
     // CommonMark's own flanking rules and, believing the run cannot close,
     // escapes the Chinese character after it into a numeric reference.
     cjkFriendlyToMarkdown(),
-    tildeOnlyInPairs(gfmToMarkdown()), mathToMarkdown(), frontmatterToMarkdown(), verbatimRunsInText, bareAutolink],
+    tablesAsTheVaultWritesThem(tildeOnlyInPairs(gfmToMarkdown({ tablePipeAlign: false }))), mathToMarkdown(), frontmatterToMarkdown(), verbatimRunsInText, bareAutolink],
 };
 
 /**
