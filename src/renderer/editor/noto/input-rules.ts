@@ -29,7 +29,10 @@ export interface InputRuleOptions {
    * documents, so it is a setting rather than a default.
    */
   /** A function so the setting can change while the editor is open. */
-  readonly smartTypography?: boolean | (() => boolean);
+  /** Each substitution answers for itself, as it does in Typora's Edit menu. */
+  readonly smartQuotes?: () => boolean;
+  readonly smartDashes?: () => boolean;
+  readonly smartEllipsis?: () => boolean;
 }
 
 /**
@@ -118,11 +121,15 @@ function gatedRules(rules: readonly InputRule[], enabled: () => boolean): InputR
   ));
 }
 
-export function notoInputRules({ smartTypography = false }: InputRuleOptions = {}): Plugin {
-  const enabled = () => (typeof smartTypography === 'function' ? smartTypography() : smartTypography);
+export function notoInputRules(options: InputRuleOptions = {}): Plugin {
+  const quotes = options.smartQuotes ?? (() => false);
+  const dashes = options.smartDashes ?? (() => false);
+  const dots = options.smartEllipsis ?? (() => false);
   return inputRules({
     rules: [
-      ...gatedRules([...smartQuotes, ellipsis, emDash], enabled),
+      ...gatedRules([...smartQuotes], quotes),
+      ...gatedRules([emDash], dashes),
+      ...gatedRules([ellipsis], dots),
 
       // Blocks
       textblockTypeInputRule(/^(#{1,6})\s$/, nodes.heading, (match) => ({ level: match[1].length })),

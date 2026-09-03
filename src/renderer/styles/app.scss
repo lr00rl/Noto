@@ -694,14 +694,18 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 .pref-dialog {
   animation: noto-arrive var(--motion-default) var(--ease-out);
   display: grid;
-  grid-template-columns: 172px minmax(0, 1fr);
-  width: min(720px, 100%);
+  grid-template-columns: 204px minmax(0, 1fr);
+  /* Wider than it was, and wider than Typora's own, because the rows in here
+     are label and hint on two lines where Typora's are one line of checkbox.
+     At 720 the hints wrapped to three lines and the panel read as cramped
+     rather than as considered. */
+  width: min(880px, 100%);
   /* As tall as what is in it, up to what the window can hold. A fixed height
      left the shortest section with a void under its last control and the
      footnote pinned to an edge it had nothing to do with, so the panel looked
      to have been sized for some other section. */
   height: auto;
-  max-height: min(560px, 100%);
+  max-height: min(620px, 100%);
   overflow: hidden;
   border: 1px solid var(--hairline);
   border-radius: 10px;
@@ -723,26 +727,66 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   min-width: 0;
   border-right: 1px solid var(--hairline);
   background: var(--panel);
-  padding: 14px 10px;
+  padding: 12px 10px;
 }
 
-.pref-title {
-  padding: 0 8px 12px;
+/* A reader who knows the name of a setting should not have to know which pane
+   somebody filed it under, which is the whole reason Typora gives this room. */
+.pref-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--paper);
+  padding: 0 8px;
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+
+  &:focus-within { border-color: var(--focus); }
+
+  input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    padding: 6px 0;
+    color: var(--ink);
+    font: inherit;
+    font-size: 12px;
+
+    &::-webkit-search-cancel-button { appearance: none; }
+  }
 }
+
+.pref-no-match {
+  margin: 6px 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* The mark beside the word. A column of words is a list; a column of words
+   with marks is a place, and the eye finds its row without reading. */
+.pref-glyph {
+  flex: 0 0 auto;
+  opacity: 0.75;
+}
+
+.pref-section.is-current .pref-glyph { opacity: 1; color: var(--accent); }
 
 .pref-section {
-  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
-  padding: 6px 8px;
+  padding: 6px 9px;
   color: var(--muted);
   font-size: 13px;
+  text-align: left;
 }
 
 .pref-section:hover { background: var(--raised); color: var(--ink); }
@@ -1729,4 +1773,21 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   font-variant-numeric: tabular-nums;
   color: var(--muted);
   white-space: nowrap;
+}
+
+/* A heading inside a pane, so a pane of eight switches reads as two groups of
+   four rather than as a list somebody stopped writing. */
+.pref-group {
+  margin: 4px 0 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+
+  &:not(:first-child) {
+    margin-top: 18px;
+    border-top: 1px solid var(--hairline);
+    padding-top: 16px;
+  }
 }

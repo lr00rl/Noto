@@ -22,7 +22,7 @@ import {
   type WidthModeV1,
 } from '../shared/settings/v1/contracts';
 
-export type PreferencesSection = 'appearance' | 'editor' | 'plugins';
+export type PreferencesSection = 'appearance' | 'editor' | 'markdown' | 'plugins';
 
 export interface PreferencesProps {
   readonly open: boolean;
@@ -41,10 +41,33 @@ export interface PreferencesProps {
   readonly onReloadCss: () => void;
 }
 
-const SECTIONS: readonly { value: PreferencesSection; label: string }[] = [
-  { value: 'appearance', label: 'Appearance' },
-  { value: 'editor', label: 'Editor' },
-  { value: 'plugins', label: 'Plugins' },
+/**
+ * One glyph per section, drawn rather than named.
+ *
+ * A column of words is a list; a column of words with marks beside them is a
+ * place, and the eye finds the row it wants without reading. Typora's own
+ * preferences do this and it is most of why its panel reads as settled.
+ */
+function SectionGlyph({ name }: { name: PreferencesSection }) {
+  const paths: Record<PreferencesSection, string> = {
+    appearance: 'M8 2.5a5.5 5.5 0 1 0 0 11c.7 0 1.2-.5 1.2-1.1 0-.3-.1-.6-.3-.8-.2-.2-.3-.4-.3-.7 0-.6.5-1.1 1.1-1.1h1.3A3.5 3.5 0 0 0 14 6.3C14 4 11.3 2.5 8 2.5Z M5.5 6.5h.01 M8 5h.01 M10.5 6.5h.01',
+    editor: 'M2.5 12.5h11 M4 9.8 10.2 3.6a1.4 1.4 0 0 1 2 2L6 11.8l-2.6.6Z',
+    markdown: 'M2.5 4.5h11v7h-11z M4.5 10V6.5l2 2 2-2V10 M11 6.5V10 M9.8 8.6 11 10l1.2-1.4',
+    plugins: 'M6 2.5v2.2a1.3 1.3 0 1 1-2.6 0V2.5 M2.5 6h11v7.5h-11z M2.5 6V3.4h1',
+  };
+  return (
+    <svg className="pref-glyph" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"
+      fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+      <path d={paths[name]} />
+    </svg>
+  );
+}
+
+const SECTIONS: readonly { value: PreferencesSection; label: string; keywords: string }[] = [
+  { value: 'appearance', label: 'Appearance', keywords: 'theme dark light text size line height width rail stylesheet css font' },
+  { value: 'editor', label: 'Editor', keywords: 'spell check images brackets pairs focus typewriter save autosave line numbers guides' },
+  { value: 'markdown', label: 'Markdown', keywords: 'smart quotes dashes ellipsis punctuation typography syntax' },
+  { value: 'plugins', label: 'Plugins', keywords: 'plugin extension enable disable palette' },
 ];
 
 const THEMES: readonly { value: NotoTheme; label: string }[] = [
@@ -211,6 +234,15 @@ export function Preferences({
   open, section, onSection, settings, onChange, onClose, plugins, themeProblem, onReloadCss,
 }: PreferencesProps) {
   const dialogRef = useRef<HTMLElement>(null);
+  const [query, setQuery] = useState('');
+
+  /* Matched on the section's own words as well as its name, so "dark" finds
+     Appearance and "brackets" finds Editor. */
+  const matching = SECTIONS.filter((entry) => {
+    const needle = query.trim().toLowerCase();
+    if (needle.length === 0) return true;
+    return entry.label.toLowerCase().includes(needle) || entry.keywords.includes(needle);
+  });
 
   /*
    * The dialog takes the focus, not the button that closes it.
@@ -254,8 +286,24 @@ export function Preferences({
         onClick={(event) => event.stopPropagation()}
       >
         <nav className="pref-sections" aria-label="Preferences sections">
-          <span className="pref-title">Preferences</span>
-          {SECTIONS.map((entry) => (
+          {/* Typora puts a search over its sections and it earns the room: a
+              reader who knows the name of a setting should not have to know
+              which pane somebody filed it under. */}
+          <label className="pref-search">
+            <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none"
+              stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+              <circle cx="7" cy="7" r="4.2" /><path d="m10.2 10.2 3 3" />
+            </svg>
+            <input
+              type="search"
+              value={query}
+              placeholder="Search"
+              spellCheck={false}
+              data-testid="pref-search"
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          {matching.map((entry) => (
             <button
               key={entry.value}
               type="button"
@@ -264,9 +312,11 @@ export function Preferences({
               data-testid={`pref-${entry.value}`}
               onClick={() => onSection(entry.value)}
             >
+              <SectionGlyph name={entry.value} />
               {entry.label}
             </button>
           ))}
+          {matching.length === 0 && <p className="pref-no-match">Nothing by that name.</p>}
         </nav>
 
         <div className="pref-body">
@@ -305,13 +355,6 @@ export function Preferences({
 
             {section === 'editor' && (
               <>
-                <Switch
-                  label="Smart typography"
-                  hint="Turn quotes and dashes into their typographic forms as you type."
-                  checked={settings.smartTypography}
-                  onChange={(value) => onChange({ smartTypography: value })}
-                  testId="setting-smart-typography"
-                />
                 <Switch
                   label="Check spelling"
                   checked={settings.spellCheck}
@@ -372,6 +415,33 @@ export function Preferences({
                     format={(value) => `${(value / 1000).toFixed(1)} s`} testId="setting-auto-save-delay"
                     onChange={(value) => onChange({ autoSaveDelayMs: Math.round(value) })} />
                 )}
+              </>
+            )}
+
+            {section === 'markdown' && (
+              <>
+                <p className="pref-group">Substitutions</p>
+                <Switch
+                  label="Smart quotes"
+                  hint="Straight quotes become curled ones as you type."
+                  checked={settings.smartQuotes}
+                  onChange={(value) => onChange({ smartQuotes: value })}
+                  testId="setting-smart-quotes"
+                />
+                <Switch
+                  label="Smart dashes"
+                  hint="Two hyphens become an em dash."
+                  checked={settings.smartDashes}
+                  onChange={(value) => onChange({ smartDashes: value })}
+                  testId="setting-smart-dashes"
+                />
+                <Switch
+                  label="Ellipsis"
+                  hint="Three full stops become one character."
+                  checked={settings.smartEllipsis}
+                  onChange={(value) => onChange({ smartEllipsis: value })}
+                  testId="setting-smart-ellipsis"
+                />
               </>
             )}
 

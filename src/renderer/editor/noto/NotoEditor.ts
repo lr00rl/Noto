@@ -63,7 +63,9 @@ import { sliceToMarkdown } from './clipboard';
 /** How long after the last keystroke the document is counted. */
 const COUNT_DELAY_MS = 400;
 
-export interface NotoEditorOptions extends InputRuleOptions {
+/* The three substitutions are booleans here and functions on the rules, which
+   read them each time so a change of setting reaches an editor already open. */
+export interface NotoEditorOptions extends Omit<InputRuleOptions, 'smartQuotes' | 'smartDashes' | 'smartEllipsis'> {
   readonly mac: boolean;
   /** Native spell checking, which the user can turn off in settings. */
   readonly spellCheck?: boolean;
@@ -87,12 +89,15 @@ export interface NotoEditorOptions extends InputRuleOptions {
   readonly onFollowWikiLink?: (target: string) => void;
   /** Where relative images resolve from, and whether web images load. */
   readonly images?: ImageContext;
+  readonly smartQuotes?: boolean;
+  readonly smartDashes?: boolean;
+  readonly smartEllipsis?: boolean;
 }
 
 export class NotoEditor implements NotoEditorPort {
   private view: EditorView | null = null;
   private document: NotoDocumentWire;
-  private smartTypography = false;
+  private substitutions = { quotes: false, dashes: false, ellipsis: false };
   private typewriter = false;
   private autoPair = true;
   private activeBlock = -1;
@@ -110,7 +115,11 @@ export class NotoEditor implements NotoEditorPort {
     this.document = document;
     this.options = options;
     this.host = host;
-    this.smartTypography = options.smartTypography === true;
+    this.substitutions = {
+      quotes: options.smartQuotes === true,
+      dashes: options.smartDashes === true,
+      ellipsis: options.smartEllipsis === true,
+    };
     this.imageContext = options.images ?? { documentDir: null, remote: true };
 
     const doc = this.buildDoc(document);
@@ -143,7 +152,11 @@ export class NotoEditor implements NotoEditorPort {
       createOriginPlugin(document.origins),
       // A getter, not a value: the setting can change while the editor is open
       // and the rules must follow without the editor being rebuilt.
-      notoInputRules({ smartTypography: () => this.smartTypography }),
+      notoInputRules({
+        smartQuotes: () => this.substitutions.quotes,
+        smartDashes: () => this.substitutions.dashes,
+        smartEllipsis: () => this.substitutions.ellipsis,
+      }),
       ...notoKeymap({ mac: this.options.mac }),
       history(),
       dropCursor({ color: 'var(--accent)' }),
@@ -435,7 +448,9 @@ export class NotoEditor implements NotoEditorPort {
    */
   applySettings(settings: {
     spellCheck?: boolean;
-    smartTypography?: boolean;
+    smartQuotes?: boolean;
+    smartDashes?: boolean;
+    smartEllipsis?: boolean;
     remoteImages?: boolean;
     typewriterMode?: boolean;
     autoPair?: boolean;
@@ -446,9 +461,9 @@ export class NotoEditor implements NotoEditorPort {
     if (settings.typewriterMode !== undefined) {
       this.typewriter = settings.typewriterMode;
     }
-    if (settings.smartTypography !== undefined) {
-      this.smartTypography = settings.smartTypography;
-    }
+    if (settings.smartQuotes !== undefined) this.substitutions.quotes = settings.smartQuotes;
+    if (settings.smartDashes !== undefined) this.substitutions.dashes = settings.smartDashes;
+    if (settings.smartEllipsis !== undefined) this.substitutions.ellipsis = settings.smartEllipsis;
     const view = this.view;
     if (!view) return;
     if (settings.remoteImages !== undefined && settings.remoteImages !== this.imageContext.remote) {
