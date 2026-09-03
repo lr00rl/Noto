@@ -10,10 +10,11 @@
  * their bodies.
  */
 
-import { useCallback, useRef, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import { FileTree, type FileTreeProps } from './FileTree';
 import { nestOutline, type OutlineEntry, type OutlineNode } from './outline';
 import { SETTING_RANGES } from '../shared/settings/v1/contracts';
+import { sizeTreeGuides } from './tree-guides';
 
 export type RailView = 'files' | 'outline';
 
@@ -113,6 +114,22 @@ export function WorkspaceRail({
   view, onView, width, onResize, outline, onGoToBlock, currentHeading, tree, onSearch,
 }: WorkspaceRailProps) {
   const railRef = useRef<HTMLElement>(null);
+  const outlineRef = useRef<HTMLElement>(null);
+
+  /*
+   * The outline draws the same tree as the file list and needs the same
+   * measurement.
+   *
+   * It has the same markup and the same stylesheet, so it was already drawing
+   * arms and corners, but nothing sized its stems: they ran the full height of
+   * every level and straight through the rounded corner at the foot of each.
+   * No branch is lit here, because every level of an outline is visible at once
+   * and there is no path to lead the eye along.
+   */
+  useEffect(() => {
+    const body = outlineRef.current;
+    if (body) sizeTreeGuides(body);
+  }, [outline, currentHeading, view]);
 
   /**
    * Drag the rail wider.
@@ -192,7 +209,7 @@ export function WorkspaceRail({
             {outline.length === 0
               ? <p className="rail-empty">This document has no headings.</p>
               : (
-                <nav className="outline-body">
+                <nav className="outline-body" ref={outlineRef}>
                   <OutlineLevel nodes={nestOutline(outline)} root onGoToBlock={onGoToBlock} current={currentHeading} />
                 </nav>
               )}

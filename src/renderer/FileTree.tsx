@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { WorkspaceEntryV1 } from '../shared/workspace/v1/contracts';
+import { branchToCurrentFile, sizeTreeGuides } from './tree-guides';
 
 export interface FileTreeProps {
   readonly root: string | null;
@@ -104,9 +105,6 @@ function NameField({ initial, onDone }: {
 
 /** The height of one row, which the sticky offsets are multiples of. */
 export const TREE_ROW_HEIGHT = 32;
-
-/** Where the arm crosses a row, matching `--tree-arm` in the stylesheet. */
-const TREE_ARM_OFFSET = 13;
 
 export function FileTree({
   root, rootName, activePath, list, onOpenFile, onRowMenu, onChooseFolder, vaultMenu,
@@ -245,31 +243,13 @@ export function FileTree({
         }
       }
     }
-    // Light the branch. Each level along the path to the current file gets
-    // the length of its stem down to the child on that path, and the
-    // stylesheet draws that much of it in the accent. Read once per change
-    // of the tree, not per scroll: the stems do not move when the rail does.
-    for (const level of body.querySelectorAll<HTMLElement>('.tree-level')) {
-      /*
-       * Where the quiet stem ends: at the arm of the last child, not at the
-       * bottom of the level. The stem used to run the whole way and be covered
-       * again by a strip of panel colour, which showed as a nick where the
-       * cover met the corner.
-       */
-      const last = level.lastElementChild as HTMLElement | null;
-      if (last) {
-        level.style.setProperty('--stem-stop', `${last.offsetTop - level.offsetTop + TREE_ARM_OFFSET}px`);
-      } else {
-        level.style.removeProperty('--stem-stop');
-      }
-
-      const child = level.querySelector<HTMLElement>(':scope > .tree-node-active, :scope > .tree-node:has(> .tree-on-path)');
-      if (!child) {
-        level.style.removeProperty('--path-stop');
-        continue;
-      }
-      level.style.setProperty('--path-stop', `${child.offsetTop - level.offsetTop + TREE_ROW_HEIGHT / 2}px`);
-    }
+    // Light the branch, and stop each quiet stem at the corner that finishes
+    // it. Read once per change of the tree, not per scroll: the stems do not
+    // move when the rail does.
+    sizeTreeGuides(body, {
+      litChild: branchToCurrentFile,
+      litOffset: TREE_ROW_HEIGHT / 2,
+    });
     return () => {
       scroller.removeEventListener('scroll', onScroll);
       if (frame !== 0) cancelAnimationFrame(frame);
@@ -314,8 +294,21 @@ export function FileTree({
    */
   const renderLevel = (directory: string, depth: number): ReactNode => {
     const entries = children.get(directory);
-    if (!entries) return <p className="tree-loading">Reading…</p>;
-    if (entries.length === 0) return <p className="tree-empty">Nothing here.</p>;
+    if (!entries || entries.length === 0) {
+      // Drawn as a level with one row in it rather than as a loose paragraph,
+      // so it sits exactly where the first file would have sat, with the same
+      // arm reaching it. A message at the parent's own indent reads as a
+      // sibling of the folder rather than as its contents.
+      return (
+        <div className="tree-level" style={{ '--tree-depth': depth } as React.CSSProperties}>
+          <div className="tree-node">
+            <p className={entries ? 'tree-row tree-empty' : 'tree-row tree-loading'}>
+              {entries ? 'Nothing here.' : 'Reading…'}
+            </p>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="tree-level" style={{ '--tree-depth': depth } as React.CSSProperties}>
@@ -398,8 +391,13 @@ export function FileTree({
             it: a tree whose lines begin one level down reads as a list with a
             tree inside it. */}
         <div className="tree-node tree-vault">
+          {/* No twisty column here, unlike every other row. The root cannot be
+              collapsed, so the column would be permanently blank, and the guide
+              line that descends from this row is drawn down the middle of that
+              column: it would hang from empty space beside the folder rather
+              than from the folder. Dropping the column puts the icon where the
+              line starts. */}
           <div className="tree-row tree-directory tree-vault-row" data-testid="tree-vault" data-depth={0} title={root}>
-            <span className="tree-twisty tree-twisty-blank" aria-hidden="true" />
             <FolderGlyph open />
             <span className="tree-name">{vaultName}</span>
             {vaultMenu}

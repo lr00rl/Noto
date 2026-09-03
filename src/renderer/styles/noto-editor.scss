@@ -1012,6 +1012,21 @@
   pointer-events: none;
 }
 
+/*
+ * The last child turns the corner instead of meeting a stem at a right angle.
+ *
+ * The stem stops at this node's top and the corner draws the rest, so the
+ * curve is the only thing at the join and there is nothing straight drawn over
+ * it. An earlier attempt kept the stem running the full height and covered the
+ * overshoot with a strip of panel colour, and the corner's antialiasing showed
+ * past the mask as a nick in the line; that is why the corner was taken out
+ * rather than because a square join was wanted.
+ */
+.tree-level:not(.is-root) > .tree-node:last-child::before {
+  border-left: 1px solid var(--tree-line);
+  border-bottom-left-radius: 7px;
+}
+
 /* The arm to a node on the path, and to the file itself, in the accent.
    After the plain arm and the corner, and a class heavier, so it wins on
    weight rather than on its place in the file. */
@@ -1029,6 +1044,16 @@
   cursor: default;
 
   &:hover { background: none; }
+}
+
+/* The stem that descends from this row is drawn 8px in, which is where a
+   level's margin puts it. A 15px glyph is centred on that when its left edge
+   sits half a pixel in, and centred is what makes the line look like it comes
+   out of the folder rather than from beside it. A class heavier than the rule
+   that sets every row's padding, so it wins on weight rather than on where it
+   happens to sit in the file. */
+.tree-row.tree-vault-row {
+  padding-left: 0.5px;
 }
 
 /* The path to the current file holds at the top while its contents scroll
@@ -1271,13 +1296,23 @@
   }
 }
 
-.tree-empty,
-.tree-loading,
 .tree-error {
   margin: 0;
   padding: 4px 6px;
   font-size: 0.74rem;
   color: var(--muted);
+}
+
+/* A row like any other, so it sits where the first file would have sat and the
+   arm reaches it, rather than floating at the parent's own indent. Quieter
+   than a filename, because it is a statement about the folder and not a thing
+   to open. */
+.tree-empty,
+.tree-loading {
+  margin: 0;
+  color: var(--muted);
+  font-style: italic;
+  cursor: default;
 }
 
 .tree-error { color: var(--danger); }
