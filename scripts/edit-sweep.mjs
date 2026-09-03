@@ -67,6 +67,8 @@ function lost(a, b) {
   return gone;
 }
 
+const KIND_LABEL = process.argv[3] ?? 'p';
+
 const app = await electron.launch({
   executablePath: path.join(process.cwd(), 'out/e2e/Noto-darwin-arm64/Noto.app/Contents/MacOS/Noto'),
   args: [`--user-data-dir=${path.join(OUT, 'ud-edit')}`, WORK],
@@ -144,6 +146,9 @@ for (const [index, source] of sample.entries()) {
   }).catch(() => {});
   await page.waitForTimeout(120);
 }
-console.log(`EDITED ${checked} notes, ${problems.length} problems`);
+// Notes without a block of the kind asked for are skipped silently, so the
+// count of what was actually edited and the count of what was looked at are
+// different numbers and saying only the first was misleading.
+console.log(`EDITED ${checked} of ${sample.length} notes (the rest had no ${KIND_LABEL}), ${problems.length} problems`);
 for (const p of problems.slice(0, 20)) console.log(p);
 await app.close();
