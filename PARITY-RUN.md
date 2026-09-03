@@ -126,3 +126,30 @@ testing had already closed, and one that was wrong on reading the code.
 
 Speed with all of it on the author's largest note, 2.95 MB and 10,937 blocks:
 1.6 seconds to open, 51 milliseconds a keystroke.
+
+## The evening: every construct, measured
+
+The last stretch went back to the instrument the run was built on and used it
+on everything the document is made of, one construct at a time: the six
+headings, the paragraph, bold, italic, links, inline code, both lists, the
+quote, the table with its two kinds of rule, the horizontal rule, the fence,
+the callout, the task list and both kinds of maths.
+
+They match, once the base size is taken out, and the base size is itself
+settled by measurement now rather than by eye: the same string sets 391.9
+pixels wide in Typora at 16 and 382.1 here at 15, where 16 here would be four
+per cent wider because the Latin glyphs resolve to different faces.
+
+Three did not match. The prose stack stopped two faces short of Typora's, so a
+machine without Songti SC fell to Times where Typora still sets Chinese in
+PingFang. A fence was padded a tenth tighter all round. And a task checkbox was
+written in pixels, so it stayed 13 of them while the words around it grew.
+
+Two looked wrong and were not, which is worth as much: Typora's maths block is
+left aligned at the container and centred inside its own SVG, and its file tree
+clips a long name without an ellipsis exactly as this does, except this can
+scroll sideways to the rest.
+
+Right clicking a row of the tree did nothing, which every other file tree
+answers, and now offers Open, Reveal and Copy Path with the path checked
+against the open folder in main before anything is drawn.

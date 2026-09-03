@@ -1121,6 +1121,26 @@ test, for the reason the editor's own context menu is tested the same way: a
 native menu holds the input loop until somebody dismisses it, and no automated
 pointer here can reach one, so a test that opens one hangs the run.
 
+## 60. Every construct measured. Three differences, all closed.
+
+The comparison against the running Typora now covers every construct the
+document is made of: the six headings, the paragraph, bold, italic, links,
+inline code, both lists, the quote, the table with its header and body rules,
+the rule, the fence, the callout, the task list and both kinds of maths.
+
+All of them match, once the deliberate difference in base size is taken out,
+and that difference is itself justified by measurement rather than taste.
+Three did not, and all three are fixed: the prose stack's fallback chain, the
+fence's padding, and a checkbox written in pixels where the document's own
+rule wants `em`.
+
+Two more looked wrong and were not. Typora's maths block is `text-align:
+start`, which reads as left aligned until you measure the rendered SVG and
+find it spans the full width and centres the equation inside itself, exactly
+as centring it does here. And Typora's file tree clips a long name without an
+ellipsis, as this does, except that this can scroll sideways to the rest and
+Typora cannot.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
