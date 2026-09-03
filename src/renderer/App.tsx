@@ -13,6 +13,7 @@ import type {
   FileTruthRecoveryRecordV1,
   FileTruthSaveOutcomeV1,
   FileTruthSaveTokenV1,
+  FileTruthReloadRefusalV1,
   NotoPlatform,
 } from '../shared/file-truth/v1/contracts';
 import type {
@@ -66,6 +67,13 @@ const rid = (prefix: string) => `${prefix}:${crypto.randomUUID()}`;
  * Every one of these is something the reader can act on, which is the point:
  * the failure this feature has to avoid is a paste that appears to do nothing.
  */
+function reloadRefusalMessage(reason: FileTruthReloadRefusalV1): string {
+  if (reason === 'save-in-flight') return 'A save is in progress. Try again when it finishes.';
+  if (reason === 'recovery-pending') return 'A recovery record has to be cleared before this note can be reloaded.';
+  if (reason === 'parse-failed') return 'The file on disk could not be read as markdown, so nothing was changed.';
+  return 'That note is not open.';
+}
+
 function imageRefusalMessage(reason: AssetRefusalV1): string {
   if (reason === 'no-document') return 'Open a note first, and the picture goes beside it.';
   if (reason === 'unsupported-type') return 'That is not a picture Noto can show.';
@@ -106,14 +114,26 @@ type UiState = 'Opening' | 'No document' | FileTruthUiState;
 const durableRecoveryAttention =
   'A durable recovery record needs attention before this document can be clean.';
 
+/**
+ * What the file behind the document did, when it did something the reader has
+ * to decide about.
+ */
+const externalStateMessages: Partial<Record<UiState, string>> = {
+  'Changed on disk': 'Another program wrote this file. Your unsaved changes are still here, and reloading replaces them with what is on disk.',
+  'File removed': 'This file is no longer on disk. What is on screen is the only copy, and saving writes it back.',
+};
+
 export function exceptionalAlertPresentation(
   recoveryBarrier: boolean,
   outcome: FileTruthSaveOutcomeV1 | null,
   localMessage: string | null,
+  state: UiState = 'Opened',
 ): { message: string } | null {
   if (outcome && outcome.status !== 'saved') return { message: outcome.message };
   if (localMessage) return { message: localMessage };
   if (recoveryBarrier) return { message: durableRecoveryAttention };
+  const external = externalStateMessages[state];
+  if (external) return { message: external };
   return null;
 }
 
@@ -638,6 +658,45 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     const unsubscribe = window.notoWorkspace.onDocumentOpened((event) => {
       if (active) adopt(event.opened);
     });
+    /*
+     * The file behind a document moved under it.
+     *
+     * A rebase is the quiet case and needs no reader at all: the bytes are the
+     * same and only the file's identity moved, which a git checkout or a touch
+     * does, so the new save token is taken and a standing conflict, if the
+     * reader hit one, is cleared because it no longer applies.
+     *
+     * A change is only taken silently when nothing is unsaved. A note with
+     * unsaved changes is never replaced without being asked, whatever the
+     * setting says.
+     */
+    const unsubscribeExternal = window.notoFileTruth.onExternalChange((event) => {
+      if (!active) return;
+      setDocs((current) => {
+        const existing = current.get(event.documentId);
+        if (!existing) return current;
+        const next = new Map(current);
+        if (event.kind === 'rebased') {
+          next.set(event.documentId, {
+            ...existing,
+            token: event.saveToken ?? existing.token,
+            state: existing.state === 'External conflict' ? existing.cleanState : existing.state,
+            outcome: existing.state === 'External conflict' ? null : existing.outcome,
+          });
+          return next;
+        }
+        if (event.kind === 'missing') {
+          next.set(event.documentId, { ...existing, state: 'File removed' });
+          return next;
+        }
+        if (!existing.dirty && settingsRef.current.reloadExternalChanges) {
+          void reloadFromDiskRef.current(event.documentId);
+          return current;
+        }
+        next.set(event.documentId, { ...existing, state: 'Changed on disk' });
+        return next;
+      });
+    });
     const unsubscribeTabs = window.notoWorkspace.onTabsChanged((event) => {
       if (!active) return;
       setTabs(event.tabs);
@@ -710,6 +769,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     return () => {
       active = false;
       unsubscribe();
+      unsubscribeExternal();
       unsubscribeTabs();
       unsubscribeFolder();
       unsubscribeClosed();
@@ -1163,6 +1223,56 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     return null;
   }, []);
 
+  /**
+   * Read the file again and take what it says now.
+   *
+   * The document keeps its identity across this, so the editor is not torn down
+   * and rebuilt: the caret, the scroll position and the undo history all
+   * survive. `replaceMarkdown` changes only the blocks that actually differ, in
+   * one undoable step, so taking somebody else's edit can be undone like any
+   * other change, and the blocks that did not move keep their pristine
+   * provenance so the next save is still byte for byte.
+   */
+  const reloadFromDisk = useCallback(async (documentId: string) => {
+    const result = await window.notoFileTruth.reload({
+      version: 1, requestId: rid('reload'), documentId,
+    });
+    if (!result.ok) {
+      setLocalMessage(actionableFileTruthMessage(result.error.message, 'The note could not be reloaded.'));
+      return;
+    }
+    const outcome = result.value;
+    if (outcome.status === 'unchanged') {
+      patchDoc(documentId, { state: cleanStateRef.current, outcome: null });
+      setLocalMessage(null);
+      return;
+    }
+    if (outcome.status === 'missing') {
+      patchDoc(documentId, { state: 'File removed' });
+      setLocalMessage('That file is no longer on disk. What is on screen is the only copy.');
+      return;
+    }
+    if (outcome.status === 'refused') {
+      setLocalMessage(reloadRefusalMessage(outcome.reason));
+      return;
+    }
+    const editor = editorsRef.current.get(documentId);
+    editor?.replaceMarkdown(outcome.opened.document.text);
+    editor?.commit(outcome.opened.document);
+    patchDoc(documentId, {
+      opened: outcome.opened,
+      document: outcome.opened.document,
+      token: outcome.opened.saveToken,
+      outcome: null,
+      recovery: null,
+      dirty: false,
+      state: 'Opened',
+    });
+    setLocalMessage(null);
+  }, [patchDoc]);
+  const reloadFromDiskRef = useRef(reloadFromDisk);
+  reloadFromDiskRef.current = reloadFromDisk;
+
   const onDocumentDirtyChange = useCallback((documentId: string, dirty: boolean) => {
     setDocs((current) => {
       const existing = current.get(documentId);
@@ -1255,6 +1365,12 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
           setLocalMessage('That does not apply where the cursor is.');
         }
         break;
+      case 'reload-from-disk': {
+        const id = activeIdRef.current;
+        if (id) void reloadFromDiskRef.current(id);
+        else setLocalMessage('Open a note first.');
+        break;
+      }
       case 'insert-image':
         void window.notoAssets.pick({ version: 1, requestId: rid('pick-image') })
           .then((result) => {
@@ -1366,7 +1482,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     ? []
     : fileTruthActions(state, editorDirty, recoveryBarrier);
   const saveBlocked = recoveryBarrier || state === 'External conflict' || state === 'Stale editor revision';
-  const alert = exceptionalAlertPresentation(recoveryBarrier, outcome, localMessage);
+  const alert = exceptionalAlertPresentation(recoveryBarrier, outcome, localMessage, state);
   const nextTheme = theme === 'light' ? 'dark' : 'light';
   /* Every platform has the idea and none of them share a name for it, so the
      label says the one the reader will recognise on their own machine. */
@@ -1699,6 +1815,12 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
           <div className="file-truth-actions">
             {actions.includes('retry-recovery') && <button type="button" disabled={pending} onClick={() => void recover()}>Retry recovery</button>}
             {actions.includes('retry-save') && <button type="button" disabled={pending} onClick={() => void save()}>Retry save</button>}
+            {actions.includes('reload') && (
+              <button type="button" data-testid="reload-from-disk" disabled={pending}
+                onClick={() => { const id = activeIdRef.current; if (id) void reloadFromDisk(id); }}>
+                Reload from disk
+              </button>
+            )}
             {actions.includes('save-copy') && <button type="button" disabled={pending} onClick={() => void saveCopy()}>Save a copy</button>}
           </div>
           {outcome?.status === 'copy-saved' && <p>The original is unchanged. Your current edits are still unsaved.</p>}

@@ -26,6 +26,9 @@ export const FILE_TRUTH_CHANNELS = {
   saveCopy: 'noto:file-truth:v1:save-copy',
   recover: 'noto:file-truth:v1:recover',
   diagnostics: 'noto:file-truth:v1:diagnostics',
+  /** Push: the file behind an open document changed under it. */
+  externalChange: 'noto:file-truth:v1:external-change',
+  reload: 'noto:file-truth:v1:reload',
 } as const;
 
 export interface FileTruthRequestV1 {
@@ -231,6 +234,44 @@ export type FileTruthResultV1<T> =
   | { readonly ok: true; readonly requestId: string; readonly value: T }
   | { readonly ok: false; readonly requestId: string; readonly error: { readonly code: 'BAD_REQUEST' | 'FILE_TRUTH_TRANSPORT_FAILED'; readonly message: string } };
 
+/**
+ * What happened to the file behind an open document.
+ *
+ * `changed` is somebody else's edit. `rebased` is the same content written
+ * again, which a git checkout or a `touch` produces: the bytes match, only the
+ * file's identity moved, so nothing needs reloading and the accepted identity
+ * is simply moved to the new one. `missing` is the file being deleted or
+ * renamed away, and is the case where the open buffer is now the only copy.
+ */
+export type FileTruthExternalChangeKindV1 = 'changed' | 'rebased' | 'missing';
+
+export interface FileTruthExternalChangeEventV1 {
+  readonly version: typeof NOTO_FILE_TRUTH_VERSION;
+  readonly documentId: string;
+  readonly kind: FileTruthExternalChangeKindV1;
+  /** The identity to save against now, for a rebase the renderer can accept. */
+  readonly saveToken: FileTruthSaveTokenV1 | null;
+}
+
+export interface FileTruthReloadRequestV1 extends FileTruthRequestV1 {
+  readonly documentId: string;
+}
+
+/**
+ * Why a reload did nothing, when it did nothing.
+ *
+ * A reload while a recovery record stands is refused rather than queued: the
+ * journal is replayed against the accepted identity, and moving that identity
+ * would leave the replay unverifiable.
+ */
+export type FileTruthReloadRefusalV1 = 'recovery-pending' | 'save-in-flight' | 'parse-failed' | 'no-document';
+
+export type FileTruthReloadOutcomeV1 =
+  | { readonly version: typeof NOTO_FILE_TRUTH_VERSION; readonly status: 'reloaded'; readonly opened: FileTruthOpenReplyV1 }
+  | { readonly version: typeof NOTO_FILE_TRUTH_VERSION; readonly status: 'unchanged' }
+  | { readonly version: typeof NOTO_FILE_TRUTH_VERSION; readonly status: 'missing' }
+  | { readonly version: typeof NOTO_FILE_TRUTH_VERSION; readonly status: 'refused'; readonly reason: FileTruthReloadRefusalV1 };
+
 export interface NotoFileTruthApiV1 {
   bootstrap(request: FileTruthRequestV1): Promise<FileTruthResultV1<FileTruthBootstrapReplyV1>>;
   open(request: FileTruthRequestV1): Promise<FileTruthResultV1<FileTruthOpenReplyV1>>;
@@ -238,5 +279,7 @@ export interface NotoFileTruthApiV1 {
   saveCopy(request: FileTruthSaveCopyRequestV1): Promise<FileTruthResultV1<FileTruthSaveOutcomeV1>>;
   recover(request: FileTruthRecoveryRequestV1): Promise<FileTruthResultV1<FileTruthSaveOutcomeV1>>;
   diagnostics(request: FileTruthRequestV1): Promise<FileTruthResultV1<FileTruthDiagnosticsV1>>;
+  reload(request: FileTruthReloadRequestV1): Promise<FileTruthResultV1<FileTruthReloadOutcomeV1>>;
+  onExternalChange(listener: (event: FileTruthExternalChangeEventV1) => void): () => void;
 }
 

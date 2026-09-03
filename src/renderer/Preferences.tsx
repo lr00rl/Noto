@@ -67,7 +67,7 @@ function SectionGlyph({ name }: { name: PreferencesSection }) {
 
 const SECTIONS: readonly { value: PreferencesSection; label: string; keywords: string }[] = [
   { value: 'appearance', label: 'Appearance', keywords: 'theme dark light text size line height width rail stylesheet css font' },
-  { value: 'editor', label: 'Editor', keywords: 'spell check images brackets pairs focus typewriter save autosave line numbers guides' },
+  { value: 'editor', label: 'Editor', keywords: 'spell check images brackets pairs focus typewriter save autosave line numbers guides reload external disk sync watch' },
   { value: 'markdown', label: 'Markdown', keywords: 'smart quotes dashes ellipsis punctuation typography syntax' },
   { value: 'images', label: 'Images', keywords: 'image picture paste drop screenshot assets folder copy relative path escape url' },
   { value: 'plugins', label: 'Plugins', keywords: 'plugin extension enable disable palette' },
@@ -462,6 +462,13 @@ export function Preferences({
                   checked={settings.codeIndentGuides}
                   onChange={(value) => onChange({ codeIndentGuides: value })}
                   testId="setting-code-indent-guides"
+                />
+                <Switch
+                  label="Follow changes made outside Noto"
+                  hint="Another program edits the file and the note follows it, as one undoable step. A note with unsaved changes is never replaced this way: it asks."
+                  checked={settings.reloadExternalChanges}
+                  onChange={(value) => onChange({ reloadExternalChanges: value })}
+                  testId="setting-reload-external"
                 />
                 <Switch
                   label="Focus mode"

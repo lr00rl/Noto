@@ -14,7 +14,7 @@
 import path from 'node:path';
 import { realpath, stat, writeFile } from 'node:fs/promises';
 import { BrowserWindow, Menu, clipboard, dialog, shell, type MenuItemConstructorOptions } from 'electron';
-import type { FileTruthOpenReplyV1 } from '../../shared/file-truth/v1/contracts';
+import { FILE_TRUTH_CHANNELS, type FileTruthOpenReplyV1 } from '../../shared/file-truth/v1/contracts';
 import { openableExternalUrl } from '../../shared/workspace/v1/validate';
 import {
   NOTO_WORKSPACE_VERSION,
@@ -157,6 +157,20 @@ export class WorkspaceSession {
       store.close();
       throw cause;
     }
+
+    /*
+     * The store watches the file and says when it moved under the document.
+     * A closure rather than a window handed to the store, so the store keeps no
+     * Electron import and stays testable with a plain function.
+     */
+    store.onExternalChange = (event) => {
+      this.send(FILE_TRUTH_CHANNELS.externalChange, {
+        version: 1,
+        documentId: opened.document.documentId,
+        kind: event.kind,
+        saveToken: event.saveToken,
+      });
+    };
 
     this.documents.set(resolved, { store, opened });
     this.activePath = resolved;

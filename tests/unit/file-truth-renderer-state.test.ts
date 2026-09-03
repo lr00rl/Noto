@@ -38,6 +38,14 @@ describe('file-truth renderer state', () => {
     expect(exceptionalAlertPresentation(false, null, null)).toBeNull();
   });
 
+  it('raises the bar for a file that moved under the document, which has no outcome of its own', () => {
+    expect(exceptionalAlertPresentation(false, null, null, 'Changed on disk')?.message)
+      .toContain('unsaved changes are still here');
+    expect(exceptionalAlertPresentation(false, null, null, 'File removed')?.message)
+      .toContain('only copy');
+    expect(exceptionalAlertPresentation(false, null, null, 'Saved')).toBeNull();
+  });
+
   it.each([
     ['external-conflict', 'External conflict'], ['stale-editor-revision', 'Stale editor revision'],
     ['serialization-failed', 'Save failed'], ['write-failed', 'Save failed'], ['flush-failed', 'Save failed'],
@@ -75,9 +83,16 @@ describe('file-truth renderer state', () => {
     expect(fileTruthActions('Recovery needed', true)).toEqual(['retry-recovery', 'save-copy']);
     expect(fileTruthActions('Cleanup failed', false)).toEqual(['retry-recovery']);
     expect(fileTruthActions('Cleanup failed', true)).toEqual(['retry-recovery', 'save-copy']);
-    expect(fileTruthActions('External conflict', true)).toEqual(['save-copy']);
+    // Reload comes first for a conflict: the file on disk is ahead, and taking
+    // it is usually what was wanted. Saving a copy is there for when it is not.
+    expect(fileTruthActions('External conflict', true)).toEqual(['reload', 'save-copy']);
     expect(fileTruthActions('Stale editor revision', true)).toEqual(['save-copy']);
     expect(fileTruthActions('Save failed', false)).toEqual([]);
+    // Offered with nothing unsaved too: a reader who turned silent reloading
+    // off still needs a way to take the new version.
+    expect(fileTruthActions('Changed on disk', false)).toEqual(['reload']);
+    expect(fileTruthActions('Changed on disk', true)).toEqual(['reload', 'save-copy']);
+    expect(fileTruthActions('File removed', true)).toEqual([]);
   });
 
   it('extracts an accepted save token from cleanup failure while retaining the recovery barrier', () => {
@@ -226,6 +241,6 @@ describe('shell failure containment', () => {
 
   it('lets a real file-truth failure outrank a local editor rejection', async () => {
     const app = await shell();
-    expect(app).toContain('exceptionalAlertPresentation(recoveryBarrier, outcome, localMessage)');
+    expect(app).toContain('exceptionalAlertPresentation(recoveryBarrier, outcome, localMessage, state)');
   });
 });

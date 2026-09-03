@@ -185,6 +185,14 @@ export interface NotoSettingsV1 {
    * field.
    */
   readonly customCssPath: string;
+  /**
+   * Take an external edit into a note with no unsaved changes, without asking.
+   *
+   * There is deliberately no second setting for the other case. A note with
+   * unsaved changes is never replaced silently whatever this says, because
+   * never losing what the reader wrote is not a preference.
+   */
+  readonly reloadExternalChanges: boolean;
   /** Where a pasted or dropped picture is written. See `IMAGE_DESTINATIONS`. */
   readonly imageDestination: ImageDestinationV1;
   /** The folder `custom` uses, relative to the note when it is not absolute. */
@@ -220,6 +228,7 @@ export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   customCssPath: '',
   // Typora's own default, and the one that keeps a note portable: the note and
   // its pictures move together.
+  reloadExternalChanges: true,
   imageDestination: 'assets',
   imageCustomFolder: './images',
   imageEscapeUrl: true,

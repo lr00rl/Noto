@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
-import { watch, type FSWatcher } from 'node:fs';
+import { DocumentWatcher } from './document-watcher';
 import type { StructuredLogger } from '../../logger';
 import { parseDocument, toWire } from '../../../shared/markdown/v3/document';
 import { serializeDocument } from '../../../shared/markdown/v3/serialize';
@@ -15,6 +15,9 @@ import type {
   FileTruthRecoveryRecordV1,
   FileTruthSaveOutcomeV1,
   FileTruthStageV1,
+  FileTruthExternalChangeKindV1,
+  FileTruthReloadOutcomeV1,
+  FileTruthSaveTokenV1,
 } from '../../../shared/file-truth/v1/contracts';
 import {
   InjectedFileTruthFailure,
@@ -40,6 +43,12 @@ function messageOf(error: unknown): string {
  * whole class of rebind failures it could produce.
  */
 type JournalV1 = FileTruthRecoveryRecordV1;
+
+/** What the store tells its owner when the file moved under the document. */
+export interface ExternalChange {
+  readonly kind: FileTruthExternalChangeKindV1;
+  readonly saveToken: FileTruthSaveTokenV1 | null;
+}
 
 const journalStages = new Set<FileTruthStageV1>([
   'before-temp-write', 'candidate-durable', 'temp-written', 'temp-flushed', 'metadata-applied',
@@ -87,10 +96,16 @@ export class FileTruthStoreV1 {
   private recovery: JournalV1 | null = null;
   private recoveryBlocked = false;
   private transactionActive = false;
-  private watcher: FSWatcher | null = null;
-  private selfEventUntil = 0;
+  private readonly watcher: DocumentWatcher;
   private watcherGeneration = 0;
   private watcherEvents = { self: 0, foreign: 0 };
+  /**
+   * Told when the file behind this document changed under it.
+   *
+   * A callback rather than a window, so the store keeps no Electron import and
+   * stays testable with a plain function.
+   */
+  onExternalChange: ((event: ExternalChange) => void) | null = null;
   private state: FileTruthDiagnosticsV1['state'] = 'closed';
   private lastOutcome: FileTruthSaveOutcomeV1 | null = null;
   readonly recoveryRoot: string;
@@ -101,6 +116,10 @@ export class FileTruthStoreV1 {
     readonly platform = new NodeFileTruthPlatform(),
   ) {
     this.recoveryRoot = path.join(userDataPath, 'file-truth-v1');
+    this.watcher = new DocumentWatcher({
+      onChanged: () => { void this.checkExternalChange(); },
+      onDiagnostic: (event, detail) => this.logger.log(event, detail),
+    });
   }
 
   /** The document currently open, or null before the first successful open. */
@@ -116,8 +135,7 @@ export class FileTruthStoreV1 {
    * validate against the wrong file.
    */
   async open(filePath: string): Promise<FileTruthOpenReplyV1> {
-    this.watcher?.close();
-    this.watcher = null;
+    this.watcher.close();
     this.document = null;
     this.acceptedPath = null;
     this.acceptedFingerprint = null;
@@ -282,7 +300,7 @@ export class FileTruthStoreV1 {
       stage = 'precondition-confirmed';
       await this.persistJournal({ ...recovery, stage });
       const replacement = await this.platform.validateExpectedAndReplace(recovery.tempPath!, this.acceptedPath, this.acceptedFingerprint,
-        () => { this.selfEventUntil = Date.now() + 1_000; });
+        () => { this.watcher.suspend(); });
       if (replacement.status === 'conflict') {
         primary = this.conflict(attemptId, stage, replacement.current);
         return await this.cleanupThen(primary, recovery);
@@ -298,6 +316,10 @@ export class FileTruthStoreV1 {
       await this.persistJournal({ ...recovery, stage });
       this.document = serialized.document;
       this.acceptedFingerprint = accepted.fingerprint;
+      // The file this document lives in is a new one now, because a save
+      // replaces it by rename. The watcher was suspended over the replacement
+      // and has to be pointed at the file that exists after it.
+      this.startWatcher();
       this.editorRevision += 1;
       primary = {
         version: 1, status: 'saved', attemptId, safeStage: stage, dirtyPreserved: false,
@@ -450,7 +472,7 @@ export class FileTruthStoreV1 {
       finally { await this.platform.closeHandle(handle); }
       stage = 'metadata-applied';
       const replacement = await this.platform.validateExpectedAndReplace(replayTemp, journal.originalPath, journal.acceptedFingerprint,
-        () => { this.selfEventUntil = Date.now() + 1_000; });
+        () => { this.watcher.suspend(); });
       if (replacement.status === 'conflict') {
         const primary = this.conflict(attemptId, stage, replacement.current);
         try { await this.platform.remove(replayTemp); replayTemp = null; return this.finish(primary); }
@@ -519,7 +541,7 @@ export class FileTruthStoreV1 {
     return await this.cleanupThen(primary, durableJournal);
   }
 
-  close(): void { this.watcher?.close(); this.watcher = null; }
+  close(): void { this.watcher.close(); this.onExternalChange = null; }
 
   private saveToken() {
     if (!this.document || !this.acceptedFingerprint) throw new Error('FILE_NOT_OPEN');
@@ -634,25 +656,140 @@ export class FileTruthStoreV1 {
     return { paths, errors };
   }
 
+  /**
+   * Watch the file this document was read from.
+   *
+   * A generation count is still kept, because the diagnostics contract reports
+   * it and a reader chasing a watcher that stopped wants to know how many times
+   * it was re-armed.
+   */
   private startWatcher(): void {
     if (!this.acceptedPath) return;
-    this.watcher?.close();
     this.watcherGeneration += 1;
-    const watcher = watch(this.acceptedPath, () => {
-      const self = Date.now() <= this.selfEventUntil;
-      if (self) this.watcherEvents.self += 1; else this.watcherEvents.foreign += 1;
-      this.logger.log(self ? 'file_truth_watcher_self_event' : 'file_truth_watcher_foreign_event', { generation: this.watcherGeneration });
-    });
-    this.watcher = watcher;
-    const generation = this.watcherGeneration;
-    watcher.on('error', (error) => {
-      if (this.watcher !== watcher) return;
-      this.logger.log('file_truth_watcher_failed', {
-        generation,
-        code: (error as NodeJS.ErrnoException).code ?? 'WATCH_FAILED',
-      });
-      watcher.close();
-      this.watcher = null;
-    });
+    this.watcher.arm(this.acceptedPath);
+  }
+
+  /**
+   * Work out what happened to the file, and tell the renderer if it matters.
+   *
+   * This is where a write of our own is told apart from somebody else's, and
+   * the only test that is actually trustworthy is the last one: compare the
+   * file's identity and content against what this store accepted. A timing
+   * window would answer wrongly for a save that takes longer than the window,
+   * and every other signal is a guess.
+   *
+   * Identical content under a new identity is a rebase, not a change: a git
+   * checkout that restores the same bytes, or a plain touch. Nothing needs
+   * reloading, but the accepted identity has to move to the new file or the
+   * next save would fail its precondition against a file that no longer exists.
+   */
+  private async checkExternalChange(): Promise<void> {
+    const accepted = this.acceptedFingerprint;
+    const filePath = this.acceptedPath;
+    if (!accepted || !filePath || !this.document) return;
+
+    let current: FileFingerprintV1 | null;
+    try {
+      current = await this.platform.fingerprint(filePath);
+    } catch {
+      // Still being written, or briefly not a regular file. The watcher will
+      // fire again when it settles; reporting a half-written file would be
+      // worse than reporting nothing.
+      return;
+    }
+
+    if (current === null) {
+      this.watcherEvents.foreign += 1;
+      this.logger.log('file_truth_external_missing', { generation: this.watcherGeneration });
+      // The accepted identity is left alone on purpose: the buffer now holds
+      // the only copy of this note, and a save has to be able to write it back.
+      this.onExternalChange?.({ kind: 'missing', saveToken: null });
+      return;
+    }
+
+    if (current.object.opaqueId === accepted.object.opaqueId
+      && current.mtimeNanoseconds === accepted.mtimeNanoseconds
+      && current.contentSha256 === accepted.contentSha256) {
+      this.watcherEvents.self += 1;
+      return;
+    }
+
+    if (current.contentSha256 === accepted.contentSha256) {
+      this.acceptedFingerprint = current;
+      this.watcherEvents.self += 1;
+      this.logger.log('file_truth_external_rebased', { generation: this.watcherGeneration });
+      this.onExternalChange?.({ kind: 'rebased', saveToken: this.saveToken() });
+      return;
+    }
+
+    this.watcherEvents.foreign += 1;
+    this.logger.log('file_truth_external_changed', { generation: this.watcherGeneration });
+    this.onExternalChange?.({ kind: 'changed', saveToken: null });
+  }
+
+  /**
+   * Read the file again and make it the accepted document.
+   *
+   * The document id is carried over from the document being replaced. It is
+   * otherwise derived from the bytes, and the renderer keys its editors and its
+   * React tree on it, so taking the freshly parsed id would tear the editor
+   * down and rebuild it: the caret, the scroll position and the undo history
+   * would all go, which is the opposite of what reloading a note in place is
+   * for. A save already breaks the id-equals-current-bytes property for the
+   * same reason.
+   *
+   * Refused rather than queued while a save is in flight or a recovery record
+   * stands. The journal is replayed against the accepted identity, and moving
+   * that identity would leave the replay unverifiable.
+   */
+  async reload(): Promise<FileTruthReloadOutcomeV1> {
+    if (!this.document || !this.acceptedPath || !this.acceptedFingerprint) {
+      return { version: 1, status: 'refused', reason: 'no-document' };
+    }
+    if (this.transactionActive) return { version: 1, status: 'refused', reason: 'save-in-flight' };
+    if (this.recovery || this.recoveryBlocked) return { version: 1, status: 'refused', reason: 'recovery-pending' };
+
+    this.transactionActive = true;
+    try {
+      const previousId = this.document.documentId;
+      const accepted = this.acceptedFingerprint;
+      let captured;
+      try {
+        captured = await this.platform.capture(this.acceptedPath);
+      } catch {
+        return { version: 1, status: 'missing' };
+      }
+      if (captured.identity.fingerprint.contentSha256 === accepted.contentSha256) {
+        // Same bytes. Move the identity so the next save has a precondition
+        // that still names a file, and leave the buffer untouched.
+        this.acceptedFingerprint = captured.identity.fingerprint;
+        return { version: 1, status: 'unchanged' };
+      }
+      const parsed = parseDocument(captured.bytes);
+      if (parsed.status !== 'parsed') return { version: 1, status: 'refused', reason: 'parse-failed' };
+
+      this.document = { ...parsed.document, documentId: previousId };
+      this.acceptedFingerprint = captured.identity.fingerprint;
+      this.acceptedMode = captured.identity.posixMode;
+      this.editorRevision = 0;
+      this.state = 'opened';
+      this.lastOutcome = null;
+      this.startWatcher();
+      this.logger.log('file_truth_reloaded', { sha256: captured.identity.fingerprint.contentSha256 });
+      return {
+        version: 1,
+        status: 'reloaded',
+        opened: {
+          version: 1,
+          path: captured.identity.canonicalPath,
+          document: toWire(this.document),
+          saveToken: this.saveToken(),
+          recovery: null,
+          initialOutcome: null,
+        },
+      };
+    } finally {
+      this.transactionActive = false;
+    }
   }
 }

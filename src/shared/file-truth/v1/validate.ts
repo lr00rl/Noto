@@ -11,6 +11,9 @@ import type {
   FileTruthSaveCopyRequestV1,
   FileTruthSaveRequestV1,
   FileTruthSaveTokenV1,
+  FileTruthExternalChangeEventV1,
+  FileTruthReloadRequestV1,
+  FileTruthReloadOutcomeV1,
 } from './contracts';
 import type { NotoDocumentWire } from '../../markdown/v3/contracts';
 
@@ -102,6 +105,10 @@ export function sha256Hex(bytes: Uint8Array): string {
   for (const value of state) digest += value.toString(16).padStart(8, '0');
   return digest;
 }
+
+/** `noto-doc-v3:` and the hash of the bytes the document was parsed from. */
+const isDocumentId = (value: unknown): value is string =>
+  typeof value === 'string' && value.startsWith('noto-doc-v3:') && hash.test(value.slice('noto-doc-v3:'.length));
 
 const record = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -364,3 +371,34 @@ export const isFileTruthDiagnosticsResultV1 = (value: unknown, id: string): valu
     && Number.isSafeInteger(candidate.watcherEvents.self) && Number(candidate.watcherEvents.self) >= 0
     && Number.isSafeInteger(candidate.watcherEvents.foreign) && Number(candidate.watcherEvents.foreign) >= 0
     && (candidate.lastOutcome === null || isFileTruthSaveOutcomeV1(candidate.lastOutcome)));
+
+export function isFileTruthExternalChangeEventV1(value: unknown): value is FileTruthExternalChangeEventV1 {
+  return record(value) && exact(value, ['version', 'documentId', 'kind', 'saveToken'])
+    && value.version === 1
+    && isDocumentId(value.documentId)
+    && ['changed', 'rebased', 'missing'].includes(String(value.kind))
+    // Only a rebase carries a token, because only a rebase gives the renderer a
+    // new identity to save against without reloading anything.
+    && (value.kind === 'rebased' ? isSaveToken(value.saveToken) : value.saveToken === null);
+}
+
+export function isFileTruthReloadRequestV1(value: unknown): value is FileTruthReloadRequestV1 {
+  return record(value) && exact(value, ['version', 'requestId', 'documentId'])
+    && value.version === 1 && typeof value.requestId === 'string' && requestId.test(value.requestId)
+    && isDocumentId(value.documentId);
+}
+
+export function isFileTruthReloadOutcomeV1(value: unknown): value is FileTruthReloadOutcomeV1 {
+  if (!record(value) || value.version !== 1) return false;
+  if (value.status === 'reloaded') {
+    return exact(value, ['version', 'status', 'opened']) && isFileTruthOpenReplyV1(value.opened);
+  }
+  if (value.status === 'unchanged' || value.status === 'missing') {
+    return exact(value, ['version', 'status']);
+  }
+  return value.status === 'refused' && exact(value, ['version', 'status', 'reason'])
+    && ['recovery-pending', 'save-in-flight', 'parse-failed', 'no-document'].includes(String(value.reason));
+}
+
+export const isFileTruthReloadResultV1 = (value: unknown, id: string): value is FileTruthResultV1<FileTruthReloadOutcomeV1> =>
+  isResult(value, id, isFileTruthReloadOutcomeV1);

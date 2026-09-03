@@ -94,6 +94,8 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
         'reveal-document',
       ),
       { type: 'separator' },
+      command('Reload from Disk', 'CmdOrCtrl+R', 'reload-from-disk'),
+      { type: 'separator' },
       command('Save', 'CmdOrCtrl+S', 'save'),
       command('Save a Copy…', 'CmdOrCtrl+Shift+S', 'save-as'),
       { type: 'separator' },

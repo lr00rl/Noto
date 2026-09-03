@@ -5,6 +5,7 @@ import type {
   FileTruthResultV1,
   FileTruthSaveCopyRequestV1,
   FileTruthSaveRequestV1,
+  FileTruthReloadRequestV1,
   NotoPlatform,
 } from '../../../shared/file-truth/v1/contracts';
 import { FILE_TRUTH_CHANNELS } from '../../../shared/file-truth/v1/contracts';
@@ -18,6 +19,7 @@ import {
   isFileTruthRequestV1,
   isFileTruthSaveCopyRequestV1,
   isFileTruthSaveRequestV1,
+  isFileTruthReloadRequestV1,
 } from '../../../shared/file-truth/v1/validate';
 import type { StructuredLogger } from '../../logger';
 import { isTrustedRendererSender } from '../../ipc/trusted-renderer';
@@ -84,4 +86,8 @@ export function registerFileTruthHandlers(deps: {
     () => activeStore().recover());
   register<FileTruthRequestV1, ReturnType<FileTruthStoreV1['diagnostics']>>(FILE_TRUTH_CHANNELS.diagnostics, isFileTruthRequestV1,
     () => activeStore().diagnostics());
+  // Routed by document id, like a save, so main only ever reloads a document it
+  // opened itself and the renderer never names a file.
+  register<FileTruthReloadRequestV1, Awaited<ReturnType<FileTruthStoreV1['reload']>>>(FILE_TRUTH_CHANNELS.reload, isFileTruthReloadRequestV1,
+    (request) => storeForSave(request.documentId).reload());
 }
