@@ -9,7 +9,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { documentDirOf } from './image-source';
 import type { NotoDocumentWire, NotoTransaction } from '../../../shared/markdown/v3/contracts';
-import { NotoEditor } from './NotoEditor';
+import { NotoEditor, type InsertedImage } from './NotoEditor';
 import type { DocumentCount } from './word-count';
 
 export interface NotoCanvasProps {
@@ -36,6 +36,8 @@ export interface NotoCanvasProps {
   readonly onReady: (editor: NotoEditor) => void;
   readonly onTeardown: (editor: NotoEditor) => void;
   readonly onError: (message: string) => void;
+  /** Writes pasted picture bytes and answers with the reference to insert. */
+  readonly onWriteImage?: (bytes: Uint8Array) => Promise<InsertedImage | null>;
 }
 
 export function NotoCanvas({
@@ -58,6 +60,7 @@ export function NotoCanvas({
   onReady,
   onTeardown,
   onError,
+  onWriteImage,
 }: NotoCanvasProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<NotoEditor | null>(null);
@@ -71,8 +74,8 @@ export function NotoCanvas({
       editor = new NotoEditor(host, document, {
         mac,
         smartQuotes,
-  smartDashes,
-  smartEllipsis,
+        smartDashes,
+        smartEllipsis,
         spellCheck,
         images: { documentDir: documentDirOf(documentPath), remote: remoteImages ?? true },
         onActiveBlockChanged,
@@ -82,6 +85,7 @@ export function NotoCanvas({
         onFollowLink,
         onCountChanged,
         onError,
+        onWriteImage,
       });
     } catch (error) {
       onError(error instanceof Error ? error.message : 'The editor failed to start.');

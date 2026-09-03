@@ -40,6 +40,7 @@ import { WorkspaceRail, type RailView } from './WorkspaceRail';
 import { RailFooter } from './RailFooter';
 import { Preferences, type PreferencesSection } from './Preferences';
 import { DEFAULT_SETTINGS, stepWidthMode, type NotoSettingsV1 } from '../shared/settings/v1/contracts';
+import type { AssetRefusalV1 } from '../shared/assets/v1/contracts';
 import { EMPTY_TRAIL, forget as forgetTrail, record as recordTrail, stepBack, stepForward, type Trail } from './trail';
 import type { NotoEditor } from './editor/noto/NotoEditor';
 import {
@@ -58,6 +59,20 @@ import { createPluginSnapshotStream } from './plugins/plugin-snapshot-stream';
 import { restorePluginTriggerFocus, type PluginSnapshotAvailability } from './plugins/plugin-center-state';
 
 const rid = (prefix: string) => `${prefix}:${crypto.randomUUID()}`;
+
+/**
+ * Why a picture was not added, said in words rather than as a code.
+ *
+ * Every one of these is something the reader can act on, which is the point:
+ * the failure this feature has to avoid is a paste that appears to do nothing.
+ */
+function imageRefusalMessage(reason: AssetRefusalV1): string {
+  if (reason === 'no-document') return 'Open a note first, and the picture goes beside it.';
+  if (reason === 'unsupported-type') return 'That is not a picture Noto can show.';
+  if (reason === 'too-large') return 'That picture is larger than 20MB.';
+  if (reason === 'outside-root') return 'The image folder in settings is outside this folder.';
+  return 'The picture could not be written.';
+}
 
 /**
  * The user's stylesheet. One sheet, replaced in place, so a theme reloaded
@@ -1129,6 +1144,25 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
    * Attributed to the document that raised it rather than to whichever tab is
    * in front, so a background document cannot relabel the one being read.
    */
+  /**
+   * A picture pasted or dropped into the document.
+   *
+   * The renderer has bytes and no idea where they should go. Main decides the
+   * folder, the name and the text to insert, and this either hands back what it
+   * said or reports why it refused. Null means nothing is inserted, and the
+   * reader has already been told why.
+   */
+  const writeImage = useCallback(async (bytes: Uint8Array) => {
+    const result = await window.notoAssets.write({ version: 1, requestId: rid('image'), bytes });
+    if (!result.ok) {
+      setLocalMessage(actionableFileTruthMessage(result.error.message, 'The picture could not be added.'));
+      return null;
+    }
+    if (result.value.written) return result.value;
+    setLocalMessage(imageRefusalMessage(result.value.reason));
+    return null;
+  }, []);
+
   const onDocumentDirtyChange = useCallback((documentId: string, dirty: boolean) => {
     setDocs((current) => {
       const existing = current.get(documentId);
@@ -1220,6 +1254,21 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         if (!editorRef.current?.runCommand(event.command)) {
           setLocalMessage('That does not apply where the cursor is.');
         }
+        break;
+      case 'insert-image':
+        void window.notoAssets.pick({ version: 1, requestId: rid('pick-image') })
+          .then((result) => {
+            if (!result.ok) {
+              setLocalMessage(actionableFileTruthMessage(result.error.message, 'The picture could not be added.'));
+              return;
+            }
+            if (result.value.written) {
+              editorRef.current?.insertWrittenImage(result.value);
+              return;
+            }
+            if (result.value.reason === 'cancelled') return;
+            setLocalMessage(imageRefusalMessage(result.value.reason));
+          });
         break;
       case 'new-file':
         void window.notoWorkspace.newFile({ version: 1, requestId: rid('new-file') })
@@ -1538,6 +1587,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                 onFollowWikiLink={(target) => followWikiLinkRef.current(target)}
                 onFollowLink={(href) => followLinkRef.current(href)}
                 onCountChanged={(next) => countRef.current(doc.document.documentId, next)}
+                onWriteImage={writeImage}
                 onReady={(editor) => {
                   editorsRef.current.set(doc.document.documentId, editor);
                   if (doc.document.documentId === activeIdRef.current) {

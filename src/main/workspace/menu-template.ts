@@ -212,6 +212,7 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       command('Inline Math', 'Control+M', 'mark-math'),
       { type: 'separator' },
       command('Hyperlink…', 'CmdOrCtrl+K', 'insert-link'),
+      command('Image…', 'CmdOrCtrl+Shift+I', 'insert-image'),
       { type: 'separator' },
       command('Clear Format', 'CmdOrCtrl+Shift+Backspace', 'clear-format'),
     ],

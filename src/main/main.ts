@@ -27,6 +27,7 @@ import { registerSettingsHandlers } from './workspace/register-settings-handlers
 import { WorkspaceSession } from './workspace/session';
 import { installApplicationMenu } from './workspace/menu';
 import { registerWorkspaceHandlers } from './workspace/register-workspace-handlers';
+import { registerAssetHandlers } from './workspace/register-asset-handlers';
 
 registerNotoScheme();
 
@@ -259,6 +260,12 @@ async function run(): Promise<void> {
   });
   registerFileTruthHandlers({
     session,
+    getWindow: () => editorWindow,
+    logger,
+  });
+  registerAssetHandlers({
+    session,
+    settings: () => settings.current(),
     getWindow: () => editorWindow,
     logger,
   });

@@ -992,6 +992,78 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   align-items: start;
 }
 
+/*
+ * The picture destination: a column of choices that each show their own result.
+ *
+ * The mark is drawn on the button rather than being a real radio input, because
+ * a native radio cannot carry two lines of text and a monospace example inside
+ * its label without the two drifting apart at different text sizes.
+ */
+.pref-cards {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pref-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  border: 1px solid var(--hairline);
+  border-radius: 7px;
+  background: var(--panel);
+  padding: 8px 10px;
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+  cursor: default;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.pref-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--hairline));
+}
+
+.pref-card.is-on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+}
+
+.pref-card:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.pref-card-mark {
+  margin-top: 2px;
+  border: 1px solid color-mix(in srgb, var(--ink) 34%, transparent);
+  border-radius: 50%;
+  width: 12px;
+  height: 12px;
+}
+
+.pref-card.is-on .pref-card-mark {
+  /* The dot is the border growing inward, so the ring and the fill are one
+     shape and cannot land a half pixel apart at a fractional scale factor. */
+  border-color: var(--accent);
+  border-width: 3.5px;
+}
+
+.pref-card-text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.pref-card-text code {
+  color: var(--muted);
+  font-family: tokens.$mono;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
 .pref-file {
   display: flex;
   gap: 8px;

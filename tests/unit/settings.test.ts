@@ -113,3 +113,41 @@ describe('the three substitutions that used to be one switch', () => {
     expect(mixed.smartEllipsis).toBe(true);
   });
 });
+
+describe('image settings', () => {
+  it('defaults to an assets folder beside the note, which is what keeps a note portable', () => {
+    expect(DEFAULT_SETTINGS.imageDestination).toBe('assets');
+    expect(DEFAULT_SETTINGS.imageEscapeUrl).toBe(true);
+  });
+
+  it('falls back when the stored destination is not one of the four', () => {
+    expect(coerceSettings({ imageDestination: 'ipic' }).imageDestination).toBe('assets');
+    expect(coerceSettings({ imageDestination: 'note-assets' }).imageDestination).toBe('note-assets');
+  });
+
+  it('refuses a custom folder that climbs out of the note folder', () => {
+    expect(coerceSettings({ imageCustomFolder: '../../Desktop' }).imageCustomFolder)
+      .toBe(DEFAULT_SETTINGS.imageCustomFolder);
+    expect(coerceSettings({ imageCustomFolder: './pics/screens' }).imageCustomFolder).toBe('./pics/screens');
+  });
+
+  it('refuses a folder carrying a newline, which is how a path smuggles a second argument', () => {
+    expect(coerceSettings({ imageCustomFolder: './pics\nrm -rf' }).imageCustomFolder)
+      .toBe(DEFAULT_SETTINGS.imageCustomFolder);
+  });
+
+  it('rejects a write of a destination it does not know rather than storing something else', () => {
+    expect(isSettingsWriteRequestV1({
+      version: 1, requestId: 'a', patch: { imageDestination: 'upload' },
+    })).toBe(false);
+    expect(isSettingsWriteRequestV1({
+      version: 1, requestId: 'a', patch: { imageDestination: 'custom' },
+    })).toBe(true);
+  });
+
+  it('rejects a write of a folder that climbs out', () => {
+    expect(isSettingsWriteRequestV1({
+      version: 1, requestId: 'a', patch: { imageCustomFolder: '../out' },
+    })).toBe(false);
+  });
+});

@@ -22,6 +22,8 @@ import {
   type SettingsWriteRequestV1,
   type ThemeCssReplyV1,
   type WidthModeV1,
+  IMAGE_DESTINATIONS,
+  type ImageDestinationV1,
 } from './contracts';
 
 const requestId = /^[A-Za-z0-9._:-]{1,96}$/;
@@ -45,6 +47,21 @@ const isCssPath = (value: unknown): value is string =>
   && value.length <= 1024
   && !/[\0\r\n]/.test(value)
   && (value === '' || value.startsWith('/') || /^[A-Za-z]:[\\/]/.test(value));
+
+/**
+ * The custom folder a picture is copied into.
+ *
+ * Relative to the note, or absolute. The traversal check here is not the guard:
+ * main resolves the folder and refuses anything that does not land inside a
+ * root it already trusts, which is the check that matters because it follows
+ * symbolic links. This one refuses the obvious case at the boundary so a
+ * setting that could never work is not stored in the first place.
+ */
+const isImageFolder = (value: unknown): value is string =>
+  typeof value === 'string'
+  && value.length <= 512
+  && !/[\0\r\n]/.test(value)
+  && !value.split(/[\\/]/).includes('..');
 
 const numeric = (value: Record<string, unknown>, key: NotoNumericSetting): number =>
   clampSetting(key, value[key]);
@@ -97,6 +114,15 @@ export function coerceSettings(value: unknown): NotoSettingsV1 {
     customCssPath: isCssPath(value.customCssPath)
       ? value.customCssPath
       : DEFAULT_SETTINGS.customCssPath,
+    imageDestination: IMAGE_DESTINATIONS.includes(value.imageDestination as ImageDestinationV1)
+      ? value.imageDestination as ImageDestinationV1
+      : DEFAULT_SETTINGS.imageDestination,
+    imageCustomFolder: isImageFolder(value.imageCustomFolder)
+      ? value.imageCustomFolder
+      : DEFAULT_SETTINGS.imageCustomFolder,
+    imageEscapeUrl: typeof value.imageEscapeUrl === 'boolean'
+      ? value.imageEscapeUrl
+      : DEFAULT_SETTINGS.imageEscapeUrl,
   };
 }
 
@@ -120,6 +146,8 @@ export function isSettingsWriteRequestV1(value: unknown): value is SettingsWrite
     if (key === 'theme') return themes.includes(patch.theme as NotoTheme);
     if (key === 'widthMode') return isWidthMode(patch.widthMode);
     if (key === 'customCssPath') return isCssPath(patch.customCssPath);
+    if (key === 'imageDestination') return IMAGE_DESTINATIONS.includes(patch.imageDestination as ImageDestinationV1);
+    if (key === 'imageCustomFolder') return isImageFolder(patch.imageCustomFolder);
     // Out of range is refused rather than clamped: a write says what it wants,
     // and silently storing something else is the kind of disagreement that
     // shows up later as a control that will not move.
@@ -157,6 +185,9 @@ export function isSettingsReplyV1(value: unknown): value is SettingsReplyV1 {
     && typeof settings.typewriterMode === 'boolean'
     && typeof settings.sidebarOnLaunch === 'boolean'
     && typeof settings.autoSave === 'boolean'
+    && typeof settings.imageEscapeUrl === 'boolean'
+    && IMAGE_DESTINATIONS.includes(settings.imageDestination as ImageDestinationV1)
+    && isImageFolder(settings.imageCustomFolder)
     && isCssPath(settings.customCssPath);
 }
 

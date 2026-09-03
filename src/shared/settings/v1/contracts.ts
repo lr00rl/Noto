@@ -78,6 +78,21 @@ export function stepWidthMode(current: WidthModeV1, direction: 1 | -1): WidthMod
   return WIDTH_MODES[(at + direction + WIDTH_MODES.length) % WIDTH_MODES.length];
 }
 
+/**
+ * Where a pasted or dropped picture is put, which is the only choice in the
+ * image pane that changes what lands in the vault.
+ *
+ * Typora offers the same four and its own default is `assets`, a folder beside
+ * the note. That is the one that keeps a note portable: the note and its
+ * pictures move together, and nothing lands loose in the folder the reader is
+ * looking at. `note-assets` is the same idea with a folder per note, for a
+ * vault where one note owns forty screenshots. `folder` writes beside the note.
+ * `custom` is for a vault that already has a pictures folder and wants it used.
+ */
+export const IMAGE_DESTINATIONS = ['assets', 'note-assets', 'folder', 'custom'] as const;
+
+export type ImageDestinationV1 = (typeof IMAGE_DESTINATIONS)[number];
+
 export interface NotoSettingsV1 {
   readonly theme: NotoTheme;
   /** Document text size in CSS pixels. */
@@ -170,6 +185,12 @@ export interface NotoSettingsV1 {
    * field.
    */
   readonly customCssPath: string;
+  /** Where a pasted or dropped picture is written. See `IMAGE_DESTINATIONS`. */
+  readonly imageDestination: ImageDestinationV1;
+  /** The folder `custom` uses, relative to the note when it is not absolute. */
+  readonly imageCustomFolder: string;
+  /** Percent-encode the reference, so a space in a folder name still resolves. */
+  readonly imageEscapeUrl: boolean;
 }
 
 export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
@@ -197,6 +218,11 @@ export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   autoSave: false,
   autoSaveDelayMs: 1_200,
   customCssPath: '',
+  // Typora's own default, and the one that keeps a note portable: the note and
+  // its pictures move together.
+  imageDestination: 'assets',
+  imageCustomFolder: './images',
+  imageEscapeUrl: true,
 });
 
 /** Clamp to the declared range and drop anything that is not a real number. */

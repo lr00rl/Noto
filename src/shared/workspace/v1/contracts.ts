@@ -188,6 +188,7 @@ export const WORKSPACE_MENU_COMMANDS = [
   'move-column-left',
   'move-column-right',
   'insert-link',
+  'insert-image',
   'new-file',
   'mark-strong',
   'mark-emphasis',
