@@ -99,10 +99,16 @@
   position: absolute;
   left: -1.25em;
   top: 0.45em;
-  width: 13px;
-  height: 13px;
-  border: 1.5px solid var(--muted);
-  border-radius: 3px;
+  /* In em, like everything else in the document that has a size, so the box
+     grows with the reader's text rather than staying 13 pixels while the
+     words around it get bigger. Typora's is a native checkbox at a fixed 12
+     pixels, which is 0.8em at its own 16; the same 0.8em here lands on 12 at
+     the default and keeps following the setting after that, which its does
+     not. */
+  width: 0.8em;
+  height: 0.8em;
+  border: 0.1em solid var(--muted);
+  border-radius: 0.2em;
   background: transparent;
 }
 
@@ -121,12 +127,14 @@
 .ProseMirror li.noto-task-item[data-checked='true']::after {
   content: '';
   position: absolute;
-  left: calc(-1.25em + 3.5px);
-  top: 0.68em;
-  width: 6px;
-  height: 3px;
-  border-left: 1.5px solid var(--paper);
-  border-bottom: 1.5px solid var(--paper);
+  /* Centred in the box: the box starts at -1.25em and is 0.8em across, so a
+     0.4em tick sits 0.2em in. */
+  left: calc(-1.25em + 0.2em);
+  top: 0.66em;
+  width: 0.4em;
+  height: 0.2em;
+  border-left: 0.1em solid var(--paper);
+  border-bottom: 0.1em solid var(--paper);
   transform: rotate(-45deg);
 }
 
