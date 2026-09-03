@@ -41,8 +41,6 @@ test.describe('launching with nothing named', () => {
       // A click that waits for the button, rather than one fired at whatever
       // happens to be in the document at that instant.
       await back.getByTestId('sidebar-toggle').click();
-      console.log('DIAG shell: ' + (await back.locator('.app-shell').innerText()).replace(/\n/g, ' | ').slice(0, 200));
-      console.log('DIAG recent: ' + (await readFile(path.join(userData, 'recent-folders.json'), 'utf8').catch(() => 'missing')).slice(0, 200));
       await expect(back.getByTestId('tree-vault')).toContainText('vault');
       await expect(back.getByTestId('file-tree')).toContainText('second.md');
       // No note is opened for the reader: the folder came back, not a document.

@@ -322,15 +322,19 @@ async function run(): Promise<void> {
      */
     window.webContents.once('did-finish-load', () => {
       /*
-       * Read from the list already in memory, not re-read from disk. The
-       * renderer asks for the current folder as it mounts, and an await here
-       * put the restore after that question was answered, so main had the
-       * folder and the window never heard about it.
+       * Loaded again here rather than trusted from startup. The window can
+       * finish loading before the read of the recent folders that startup
+       * began has come back, and then the list is empty and there is nothing
+       * to restore. The renderer catches a folder that arrives after it has
+       * mounted: it attaches its listener before it asks.
        */
-      const [last] = recentFolders.list();
-      if (!last) return;
-      void session?.openFolderPath(last.path, false)
-        .catch(() => logger.log('workspace_restore_folder_failed', {}));
+      void (async () => {
+        await recentFolders.load();
+        const [last] = recentFolders.list();
+        if (!last) return;
+        await session?.openFolderPath(last.path, false)
+          .catch(() => logger.log('workspace_restore_folder_failed', {}));
+      })();
     });
   }
 

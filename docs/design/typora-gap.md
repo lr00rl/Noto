@@ -1141,6 +1141,29 @@ as centring it does here. And Typora's file tree clips a long name without an
 ellipsis, as this does, except that this can scroll sideways to the rest and
 Typora cannot.
 
+## 61. Launching from the dock gave an empty window. Closed.
+
+The recent folders were already on disk and nothing read them at startup, so
+somebody who opens the same vault every day got an empty window and an
+invitation to open a folder. The most recent one now comes back when nothing
+is named on the command line.
+
+The folder only. Which note was in front is not restored, because reopening a
+document is a change to it as far as the recovery journal is concerned, and
+starting a session by touching a file nobody asked for is not worth the
+convenience. It is not marked as chosen either, so the rail obeys its own
+setting rather than springing open.
+
+Most of the time this took went into a fault that was mine. The test fired a
+click at whatever was in the document at that instant instead of waiting for
+the button, so the rail never opened and the assertion failed for a reason
+that had nothing to do with folders. Reading main's log I then talked myself
+into a delivery problem that did not exist, and removed the one `await` the
+restore actually needed: the window can finish loading before the read of the
+recent folders that startup began has come back, and then the list is empty.
+Asking main directly from the restored window, rather than inferring from a
+log, is what settled it in one run.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
