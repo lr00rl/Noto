@@ -329,6 +329,10 @@ export class WorkspaceSession {
 
     const items = buildTreeRowMenu(real, kind, {
       open: (target) => { void this.openPath(target).catch(() => {}); },
+      // The directory has already been resolved and checked against the open
+      // folder above, so the note goes where the reader pressed and nowhere
+      // else.
+      newNote: (target) => { void this.newFile(target).catch(() => {}); },
       reveal: (target) => shell.showItemInFolder(target),
       copyPath: (target) => clipboard.writeText(target),
     });
@@ -348,8 +352,8 @@ export class WorkspaceSession {
    * fails if something is already there, so a note is never written over even
    * if one appears between the check and the write.
    */
-  async newFile(): Promise<WorkspaceNewFileReplyV1> {
-    const directory = this.folderRoot ?? (this.activePath ? path.dirname(this.activePath) : null);
+  async newFile(inside?: string): Promise<WorkspaceNewFileReplyV1> {
+    const directory = inside ?? this.folderRoot ?? (this.activePath ? path.dirname(this.activePath) : null);
     if (directory === null) return { version: NOTO_WORKSPACE_VERSION, created: false, path: null };
 
     for (let attempt = 0; attempt < 100; attempt += 1) {
