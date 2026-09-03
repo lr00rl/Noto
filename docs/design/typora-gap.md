@@ -1084,6 +1084,22 @@ A sweep for other sizes fixed in pixels where the document's own rule wants
 rather than part of the note, the alert's own title chip among them, and those
 are meant to hold their size.
 
+## 58. The list, checked against the vault rather than argued about.
+
+Editing one item of a list rewrites the whole list, because a list is one
+block, and the sweep reports that honestly: fifty-five lines for a fifty-five
+line list. What matters is whether the rewrite is in the vault's own dialect.
+
+Counted: the vault writes one space after a bullet 89,535 times and three
+11,716 times, and one space after a number 19,832 times against two 3,857.
+The serializer writes one. It is already the vault's own form for seven notes
+in eight, and the churn belongs to the eighth.
+
+The nested indent is the one place the vault has no majority: four spaces
+7,908 times under a bullet and two 7,805, near enough a tie. Whatever the
+serializer picks, half the lists it touches will move. It picks the minimum,
+which is at least consistent.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
