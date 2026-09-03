@@ -36,6 +36,9 @@ export interface FileTreeProps {
 /** The height of one row, which the sticky offsets are multiples of. */
 export const TREE_ROW_HEIGHT = 32;
 
+/** Where the arm crosses a row, matching `--tree-arm` in the stylesheet. */
+const TREE_ARM_OFFSET = 13;
+
 export function FileTree({ root, rootName, activePath, list, onOpenFile, onRowMenu, onChooseFolder, vaultMenu }: FileTreeProps) {
   const [children, setChildren] = useState<ReadonlyMap<string, readonly WorkspaceEntryV1[]>>(new Map());
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
@@ -161,6 +164,19 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onRowMe
     // stylesheet draws that much of it in the accent. Read once per change
     // of the tree, not per scroll: the stems do not move when the rail does.
     for (const level of body.querySelectorAll<HTMLElement>('.tree-level')) {
+      /*
+       * Where the quiet stem ends: at the arm of the last child, not at the
+       * bottom of the level. The stem used to run the whole way and be covered
+       * again by a strip of panel colour, which showed as a nick where the
+       * cover met the corner.
+       */
+      const last = level.lastElementChild as HTMLElement | null;
+      if (last) {
+        level.style.setProperty('--stem-stop', `${last.offsetTop - level.offsetTop + TREE_ARM_OFFSET}px`);
+      } else {
+        level.style.removeProperty('--stem-stop');
+      }
+
       const child = level.querySelector<HTMLElement>(':scope > .tree-node-active, :scope > .tree-node:has(> .tree-on-path)');
       if (!child) {
         level.style.removeProperty('--path-stop');
