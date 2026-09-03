@@ -450,7 +450,9 @@
    it, so copied code is code. */
 .ProseMirror .noto-fence-gutter {
   min-width: calc(var(--fence-digits, 2) * 1ch);
-  padding: 0.9em 0.7em 0.85em 0.8em;
+  /* Vertically in step with the code beside it, or the numbers drift off
+     their lines. */
+  padding: 1em 0.7em 0.94em 0.8em;
   border-right: 1px solid var(--hairline);
   color: var(--muted);
   text-align: right;

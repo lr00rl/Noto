@@ -210,7 +210,11 @@
   border-radius: 0;
   background: transparent;
   color: inherit;
-  padding: 0.9em 1em 0.85em;
+  /* Typora's own, in the code's own size: a fence there is padded 1em at the
+     top, 1.11 at the right and 0.94 at the bottom. This was a tenth tighter
+     all round, which on the commonest block in the vault reads as a different
+     theme rather than a different number. */
+  padding: 1em 1.11em 0.94em;
 }
 
 /* Links in the accent, as the theme has them, with the underline held back
