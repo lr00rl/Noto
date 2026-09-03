@@ -12,7 +12,7 @@
  */
 
 import path from 'node:path';
-import { realpath, stat, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readdir, realpath, rename, stat, writeFile } from 'node:fs/promises';
 import { BrowserWindow, Menu, clipboard, dialog, shell, type MenuItemConstructorOptions } from 'electron';
 import { FILE_TRUTH_CHANNELS, type FileTruthOpenReplyV1 } from '../../shared/file-truth/v1/contracts';
 import { openableExternalUrl } from '../../shared/workspace/v1/validate';
@@ -26,13 +26,21 @@ import {
   type WorkspaceOpenExternalReplyV1,
 } from '../../shared/workspace/v1/contracts';
 import type {
+  WorkspaceEntryActionV1,
+  WorkspaceEntryRefusalV1,
+  WorkspaceEntryReplyV1,
   WorkspaceContentReplyV1, WorkspaceIndexReplyV1, WorkspaceRevealReplyV1, WorkspaceRevealTargetV1,
 } from '../../shared/workspace/v1/contracts';
 import type { StructuredLogger } from '../logger';
 import type { FileTruthStoreV1 } from '../file-truth/v1/file-truth-store';
 import type { RecentFiles } from './recent-files';
 import { isEditableFile, listDirectory, type FileTreeEntryV1, isInside } from './file-tree';
-import { buildTreeRowMenu } from './tree-row-menu';
+import { buildTreeRowMenu, trashLabel } from './tree-row-menu';
+import {
+  duplicateName,
+  isEntryName,
+  renamedFileName,
+} from '../../shared/workspace/v1/entry-names';
 import { buildFileIndex } from './file-index';
 import { searchContent } from './content-search';
 
@@ -347,11 +355,243 @@ export class WorkspaceSession {
       // folder above, so the note goes where the reader pressed and nowhere
       // else.
       newNote: (target) => { void this.newFile(target).catch(() => {}); },
+      newFolder: (target) => this.send(WORKSPACE_CHANNELS.renameRow, {
+        version: NOTO_WORKSPACE_VERSION, path: target, intent: 'new-folder',
+      }),
+      // The field belongs on the row, so main asks the renderer for the name
+      // rather than inventing a dialog for it.
+      rename: (target) => this.send(WORKSPACE_CHANNELS.renameRow, {
+        version: NOTO_WORKSPACE_VERSION, path: target, intent: 'rename',
+      }),
+      duplicate: (target) => { void this.manageEntry({ action: 'duplicate', target, name: null }); },
+      trash: (target, kind) => { void this.confirmTrash(target, kind); },
       reveal: (target) => shell.showItemInFolder(target),
       copyPath: (target) => clipboard.writeText(target),
     });
     setImmediate(() => Menu.buildFromTemplate(items).popup({ window }));
     return { version: NOTO_WORKSPACE_VERSION, accepted: true };
+  }
+
+
+  /**
+   * Rename, duplicate, trash, or make a folder.
+   *
+   * One method because all four share the part that matters: the target is
+   * resolved through every symbolic link and checked against the open folder at
+   * the moment the action runs, not when the menu was built. A row can go stale
+   * between the two, and acting on a stale row is how a delete lands somewhere
+   * nobody meant.
+   *
+   * The renderer sends a name, never a path. Main joins it to a parent it
+   * resolved itself, so there is no string from outside anywhere in the
+   * destination.
+   */
+  async manageEntry(request: {
+    action: WorkspaceEntryActionV1;
+    target: string;
+    name: string | null;
+  }): Promise<WorkspaceEntryReplyV1> {
+    const real = await this.inRoot(request.target);
+    if (real === null) {
+      this.logger.log('entry_action_refused', { action: request.action, reason: 'outside-root' });
+      return this.refuse(this.folderRoot === null ? 'no-folder' : 'outside-root');
+    }
+
+    if (request.action === 'rename') return this.renameEntry(real, request.name);
+    if (request.action === 'duplicate') return this.duplicateEntry(real);
+    if (request.action === 'new-folder') return this.newFolder(real, request.name);
+    return this.trashEntry(real);
+  }
+
+  /**
+   * Ask before moving something to the trash.
+   *
+   * The one action here that cannot be undone from inside the app, so it is
+   * the one that asks. A message box rather than something in the page because
+   * it must not be dismissible by a stray keystroke aimed at the document.
+   */
+  private async confirmTrash(target: string, kind: 'file' | 'directory'): Promise<void> {
+    const window = this.getWindow();
+    if (!window) return;
+    const name = path.basename(target);
+    const answer = await dialog.showMessageBox(window, {
+      type: 'warning',
+      buttons: [trashLabel(process.platform), 'Cancel'],
+      defaultId: 1,
+      cancelId: 1,
+      message: kind === 'directory'
+        ? `Move the folder "${name}" and everything in it to the trash?`
+        : `Move "${name}" to the trash?`,
+      detail: 'You can put it back from there.',
+    });
+    if (answer.response !== 0) return;
+    await this.manageEntry({ action: 'trash', target, name: null });
+  }
+
+  /** The real path, if it is inside the open folder. Null for anything else. */
+  private async inRoot(target: string): Promise<string | null> {
+    const root = this.folderRoot;
+    if (root === null) return null;
+    try {
+      const real = await realpath(path.resolve(target));
+      const realRoot = await realpath(root);
+      // The root itself is not a row, and renaming or trashing the folder the
+      // window is showing is not something a row menu should be able to do.
+      return isInside(realRoot, real) && real !== realRoot ? real : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private refuse(reason: WorkspaceEntryRefusalV1): WorkspaceEntryReplyV1 {
+    return { version: NOTO_WORKSPACE_VERSION, done: false, reason };
+  }
+
+  private done(target: string): WorkspaceEntryReplyV1 {
+    this.send(WORKSPACE_CHANNELS.treeChanged, { version: NOTO_WORKSPACE_VERSION });
+    return { version: NOTO_WORKSPACE_VERSION, done: true, path: target };
+  }
+
+  private async renameEntry(real: string, typed: string | null): Promise<WorkspaceEntryReplyV1> {
+    if (!isEntryName(typed)) return this.refuse('bad-name');
+    const parent = path.dirname(real);
+    const current = path.basename(real);
+    const isDirectory = (await stat(real)).isDirectory();
+    // A note renamed to something with no extension would vanish from a tree
+    // that lists only what it can open, so it keeps the one it had.
+    const name = isDirectory ? typed : renamedFileName(typed, current);
+    if (name === current) return this.done(real);
+
+    const destination = path.join(parent, name);
+    if (await this.occupied(destination, real)) return this.refuse('exists');
+    if (this.busyUnder(real)) return this.refuse('busy');
+
+    try {
+      await rename(real, destination);
+    } catch {
+      return this.refuse('failed');
+    }
+    await this.followMove(real, destination);
+    this.logger.log('entry_renamed', { directory: isDirectory });
+    return this.done(destination);
+  }
+
+  private async duplicateEntry(real: string): Promise<WorkspaceEntryReplyV1> {
+    const parent = path.dirname(real);
+    let taken: Set<string>;
+    try {
+      taken = new Set(await readdir(parent));
+    } catch {
+      return this.refuse('failed');
+    }
+    const destination = path.join(parent, duplicateName(path.basename(real), taken));
+    try {
+      // Recursive so a folder brings what is in it, and `force: false` so a
+      // name that appeared between the listing and now is an error, not a
+      // silent overwrite.
+      await cp(real, destination, { recursive: true, force: false, errorOnExist: true });
+    } catch {
+      return this.refuse('failed');
+    }
+    this.logger.log('entry_duplicated', {});
+    return this.done(destination);
+  }
+
+  private async newFolder(real: string, typed: string | null): Promise<WorkspaceEntryReplyV1> {
+    if (!isEntryName(typed)) return this.refuse('bad-name');
+    let inside = real;
+    try {
+      if (!(await stat(real)).isDirectory()) inside = path.dirname(real);
+    } catch {
+      return this.refuse('failed');
+    }
+    const destination = path.join(inside, typed);
+    try {
+      // Not recursive: this makes one folder, and a name that already exists
+      // is an answer rather than something to quietly accept.
+      await mkdir(destination);
+    } catch (cause) {
+      return this.refuse((cause as NodeJS.ErrnoException).code === 'EEXIST' ? 'exists' : 'failed');
+    }
+    this.logger.log('folder_created', {});
+    return this.done(destination);
+  }
+
+  /**
+   * Move to the system trash, never delete.
+   *
+   * `shell.trashItem` and no fallback. A permanent delete offered when the
+   * trash is unavailable, which is what Typora does, turns the one action with
+   * no undo into the one the reader reaches for when they are already
+   * frustrated that the first attempt failed.
+   */
+  private async trashEntry(real: string): Promise<WorkspaceEntryReplyV1> {
+    if (this.busyUnder(real)) return this.refuse('busy');
+    try {
+      await shell.trashItem(real);
+    } catch {
+      this.logger.log('entry_trash_failed', {});
+      return this.refuse('trash-failed');
+    }
+    // Anything open from under it has no file any more, so its tab goes.
+    for (const openPath of [...this.documents.keys()]) {
+      if (openPath === real || isInside(real, openPath)) this.close(openPath);
+    }
+    this.logger.log('entry_trashed', {});
+    return this.done(real);
+  }
+
+  /** Whether anything open under `real` is mid-save or holding recovery evidence. */
+  private busyUnder(real: string): boolean {
+    for (const [openPath, document] of this.documents) {
+      if (openPath !== real && !isInside(real, openPath)) continue;
+      if (document.store.busy) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Whether something already stands at `destination` that is not `source`.
+   *
+   * A case-only rename on a case-insensitive filesystem finds the source
+   * itself standing at the destination, which is not a collision, so the two
+   * are compared by the filesystem object they name rather than by their paths.
+   */
+  private async occupied(destination: string, source: string): Promise<boolean> {
+    try {
+      const [there, here] = await Promise.all([stat(destination), stat(source)]);
+      return !(there.dev === here.dev && there.ino === here.ino);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Re-point every open document that lived under a path that just moved.
+   *
+   * The map is rebuilt in order rather than having entries deleted and
+   * re-inserted, because insertion order decides which neighbour `close` falls
+   * back to and reordering it would move the reader to a different tab.
+   */
+  private async followMove(from: string, to: string): Promise<void> {
+    const moved = [...this.documents.keys()].filter((openPath) => openPath === from || isInside(from, openPath));
+    if (moved.length === 0) return;
+
+    const rebuilt = new Map<string, OpenDocument>();
+    for (const [openPath, document] of this.documents) {
+      if (!moved.includes(openPath)) {
+        rebuilt.set(openPath, document);
+        continue;
+      }
+      const next = openPath === from ? to : path.join(to, path.relative(from, openPath));
+      document.store.adoptPath(next);
+      rebuilt.set(next, document);
+      if (this.activePath === openPath) this.activePath = next;
+    }
+    this.documents.clear();
+    for (const [openPath, document] of rebuilt) this.documents.set(openPath, document);
+    this.publishTabs();
+    await this.recent.remember(this.activePath ?? to).catch(() => {});
   }
 
   /**

@@ -42,6 +42,12 @@ export const WORKSPACE_CHANNELS = {
   newFile: 'noto:v1:workspace:new-file',
   treeMenu: 'noto:v1:workspace:tree-menu',
   searchContent: 'noto:v1:workspace:search-content',
+  /** Rename, duplicate, trash or make a folder. See `WorkspaceEntryActionV1`. */
+  manageEntry: 'noto:v1:workspace:manage-entry',
+  /** Push: something in the tree moved, so a listing on screen is stale. */
+  treeChanged: 'noto:v1:workspace:tree-changed',
+  /** Push: the reader chose Rename, so the row should offer a field. */
+  renameRow: 'noto:v1:workspace:rename-row',
 } as const;
 
 /** One entry in the workspace tree. */
@@ -302,6 +308,70 @@ export interface WorkspaceTreeMenuReplyV1 {
 }
 
 /** One line of a file that holds the query. */
+/**
+ * The four things a row of the tree can have done to it.
+ *
+ * One channel rather than four, because all four take a target and at most a
+ * name, and the difference between them is a decision main makes rather than a
+ * different shape of message. The action is checked against this list on both
+ * sides, so an unknown one is refused rather than falling through to a default.
+ */
+export const ENTRY_ACTIONS = ['rename', 'duplicate', 'trash', 'new-folder'] as const;
+
+export type WorkspaceEntryActionV1 = (typeof ENTRY_ACTIONS)[number];
+
+export interface WorkspaceEntryRequestV1 extends WorkspaceRequestV1 {
+  readonly action: WorkspaceEntryActionV1;
+  /** The row acted on. For `new-folder`, the folder to make one inside. */
+  readonly target: string;
+  /**
+   * One name segment, never a path.
+   *
+   * Required for `rename` and `new-folder`, absent for the other two. Main
+   * joins it to a parent it resolved itself, so the renderer cannot name a
+   * destination even by accident.
+   */
+  readonly name: string | null;
+}
+
+/** Why an action did nothing. Each one is a sentence the reader can act on. */
+export type WorkspaceEntryRefusalV1 =
+  | 'no-folder'
+  | 'outside-root'
+  | 'bad-name'
+  | 'exists'
+  | 'unsaved-changes'
+  | 'busy'
+  | 'trash-failed'
+  | 'failed';
+
+export type WorkspaceEntryReplyV1 =
+  | {
+      readonly version: typeof NOTO_WORKSPACE_VERSION;
+      readonly done: true;
+      /** Where the entry ended up, so the tree can reveal it. */
+      readonly path: string;
+    }
+  | {
+      readonly version: typeof NOTO_WORKSPACE_VERSION;
+      readonly done: false;
+      readonly reason: WorkspaceEntryRefusalV1;
+    };
+
+/**
+ * Asks the tree to put a field on one row.
+ *
+ * The name is typed where the row is, not in a dialog, because the row is
+ * where the reader is looking and a dialog would hide the neighbours whose
+ * names are the reason they are renaming this one.
+ */
+export interface WorkspaceRenameRowEventV1 {
+  readonly version: typeof NOTO_WORKSPACE_VERSION;
+  /** For `rename`, the row to rename. For `new-folder`, the folder to make one in. */
+  readonly path: string;
+  readonly intent: 'rename' | 'new-folder';
+}
+
 export interface WorkspaceContentLineV1 {
   readonly line: string;
   readonly lineNumber: number;
@@ -394,4 +464,7 @@ export interface NotoWorkspaceApiV1 {
   newFile(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceNewFileReplyV1>>;
   treeMenu(request: WorkspaceTreeMenuRequestV1): Promise<WorkspaceResultV1<WorkspaceTreeMenuReplyV1>>;
   searchContent(request: WorkspaceContentRequestV1): Promise<WorkspaceResultV1<WorkspaceContentReplyV1>>;
+  manageEntry(request: WorkspaceEntryRequestV1): Promise<WorkspaceResultV1<WorkspaceEntryReplyV1>>;
+  onTreeChanged(listener: () => void): () => void;
+  onRenameRow(listener: (event: WorkspaceRenameRowEventV1) => void): () => void;
 }

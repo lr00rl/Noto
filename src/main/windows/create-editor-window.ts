@@ -10,6 +10,11 @@ export interface RendererConsoleState {
   warnings: number;
 }
 
+/** Set by the test runner. Never set when a person launches the app. */
+export function headless(): boolean {
+  return process.env.NOTO_HEADLESS === '1';
+}
+
 export function createEditorWindow(
   preloadPath: string,
   logger: StructuredLogger,
@@ -61,7 +66,17 @@ export function createEditorWindow(
       ...summarizeUntrustedText(message),
     });
   });
-  window.once('ready-to-show', () => window.show());
+  /*
+   * Stay off screen when a test is driving.
+   *
+   * The end-to-end suite launches this app well over a hundred times in a run,
+   * and every launch used to raise a window and take the keyboard focus, which
+   * makes the machine unusable for as long as the suite runs and flashes the
+   * screen once per test. Everything the tests do reaches the page through the
+   * debugging protocol, which does not need the window on screen, so a window
+   * that never shows is a window that never interrupts anybody.
+   */
+  if (!headless()) window.once('ready-to-show', () => window.show());
   void window.loadURL('noto://bundle/index.html');
   return window;
 }

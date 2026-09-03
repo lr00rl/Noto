@@ -128,6 +128,37 @@ export class FileTruthStoreV1 {
   }
 
   /**
+   * Whether this document must not be moved or removed right now.
+   *
+   * A save in flight has a temporary file beside the original and is about to
+   * rename it over the top. A recovery record is durable evidence keyed to the
+   * accepted path, so moving the file would leave a payload nothing can ever
+   * replay and the reader's unsaved work inside it.
+   */
+  get busy(): boolean {
+    return this.transactionActive || this.recovery !== null || this.recoveryBlocked;
+  }
+
+  /**
+   * Follow the file to a new path, keeping the document and its identity.
+   *
+   * A rename within one filesystem leaves the inode, the size, the mtime and
+   * every byte untouched, so the accepted fingerprint still describes the file
+   * exactly and the renderer's save token stays valid. Only the name changed,
+   * and the name is not part of what a save checks. That is why a renamed note
+   * keeps its unsaved edits and its undo history rather than being reopened.
+   *
+   * Refused while busy, for the reason `busy` gives.
+   */
+  adoptPath(next: string): boolean {
+    if (!this.acceptedPath || this.busy) return false;
+    this.acceptedPath = next;
+    this.startWatcher();
+    this.logger.log('file_truth_path_adopted', {});
+    return true;
+  }
+
+  /**
    * Open a file, replacing whatever was open before.
    *
    * Every piece of per-document state is reset first. Carrying an accepted

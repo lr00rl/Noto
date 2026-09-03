@@ -42,6 +42,7 @@ import { RailFooter } from './RailFooter';
 import { Preferences, type PreferencesSection } from './Preferences';
 import { DEFAULT_SETTINGS, stepWidthMode, type NotoSettingsV1 } from '../shared/settings/v1/contracts';
 import type { AssetRefusalV1 } from '../shared/assets/v1/contracts';
+import type { WorkspaceEntryRefusalV1 } from '../shared/workspace/v1/contracts';
 import { EMPTY_TRAIL, forget as forgetTrail, record as recordTrail, stepBack, stepForward, type Trail } from './trail';
 import type { NotoEditor } from './editor/noto/NotoEditor';
 import {
@@ -697,6 +698,12 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         return next;
       });
     });
+    const unsubscribeTree = window.notoWorkspace.onTreeChanged(() => {
+      if (active) setTreeVersion((current) => current + 1);
+    });
+    const unsubscribeRename = window.notoWorkspace.onRenameRow((event) => {
+      if (active) setTreeEditing({ path: event.path, intent: event.intent });
+    });
     const unsubscribeTabs = window.notoWorkspace.onTabsChanged((event) => {
       if (!active) return;
       setTabs(event.tabs);
@@ -770,6 +777,8 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       active = false;
       unsubscribe();
       unsubscribeExternal();
+      unsubscribeTree();
+      unsubscribeRename();
       unsubscribeTabs();
       unsubscribeFolder();
       unsubscribeClosed();
@@ -1273,6 +1282,48 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const reloadFromDiskRef = useRef(reloadFromDisk);
   reloadFromDiskRef.current = reloadFromDisk;
 
+  /** The row wearing a name field, put there by the row menu in main. */
+  const [treeEditing, setTreeEditing] = useState<
+    { path: string; intent: 'rename' | 'new-folder' } | null
+  >(null);
+  /** Bumped whenever something in the tree moved, so listings are read again. */
+  const [treeVersion, setTreeVersion] = useState(0);
+
+  /**
+   * What to say when an action on a row did nothing.
+   *
+   * Every one of these is something the reader can act on, which is the point
+   * of naming them separately rather than reporting a single failure.
+   */
+  const entryRefusalMessage = (reason: WorkspaceEntryRefusalV1): string => {
+    if (reason === 'exists') return 'Something here is already called that.';
+    if (reason === 'bad-name') return 'That name cannot be used for a file.';
+    if (reason === 'busy') return 'That note is saving. Try again in a moment.';
+    if (reason === 'trash-failed') return 'The system trash refused it. Nothing was deleted.';
+    if (reason === 'outside-root') return 'That is no longer inside the open folder.';
+    if (reason === 'no-folder') return 'Open a folder first.';
+    return 'That did not work, and nothing was changed.';
+  };
+
+  const finishTreeEdit = useCallback((name: string | null) => {
+    const editing = treeEditing;
+    setTreeEditing(null);
+    if (!editing || name === null) return;
+    void window.notoWorkspace.manageEntry({
+      version: 1,
+      requestId: rid('entry'),
+      action: editing.intent === 'new-folder' ? 'new-folder' : 'rename',
+      target: editing.path,
+      name,
+    }).then((result) => {
+      if (!result.ok) {
+        setLocalMessage(actionableFileTruthMessage(result.error.message, 'That did not work.'));
+        return;
+      }
+      if (!result.value.done) setLocalMessage(entryRefusalMessage(result.value.reason));
+    });
+  }, [treeEditing]);
+
   const onDocumentDirtyChange = useCallback((documentId: string, dirty: boolean) => {
     setDocs((current) => {
       const existing = current.get(documentId);
@@ -1555,6 +1606,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
               onOpenFile: openFromTree,
               onRowMenu: showTreeMenu,
               onChooseFolder: chooseFolder,
+              editing: treeEditing,
+              onEditingDone: finishTreeEdit,
+              reloadToken: treeVersion,
             }}
           />
       )}

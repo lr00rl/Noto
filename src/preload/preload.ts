@@ -101,6 +101,9 @@ import type {
   WorkspaceIndexReplyV1,
   WorkspaceContentReplyV1,
   WorkspaceContentRequestV1,
+  WorkspaceEntryReplyV1,
+  WorkspaceEntryRequestV1,
+  WorkspaceRenameRowEventV1,
   WorkspaceRevealReplyV1,
   WorkspaceNewFileReplyV1,
   WorkspaceTreeMenuReplyV1,
@@ -110,7 +113,7 @@ import type {
   WorkspaceRevealRequestV1,
   WorkspaceSaveAsReplyV1,
 } from '../shared/workspace/v1/contracts';
-import { WORKSPACE_CHANNELS } from '../shared/workspace/v1/contracts';
+import { NOTO_WORKSPACE_VERSION, WORKSPACE_CHANNELS } from '../shared/workspace/v1/contracts';
 import {
   isWorkspaceDocumentEventV1,
   isWorkspaceMenuEventV1,
@@ -128,6 +131,9 @@ import {
   isWorkspaceRequestV1,
   isWorkspaceIndexResultV1,
   isWorkspaceContentRequestV1,
+  isWorkspaceEntryRequestV1,
+  isWorkspaceEntryResultV1,
+  isWorkspaceRenameRowEventV1,
   isWorkspaceContentResultV1,
   isWorkspaceNewFileResultV1,
   isWorkspaceTreeMenuRequestV1,
@@ -365,6 +371,21 @@ const workspaceApi: NotoWorkspaceApiV1 = Object.freeze({
     : Promise.resolve(rejectedWorkspace<WorkspaceIndexReplyV1>('invalid', 'Invalid file index request')),
   onMenuCommand: (listener: (event: WorkspaceMenuEventV1) => void) =>
     subscribe(WORKSPACE_CHANNELS.menuCommand, isWorkspaceMenuEventV1, listener),
+  manageEntry: (request: WorkspaceEntryRequestV1) => isWorkspaceEntryRequestV1(request)
+    ? invokeWorkspace<WorkspaceEntryReplyV1>(WORKSPACE_CHANNELS.manageEntry, request, request.requestId, isWorkspaceEntryResultV1)
+    : Promise.resolve(rejectedWorkspace<WorkspaceEntryReplyV1>('invalid', 'Invalid entry action request')),
+  // The event carries nothing: it says a listing is stale, and the renderer
+  // asks for what it needs. A payload here would be a second source of truth
+  // about the tree.
+  onTreeChanged: (listener: () => void) =>
+    subscribe(
+      WORKSPACE_CHANNELS.treeChanged,
+      (value): value is { version: 1 } => typeof value === 'object' && value !== null
+        && (value as { version?: unknown }).version === NOTO_WORKSPACE_VERSION,
+      () => listener(),
+    ),
+  onRenameRow: (listener: (event: WorkspaceRenameRowEventV1) => void) =>
+    subscribe(WORKSPACE_CHANNELS.renameRow, isWorkspaceRenameRowEventV1, listener),
 });
 
 const settingsApi: NotoSettingsApiV1 = Object.freeze({

@@ -6,7 +6,17 @@
  * drift into disagreeing about what a valid message is.
  */
 
-import { MAX_CONTENT_QUERY, WORKSPACE_MENU_COMMANDS } from './contracts';
+import { isEntryName } from './entry-names';
+import {
+  ENTRY_ACTIONS,
+  MAX_CONTENT_QUERY,
+  NOTO_WORKSPACE_VERSION,
+  WORKSPACE_MENU_COMMANDS,
+  type WorkspaceEntryActionV1,
+  type WorkspaceEntryReplyV1,
+  type WorkspaceEntryRequestV1,
+  type WorkspaceRenameRowEventV1,
+} from './contracts';
 import type {
   RecentFileV1,
   WorkspaceIndexEntryV1,
@@ -322,3 +332,37 @@ export function isWorkspaceContentReplyV1(value: unknown): value is WorkspaceCon
 export const isWorkspaceContentResultV1 = (
   value: unknown, id: string,
 ): value is WorkspaceResultV1<WorkspaceContentReplyV1> => isResult(value, id, isWorkspaceContentReplyV1);
+
+export { isEntryName };
+
+export function isWorkspaceEntryRequestV1(value: unknown): value is WorkspaceEntryRequestV1 {
+  return record(value) && exact(value, ['version', 'requestId', 'action', 'target', 'name'])
+    && value.version === NOTO_WORKSPACE_VERSION
+    && typeof value.requestId === 'string' && requestId.test(value.requestId)
+    && ENTRY_ACTIONS.includes(value.action as WorkspaceEntryActionV1)
+    && typeof value.target === 'string' && value.target.length > 0 && value.target.length <= 4096
+    // A name is one segment or nothing at all. The action that needs one and
+    // did not get one is refused in main, where the kind of entry is known.
+    && (value.name === null || isEntryName(value.name));
+}
+
+export function isWorkspaceEntryReplyV1(value: unknown): value is WorkspaceEntryReplyV1 {
+  if (!record(value) || value.version !== NOTO_WORKSPACE_VERSION) return false;
+  if (value.done === true) {
+    return exact(value, ['version', 'done', 'path'])
+      && typeof value.path === 'string' && value.path.length > 0;
+  }
+  return value.done === false && exact(value, ['version', 'done', 'reason'])
+    && ['no-folder', 'outside-root', 'bad-name', 'exists', 'unsaved-changes', 'busy', 'trash-failed', 'failed']
+      .includes(String(value.reason));
+}
+
+export const isWorkspaceEntryResultV1 = (value: unknown, id: string): value is WorkspaceResultV1<WorkspaceEntryReplyV1> =>
+  isResult(value, id, isWorkspaceEntryReplyV1);
+
+export function isWorkspaceRenameRowEventV1(value: unknown): value is WorkspaceRenameRowEventV1 {
+  return record(value) && exact(value, ['version', 'path', 'intent'])
+    && value.version === NOTO_WORKSPACE_VERSION
+    && typeof value.path === 'string' && value.path.length > 0 && value.path.length <= 4096
+    && (value.intent === 'rename' || value.intent === 'new-folder');
+}
