@@ -1143,9 +1143,16 @@ no border, no radius, no shadow, the same alignment, and the block rhythm
 coming from the paragraph around it. One difference is deliberate. Typora sets
 the image itself to `block`, which loses the few pixels of descender space
 under it; this leaves it `inline-block` so an image can sit inside a sentence,
-which markdown allows and Typora's rule would break. A cleaner fix exists, a
-rule that applies only to an image alone in its paragraph, and it is not worth
-making in the last ten minutes of a run.
+which markdown allows and Typora's rule would break.
+
+The obvious fix does not work, and it is worth writing down why so nobody
+spends the afternoon on it. `p > .noto-image-frame:only-child` looks like it
+names a picture alone on its line, and it does the opposite: `:only-child`
+counts element children and ignores text, so it matched the image inside a
+sentence, which has no element siblings, and missed the one on its own line,
+which has a widget beside it. Tried, measured, reverted. Naming "a paragraph
+holding nothing but this image" needs the editor's own knowledge of the block,
+not a selector.
 
 Two more looked wrong and were not. Typora's maths block is `text-align:
 start`, which reads as left aligned until you measure the rendered SVG and
