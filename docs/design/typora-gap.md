@@ -1138,6 +1138,15 @@ Three did not, and all three are fixed: the prose stack's fallback chain, the
 fence's padding, and a checkbox written in pixels where the document's own
 rule wants `em`.
 
+The image was the last of them and matches too: the same cap at the measure,
+no border, no radius, no shadow, the same alignment, and the block rhythm
+coming from the paragraph around it. One difference is deliberate. Typora sets
+the image itself to `block`, which loses the few pixels of descender space
+under it; this leaves it `inline-block` so an image can sit inside a sentence,
+which markdown allows and Typora's rule would break. A cleaner fix exists, a
+rule that applies only to an image alone in its paragraph, and it is not worth
+making in the last ten minutes of a run.
+
 Two more looked wrong and were not. Typora's maths block is `text-align:
 start`, which reads as left aligned until you measure the rendered SVG and
 find it spans the full width and centres the equation inside itself, exactly
