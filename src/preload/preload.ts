@@ -1,4 +1,17 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import {
+  ASSET_CHANNELS,
+  type AssetRequestV1,
+  type AssetResultV1,
+  type AssetWriteReplyV1,
+  type AssetWriteRequestV1,
+  type NotoAssetsApiV1,
+} from '../shared/assets/v1/contracts';
+import {
+  isAssetRequestV1,
+  isAssetResultV1,
+  isAssetWriteRequestV1,
+} from '../shared/assets/v1/validate';
 import type {
   DiagnosticsReply,
   DiagnosticsRequest,
@@ -365,8 +378,36 @@ const settingsApi: NotoSettingsApiV1 = Object.freeze({
     subscribe(SETTINGS_CHANNELS.changed, isSettingsReplyV1, listener),
 });
 
+/**
+ * Pictures.
+ *
+ * The bytes go across as a Uint8Array and structured clone copies them, so the
+ * renderer's buffer is not shared with main and nothing on this side can change
+ * what main is about to write.
+ */
+function rejectedAsset(requestId: string, message: string): AssetResultV1<AssetWriteReplyV1> {
+  return { ok: false, requestId, error: { code: 'BAD_REQUEST', message } };
+}
+
+async function invokeAsset(channel: string, request: unknown, requestId: string): Promise<AssetResultV1<AssetWriteReplyV1>> {
+  const value: unknown = await ipcRenderer.invoke(channel, request);
+  return isAssetResultV1(value, requestId)
+    ? value
+    : rejectedAsset(requestId, 'Main returned an invalid asset response');
+}
+
+const assetsApi: NotoAssetsApiV1 = Object.freeze({
+  write: (request: AssetWriteRequestV1) => isAssetWriteRequestV1(request)
+    ? invokeAsset(ASSET_CHANNELS.write, request, request.requestId)
+    : Promise.resolve(rejectedAsset('invalid', 'Invalid image write request')),
+  pick: (request: AssetRequestV1) => isAssetRequestV1(request)
+    ? invokeAsset(ASSET_CHANNELS.pick, request, request.requestId)
+    : Promise.resolve(rejectedAsset('invalid', 'Invalid image pick request')),
+});
+
 contextBridge.exposeInMainWorld('notoWorkspace', workspaceApi);
 contextBridge.exposeInMainWorld('notoSettings', settingsApi);
+contextBridge.exposeInMainWorld('notoAssets', assetsApi);
 
 /**
  * The user's home directory, used only to shorten a displayed path to a leading

@@ -34,6 +34,7 @@ import { createOriginPlugin, getBlockOrigins, rebaseOrigins } from './origin-plu
 import { notoInputRules, type InputRuleOptions } from './input-rules';
 import { EDITOR_COMMANDS, notoKeymap } from './keymap';
 import { activeNodePlugin } from './active-node-plugin';
+import { imageFromTransfer } from './image-drop';
 import { alertPlugin } from './alert-plugin';
 import { typoraMarksPlugin } from './typora-marks-plugin';
 import { typewriterPlugin } from './typewriter-plugin';
@@ -92,6 +93,20 @@ export interface NotoEditorOptions extends Omit<InputRuleOptions, 'smartQuotes' 
   readonly smartQuotes?: boolean;
   readonly smartDashes?: boolean;
   readonly smartEllipsis?: boolean;
+  /**
+   * Hands pasted or dropped picture bytes to main, which decides where they go.
+   *
+   * Absent means a picture cannot be pasted, which is what a test harness with
+   * no main process wants: the paste falls through to ProseMirror's own
+   * handling rather than failing.
+   */
+  readonly onWriteImage?: (bytes: Uint8Array) => Promise<InsertedImage | null>;
+}
+
+/** What main says it wrote: the text for the brackets, and the alt for it. */
+export interface InsertedImage {
+  readonly reference: string;
+  readonly alt: string;
 }
 
 export class NotoEditor implements NotoEditorPort {
@@ -101,6 +116,9 @@ export class NotoEditor implements NotoEditorPort {
   private typewriter = false;
   private autoPair = true;
   private activeBlock = -1;
+  /* Bumped by every change, so a picture that arrives after the document moved
+     under it is put where the caret is now rather than at a stale offset. */
+  private docVersion = 0;
   private imageContext: ImageContext;
   /** The pictures on screen, so a changed context can redraw them and nothing else. */
   private readonly imageViews = new Set<Refreshable>();
@@ -131,6 +149,11 @@ export class NotoEditor implements NotoEditorPort {
       attributes: { spellcheck: String(this.options.spellCheck ?? true) },
       // What leaves on the clipboard is the markdown, not the words without it.
       clipboardTextSerializer: (slice) => sliceToMarkdown(slice),
+      handlePaste: (view, event) => this.handleTransfer(view, event.clipboardData, null),
+      handleDrop: (view, event) => {
+        const at = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? null;
+        return this.handleTransfer(view, (event as DragEvent).dataTransfer, at);
+      },
       nodeViews: this.nodeViews(),
     });
     // The first count is for the document as opened, not for a change to it.
@@ -199,12 +222,101 @@ export class NotoEditor implements NotoEditorPort {
 
   private countTimer: ReturnType<typeof setTimeout> | null = null;
 
+  /**
+   * A paste or a drop that carries a picture.
+   *
+   * Returns true only when this took the event over. Everything else falls
+   * through to ProseMirror, which handles ordinary text and HTML correctly and
+   * should go on doing so.
+   *
+   * The write is asynchronous and the insertion happens after it, so the
+   * position is captured now and used later only if the document has not moved
+   * in between. That is the whole reason `docVersion` exists.
+   */
+  private handleTransfer(view: EditorView, data: DataTransfer | null, dropAt: number | null): boolean {
+    const found = imageFromTransfer(data);
+    if (!found) return false;
+
+    const at = dropAt ?? view.state.selection.from;
+    if (!this.canInsertImageAt(view, at)) {
+      // Inside a fence or display maths the text is literal source and takes no
+      // inline node at all, so say why rather than dropping the paste silently.
+      this.options.onError?.('A picture cannot go here.');
+      return true;
+    }
+
+    if (found.kind === 'remote') {
+      this.insertImage({ reference: found.href, alt: '' }, at, this.docVersion);
+      return true;
+    }
+    if (!this.options.onWriteImage) return false;
+
+    const version = this.docVersion;
+    void (async () => {
+      try {
+        const bytes = new Uint8Array(await found.file.arrayBuffer());
+        const written = await this.options.onWriteImage?.(bytes);
+        if (written) this.insertImage(written, at, version);
+      } catch {
+        this.options.onError?.('That picture could not be read.');
+      }
+    })();
+    return true;
+  }
+
+  /** Whether an inline picture is allowed at `at`, which a fence does not allow. */
+  private canInsertImageAt(view: EditorView, at: number): boolean {
+    const $at = view.state.doc.resolve(at);
+    return $at.parent.type.spec.code !== true
+      && $at.parent.canReplaceWith($at.index(), $at.index(), notoSchema.nodes.image);
+  }
+
+  /**
+   * Put the picture in.
+   *
+   * When the document changed while the bytes were being written, the captured
+   * offset now points at different text, so the caret is used instead. Both are
+   * better than writing into the middle of a word the reader has since typed.
+   */
+  private insertImage(image: InsertedImage, at: number, version: number): void {
+    const view = this.view;
+    if (!view) return;
+    const target = version === this.docVersion ? at : view.state.selection.from;
+    if (!this.canInsertImageAt(view, target)) {
+      this.options.onError?.('A picture cannot go here.');
+      return;
+    }
+    const node = notoSchema.nodes.image.create({
+      src: image.reference,
+      alt: image.alt,
+      title: null,
+      referenceType: null,
+      identifier: '',
+      label: '',
+    });
+    // Replacing the selection when the caret is where the picture goes, so
+    // pasting over selected text behaves the way pasting anything else does.
+    const transaction = target === view.state.selection.from
+      ? view.state.tr.replaceSelectionWith(node, false)
+      : view.state.tr.insert(target, node);
+    view.dispatch(transaction.scrollIntoView());
+    view.focus();
+  }
+
+  /** Insert a picture main already wrote, for the Insert Image menu command. */
+  insertWrittenImage(image: InsertedImage): void {
+    const view = this.view;
+    if (!view) return;
+    this.insertImage(image, view.state.selection.from, this.docVersion);
+  }
+
   private apply(transaction: Transaction): void {
     const view = this.view;
     if (!view) return;
     view.updateState(view.state.apply(transaction));
     this.reportActiveBlock();
     if (!transaction.docChanged) return;
+    this.docVersion += 1;
     this.refreshDirty();
     // Every change, not only the transition into dirty. Automatic saving has to
     // debounce against typing, and a flag that flips once at the first

@@ -16,13 +16,14 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   SETTING_RANGES,
+  type ImageDestinationV1,
   type NotoNumericSetting,
   type NotoSettingsV1,
   type NotoTheme,
   type WidthModeV1,
 } from '../shared/settings/v1/contracts';
 
-export type PreferencesSection = 'appearance' | 'editor' | 'markdown' | 'plugins';
+export type PreferencesSection = 'appearance' | 'editor' | 'markdown' | 'images' | 'plugins';
 
 export interface PreferencesProps {
   readonly open: boolean;
@@ -53,6 +54,7 @@ function SectionGlyph({ name }: { name: PreferencesSection }) {
     appearance: 'M8 2.5a5.5 5.5 0 1 0 0 11c.7 0 1.2-.5 1.2-1.1 0-.3-.1-.6-.3-.8-.2-.2-.3-.4-.3-.7 0-.6.5-1.1 1.1-1.1h1.3A3.5 3.5 0 0 0 14 6.3C14 4 11.3 2.5 8 2.5Z M5.5 6.5h.01 M8 5h.01 M10.5 6.5h.01',
     editor: 'M2.5 12.5h11 M4 9.8 10.2 3.6a1.4 1.4 0 0 1 2 2L6 11.8l-2.6.6Z',
     markdown: 'M2.5 4.5h11v7h-11z M4.5 10V6.5l2 2 2-2V10 M11 6.5V10 M9.8 8.6 11 10l1.2-1.4',
+    images: 'M2.5 3.5h11v9h-11z M2.5 10.2 5.9 7.4l2.4 2 2-1.7 3.2 2.7 M10.4 5.9h.01',
     plugins: 'M6 2.5v2.2a1.3 1.3 0 1 1-2.6 0V2.5 M2.5 6h11v7.5h-11z M2.5 6V3.4h1',
   };
   return (
@@ -67,6 +69,7 @@ const SECTIONS: readonly { value: PreferencesSection; label: string; keywords: s
   { value: 'appearance', label: 'Appearance', keywords: 'theme dark light text size line height width rail stylesheet css font' },
   { value: 'editor', label: 'Editor', keywords: 'spell check images brackets pairs focus typewriter save autosave line numbers guides' },
   { value: 'markdown', label: 'Markdown', keywords: 'smart quotes dashes ellipsis punctuation typography syntax' },
+  { value: 'images', label: 'Images', keywords: 'image picture paste drop screenshot assets folder copy relative path escape url' },
   { value: 'plugins', label: 'Plugins', keywords: 'plugin extension enable disable palette' },
 ];
 
@@ -167,6 +170,91 @@ function ThemeFile({ settings, onChange, problem, onReload }: {
           disabled={!settings.customCssPath} onClick={onReload}>Reload</button>
       </span>
       {problem && <p className="pref-problem" role="status">{problem}</p>}
+    </div>
+  );
+}
+
+
+/**
+ * Where a pasted picture goes.
+ *
+ * A column rather than a segmented control, and each row shows the reference
+ * it would actually write. Four folder rules described in words are four things
+ * to guess at; the same four with `./assets/image-2026….png` under them are a
+ * choice the reader can make without pasting a picture to find out. The example
+ * is the point of this control.
+ */
+function ImageDestination({ value, custom, onPick }: {
+  value: ImageDestinationV1;
+  custom: string;
+  onPick: (value: ImageDestinationV1) => void;
+}) {
+  const trimmed = custom.trim() === '' ? './images' : custom.trim();
+  const options: readonly { value: ImageDestinationV1; label: string; example: string }[] = [
+    { value: 'assets', label: 'An assets folder beside the note', example: './assets/image-20260902.png' },
+    { value: 'note-assets', label: 'A folder named after the note', example: './My Note.assets/image-20260902.png' },
+    { value: 'folder', label: 'Beside the note itself', example: './image-20260902.png' },
+    { value: 'custom', label: 'A folder I choose', example: `${trimmed.replace(/\/+$/, '')}/image-20260902.png` },
+  ];
+  return (
+    <div className="pref-row pref-stack">
+      <span className="pref-label">
+        When a picture is pasted or dropped
+        <small>The file is copied into the vault and the note refers to it by a relative path, so the note and its pictures travel together.</small>
+      </span>
+      <div className="pref-cards" role="radiogroup" aria-label="Where a pasted picture is written">
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={value === option.value}
+            data-testid={`image-destination-${option.value}`}
+            className={value === option.value ? 'pref-card is-on' : 'pref-card'}
+            onClick={() => onPick(option.value)}
+          >
+            <span className="pref-card-mark" aria-hidden="true" />
+            <span className="pref-card-text">
+              {option.label}
+              <code>{option.example}</code>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** The folder the `custom` rule writes into. Relative to the note unless absolute. */
+function ImageFolder({ settings, onChange }: {
+  settings: NotoSettingsV1;
+  onChange: (patch: Partial<NotoSettingsV1>) => void;
+}) {
+  const [draft, setDraft] = useState(settings.imageCustomFolder);
+  useEffect(() => { setDraft(settings.imageCustomFolder); }, [settings.imageCustomFolder]);
+  const commit = () => {
+    const next = draft.trim();
+    if (next !== settings.imageCustomFolder) onChange({ imageCustomFolder: next });
+  };
+  return (
+    <div className="pref-row pref-stack">
+      <span className="pref-label">
+        The folder
+        <small>Relative to the note, or an absolute path. It has to be inside the open folder: a picture written outside it is one the app then refuses to show.</small>
+      </span>
+      <span className="pref-file">
+        <input
+          type="text"
+          spellCheck={false}
+          data-testid="setting-image-folder"
+          placeholder="./images"
+          value={draft}
+          aria-label="Image folder"
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={commit}
+          onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commit(); } }}
+        />
+      </span>
     </div>
   );
 }
@@ -441,6 +529,33 @@ export function Preferences({
                   checked={settings.smartEllipsis}
                   onChange={(value) => onChange({ smartEllipsis: value })}
                   testId="setting-smart-ellipsis"
+                />
+              </>
+            )}
+
+            {section === 'images' && (
+              <>
+                <ImageDestination
+                  value={settings.imageDestination}
+                  custom={settings.imageCustomFolder}
+                  onPick={(value) => onChange({ imageDestination: value })}
+                />
+                {settings.imageDestination === 'custom' && (
+                  <ImageFolder settings={settings} onChange={onChange} />
+                )}
+                <Switch
+                  label="Escape the address"
+                  hint="Percent-encode the reference, so a space or a Chinese character in a folder name still resolves. Off writes the name as it is, which other editors read too."
+                  checked={settings.imageEscapeUrl}
+                  onChange={(value) => onChange({ imageEscapeUrl: value })}
+                  testId="setting-image-escape"
+                />
+                <Switch
+                  label="Load images from the web"
+                  hint="Off shows a placeholder for a `https://` picture and leaves the note untouched."
+                  checked={settings.remoteImages}
+                  onChange={(value) => onChange({ remoteImages: value })}
+                  testId="setting-remote-images-image-pane"
                 />
               </>
             )}
