@@ -1065,6 +1065,25 @@ Typora's is a native checkbox fixed at 12 pixels, which is 0.8em at its own
 following the setting afterwards, which Typora's does not. Checked at 15 and
 at 22.
 
+## 57. The callout, measured. It already matched.
+
+Typora turns out to render GitHub alerts natively, as a `div.md-alert` rather
+than a quote, so there was something to measure against after all. Every value
+lines up: the left border is three pixels of the same blue, the tint is the
+same colour at seven per cent, the padding, the radius and both margins are
+the same once the base size is taken out, and the label is the same weight in
+the same colour with the same letter spacing and an icon the same size.
+
+One difference, kept on purpose. Typora writes the label in lower case, "note",
+because it prints the marker's own text. This capitalises it. The label's job
+is to name the kind, GitHub capitalises it where the syntax comes from, and a
+capitalised word reads as a label where a lower case one reads as a stray word.
+
+A sweep for other sizes fixed in pixels where the document's own rule wants
+`em` came back clean: everything else in pixels is a label the editor speaks
+rather than part of the note, the alert's own title chip among them, and those
+are meant to hold their size.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
