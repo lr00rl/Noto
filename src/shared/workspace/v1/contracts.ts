@@ -40,6 +40,7 @@ export const WORKSPACE_CHANNELS = {
   reveal: 'noto:v1:workspace:reveal',
   openExternal: 'noto:v1:workspace:open-external',
   newFile: 'noto:v1:workspace:new-file',
+  treeMenu: 'noto:v1:workspace:tree-menu',
   searchContent: 'noto:v1:workspace:search-content',
 } as const;
 
@@ -269,6 +270,29 @@ export interface WorkspaceNewFileReplyV1 {
   readonly path: string | null;
 }
 
+/**
+ * Show the menu for a row of the file tree.
+ *
+ * The renderer names the row it was pressed on and main draws the menu, so
+ * every action on it runs where the filesystem is. The path is re-resolved and
+ * checked against the open folder before anything is shown: a renderer that
+ * named a path outside it gets nothing.
+ */
+export interface WorkspaceTreeMenuRequestV1 extends WorkspaceRequestV1 {
+  readonly path: string;
+  readonly kind: 'file' | 'directory';
+}
+
+export interface WorkspaceTreeMenuReplyV1 {
+  readonly version: typeof NOTO_WORKSPACE_VERSION;
+  /**
+   * Whether the row was one main will draw a menu for. The answer is sent
+   * before the menu opens, because a native menu holds the input loop until
+   * it is dismissed and a reply behind it would not arrive until then.
+   */
+  readonly accepted: boolean;
+}
+
 /** One line of a file that holds the query. */
 export interface WorkspaceContentLineV1 {
   readonly line: string;
@@ -360,5 +384,6 @@ export interface NotoWorkspaceApiV1 {
   reveal(request: WorkspaceRevealRequestV1): Promise<WorkspaceResultV1<WorkspaceRevealReplyV1>>;
   openExternal(request: WorkspaceOpenExternalRequestV1): Promise<WorkspaceResultV1<WorkspaceOpenExternalReplyV1>>;
   newFile(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceNewFileReplyV1>>;
+  treeMenu(request: WorkspaceTreeMenuRequestV1): Promise<WorkspaceResultV1<WorkspaceTreeMenuReplyV1>>;
   searchContent(request: WorkspaceContentRequestV1): Promise<WorkspaceResultV1<WorkspaceContentReplyV1>>;
 }

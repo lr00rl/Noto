@@ -36,6 +36,8 @@ import type {
   WorkspaceFolderReplyV1,
   WorkspaceFolderRequestV1,
   WorkspaceNewFileReplyV1,
+  WorkspaceTreeMenuReplyV1,
+  WorkspaceTreeMenuRequestV1,
   WorkspaceOpenExternalReplyV1,
   WorkspaceOpenExternalRequestV1,
 } from './contracts';
@@ -262,6 +264,22 @@ export function isWorkspaceNewFileReplyV1(value: unknown): value is WorkspaceNew
 
 export const isWorkspaceNewFileResultV1 = (value: unknown, id: string): value is WorkspaceResultV1<WorkspaceNewFileReplyV1> =>
   isResult(value, id, isWorkspaceNewFileReplyV1);
+
+export function isWorkspaceTreeMenuRequestV1(value: unknown): value is WorkspaceTreeMenuRequestV1 {
+  return record(value) && exact(value, ['version', 'requestId', 'path', 'kind'])
+    && value.version === 1
+    && typeof value.requestId === 'string' && requestId.test(value.requestId)
+    && typeof value.path === 'string' && value.path.length > 0 && value.path.length <= 4096
+    && (value.kind === 'file' || value.kind === 'directory');
+}
+
+export function isWorkspaceTreeMenuReplyV1(value: unknown): value is WorkspaceTreeMenuReplyV1 {
+  return record(value) && exact(value, ['version', 'accepted'])
+    && value.version === 1 && typeof value.accepted === 'boolean';
+}
+
+export const isWorkspaceTreeMenuResultV1 = (value: unknown, id: string): value is WorkspaceResultV1<WorkspaceTreeMenuReplyV1> =>
+  isResult(value, id, isWorkspaceTreeMenuReplyV1);
 
 export function isWorkspaceRevealReplyV1(value: unknown): value is WorkspaceRevealReplyV1 {
   return record(value) && exact(value, ['version', 'revealed'])

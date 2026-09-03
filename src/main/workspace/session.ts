@@ -12,8 +12,8 @@
  */
 
 import path from 'node:path';
-import { stat, writeFile } from 'node:fs/promises';
-import { BrowserWindow, dialog, shell } from 'electron';
+import { realpath, stat, writeFile } from 'node:fs/promises';
+import { BrowserWindow, Menu, clipboard, dialog, shell, type MenuItemConstructorOptions } from 'electron';
 import type { FileTruthOpenReplyV1 } from '../../shared/file-truth/v1/contracts';
 import { openableExternalUrl } from '../../shared/workspace/v1/validate';
 import {
@@ -22,6 +22,7 @@ import {
   type WorkspaceTabV1,
   type WorkspaceFolderEventV1,
   type WorkspaceNewFileReplyV1,
+  type WorkspaceTreeMenuReplyV1,
   type WorkspaceOpenExternalReplyV1,
 } from '../../shared/workspace/v1/contracts';
 import type {
@@ -30,7 +31,8 @@ import type {
 import type { StructuredLogger } from '../logger';
 import type { FileTruthStoreV1 } from '../file-truth/v1/file-truth-store';
 import type { RecentFiles } from './recent-files';
-import { isEditableFile, listDirectory, type FileTreeEntryV1 } from './file-tree';
+import { isEditableFile, listDirectory, type FileTreeEntryV1, isInside } from './file-tree';
+import { buildTreeRowMenu } from './tree-row-menu';
 import { buildFileIndex } from './file-index';
 import { searchContent } from './content-search';
 
@@ -296,6 +298,42 @@ export class WorkspaceSession {
     const event = this.folderEvent();
     this.send(WORKSPACE_CHANNELS.folderChanged, event);
     return event;
+  }
+
+  /**
+   * Draw the menu for a row of the file tree.
+   *
+   * The renderer names the row; everything the menu does runs here, where the
+   * filesystem is. The path is resolved through any symlink and checked
+   * against the open folder first, because a renderer naming a path is a
+   * renderer asking about somewhere, and only somewhere inside the folder the
+   * reader opened is an answerable question.
+   */
+  async treeMenu(target: string, kind: 'file' | 'directory'): Promise<WorkspaceTreeMenuReplyV1> {
+    const window = this.getWindow();
+    const root = this.folderRoot;
+    if (!window || root === null) return { version: NOTO_WORKSPACE_VERSION, accepted: false };
+
+    let real: string;
+    let realRoot: string;
+    try {
+      real = await realpath(path.resolve(target));
+      realRoot = await realpath(root);
+    } catch {
+      return { version: NOTO_WORKSPACE_VERSION, accepted: false };
+    }
+    if (!isInside(realRoot, real)) {
+      this.logger.log('tree_menu_refused', {});
+      return { version: NOTO_WORKSPACE_VERSION, accepted: false };
+    }
+
+    const items = buildTreeRowMenu(real, kind, {
+      open: (target) => { void this.openPath(target).catch(() => {}); },
+      reveal: (target) => shell.showItemInFolder(target),
+      copyPath: (target) => clipboard.writeText(target),
+    });
+    setImmediate(() => Menu.buildFromTemplate(items).popup({ window }));
+    return { version: NOTO_WORKSPACE_VERSION, accepted: true };
   }
 
   /**

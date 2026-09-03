@@ -84,6 +84,8 @@ import type {
   WorkspaceContentRequestV1,
   WorkspaceRevealReplyV1,
   WorkspaceNewFileReplyV1,
+  WorkspaceTreeMenuReplyV1,
+  WorkspaceTreeMenuRequestV1,
   WorkspaceOpenExternalReplyV1,
   WorkspaceOpenExternalRequestV1,
   WorkspaceRevealRequestV1,
@@ -109,6 +111,8 @@ import {
   isWorkspaceContentRequestV1,
   isWorkspaceContentResultV1,
   isWorkspaceNewFileResultV1,
+  isWorkspaceTreeMenuRequestV1,
+  isWorkspaceTreeMenuResultV1,
   isWorkspaceOpenExternalRequestV1,
   isWorkspaceOpenExternalResultV1,
   isWorkspaceRevealRequestV1,
@@ -329,6 +333,9 @@ const workspaceApi: NotoWorkspaceApiV1 = Object.freeze({
   newFile: (request: WorkspaceRequestV1) => isWorkspaceRequestV1(request)
     ? invokeWorkspace<WorkspaceNewFileReplyV1>(WORKSPACE_CHANNELS.newFile, request, request.requestId, isWorkspaceNewFileResultV1)
     : Promise.resolve(rejectedWorkspace<WorkspaceNewFileReplyV1>('invalid', 'Invalid new file request')),
+  treeMenu: (request: WorkspaceTreeMenuRequestV1) => isWorkspaceTreeMenuRequestV1(request)
+    ? invokeWorkspace<WorkspaceTreeMenuReplyV1>(WORKSPACE_CHANNELS.treeMenu, request, request.requestId, isWorkspaceTreeMenuResultV1)
+    : Promise.resolve(rejectedWorkspace<WorkspaceTreeMenuReplyV1>('invalid', 'Invalid tree menu request')),
   fileIndex: (request: WorkspaceRequestV1) => isWorkspaceRequestV1(request)
     ? invokeWorkspace<WorkspaceIndexReplyV1>(WORKSPACE_CHANNELS.fileIndex, request, request.requestId, isWorkspaceIndexResultV1)
     : Promise.resolve(rejectedWorkspace<WorkspaceIndexReplyV1>('invalid', 'Invalid file index request')),
