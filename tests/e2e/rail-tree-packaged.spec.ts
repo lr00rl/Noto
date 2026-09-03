@@ -108,6 +108,76 @@ test.describe('the rail tree', () => {
     }
   });
 
+  test('hangs its lines from the folder they belong to, and turns the corner', async () => {
+    const { app, page } = await launch('guides');
+    try {
+      await page.getByTestId('tree-directory').first().click();
+      await page.waitForTimeout(200);
+
+      const geometry = await page.evaluate(() => {
+        const level = document.querySelector<HTMLElement>('.tree-vault > .tree-level')!;
+        const glyph = document.querySelector<HTMLElement>('.tree-vault-row svg')!;
+        const glyphBox = glyph.getBoundingClientRect();
+        const last = level.lastElementChild as HTMLElement;
+        return {
+          stemX: level.getBoundingClientRect().left,
+          glyphCentre: glyphBox.left + glyphBox.width / 2,
+          // The stem stops at the last child's top so the corner can finish it.
+          stemStop: level.style.getPropertyValue('--stem-stop'),
+          lastTop: last.offsetTop - level.offsetTop,
+          corner: getComputedStyle(last, '::before').borderBottomLeftRadius,
+          cornerLeft: getComputedStyle(last, '::before').borderLeftWidth,
+        };
+      });
+
+      // The line descends from the middle of the folder it belongs to, rather
+      // than from the blank column beside it.
+      expect(Math.abs(geometry.stemX - geometry.glyphCentre)).toBeLessThan(1);
+      // The last child turns a rounded corner, and the stem stops where that
+      // corner starts rather than being drawn straight over the curve.
+      expect(geometry.corner).not.toBe('0px');
+      expect(geometry.cornerLeft).toBe('1px');
+      expect(parseFloat(geometry.stemStop)).toBeLessThanOrEqual(geometry.lastTop + 1);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('says an empty folder is empty where its first file would have been', async () => {
+    const workspace = path.join(resultRoot, 'empty-folder');
+    await rm(workspace, { recursive: true, force: true });
+    const vault = path.join(workspace, 'vault');
+    await mkdir(path.join(vault, 'hollow'), { recursive: true });
+    await mkdir(path.join(vault, 'full'), { recursive: true });
+    await mkdir(path.join(workspace, 'user-data'), { recursive: true });
+    await writeFile(path.join(vault, 'full', 'note.md'), '# Note\n', 'utf8');
+    const app = await electron.launch({
+      executablePath: packagedExecutable(),
+      args: [`--user-data-dir=${path.join(workspace, 'user-data')}`, vault],
+    });
+    try {
+      const page = await app.firstWindow();
+      await page.setViewportSize({ width: 1100, height: 700 });
+      await page.waitForSelector('[data-testid="file-tree"]', { state: 'visible', timeout: 30_000 });
+      for (const row of await page.getByTestId('tree-directory').all()) await row.click();
+      await expect(page.locator('.tree-empty')).toHaveCount(1);
+
+      const indents = await page.evaluate(() => ({
+        empty: document.querySelector<HTMLElement>('.tree-empty')!.getBoundingClientRect().left,
+        file: document.querySelector<HTMLElement>('.tree-file')!.getBoundingClientRect().left,
+        directory: document.querySelector<HTMLElement>('.tree-level .tree-directory')!.getBoundingClientRect().left,
+      }));
+
+      // It sits exactly where a file inside that folder would sit, not at the
+      // folder's own indent, where it read as a sibling rather than as the
+      // folder's contents.
+      expect(indents.empty).toBe(indents.file);
+      expect(indents.empty).toBeGreaterThan(indents.directory);
+    } finally {
+      await app.close();
+    }
+  });
+
   test('lights only the branch that leads to the note in front', async () => {
     const { app, page } = await launch('lit-branch');
     try {
