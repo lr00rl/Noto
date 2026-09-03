@@ -321,13 +321,16 @@ async function run(): Promise<void> {
      * leaves the rail obeying its own setting instead of springing open.
      */
     window.webContents.once('did-finish-load', () => {
-      void (async () => {
-        await recentFolders.load();
-        const [last] = recentFolders.list();
-        if (!last) return;
-        await session?.openFolderPath(last.path, false)
-          .catch(() => logger.log('workspace_restore_folder_failed', {}));
-      })();
+      /*
+       * Read from the list already in memory, not re-read from disk. The
+       * renderer asks for the current folder as it mounts, and an await here
+       * put the restore after that question was answered, so main had the
+       * folder and the window never heard about it.
+       */
+      const [last] = recentFolders.list();
+      if (!last) return;
+      void session?.openFolderPath(last.path, false)
+        .catch(() => logger.log('workspace_restore_folder_failed', {}));
     });
   }
 
