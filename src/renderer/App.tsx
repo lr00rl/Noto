@@ -1283,6 +1283,18 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const reloadFromDiskRef = useRef(reloadFromDisk);
   reloadFromDiskRef.current = reloadFromDisk;
 
+  /**
+   * One step round the ring of page widths.
+   *
+   * Reached from the View menu and from Command and a bracket, which the editor
+   * offers when the caret is not in a list, so the two cannot drift apart.
+   */
+  const stepWidth = useCallback((direction: 1 | -1) => {
+    changeSettings({ widthMode: stepWidthMode(settingsRef.current.widthMode, direction) });
+  }, [changeSettings]);
+  const stepWidthRef = useRef(stepWidth);
+  stepWidthRef.current = stepWidth;
+
   /** Reading rather than writing, for the status line to say so. */
   const [readOnly, setReadOnly] = useState(false);
 
@@ -1523,10 +1535,10 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       // Three modes in a ring, as in the plugin this is ported from: the chord
       // changes the shape of the page in one press and never lands on nothing.
       case 'widen':
-        changeSettings({ widthMode: stepWidthMode(settingsRef.current.widthMode, 1) });
+        stepWidthRef.current(1);
         break;
       case 'narrow':
-        changeSettings({ widthMode: stepWidthMode(settingsRef.current.widthMode, -1) });
+        stepWidthRef.current(-1);
         break;
       case 'find':
         setPrefs((current) => ({ ...current, open: false }));
@@ -1805,6 +1817,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                 onFollowLink={(href) => followLinkRef.current(href)}
                 onCountChanged={(next) => countRef.current(doc.document.documentId, next)}
                 onWriteImage={writeImage}
+                onWidthStep={(direction) => stepWidthRef.current(direction)}
                 onReady={(editor) => {
                   editorsRef.current.set(doc.document.documentId, editor);
                   if (doc.document.documentId === activeIdRef.current) {

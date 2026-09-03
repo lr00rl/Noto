@@ -327,8 +327,29 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
        * indentation, and a native accelerator is handled before the document
        * sees the key, so indenting a list item did nothing at all.
        */
-      command('Wider', undefined, 'widen'),
-      command('Narrower', undefined, 'narrow'),
+      /*
+       * Shown, not registered.
+       *
+       * A native accelerator is handled before the document sees the key, so
+       * claiming Command and a bracket here would kill list indentation, which
+       * is what the same pair means inside a list. The editor decides between
+       * the two by where the caret is; these items only say so, which is how
+       * the chord stays discoverable without being stolen.
+       */
+      {
+        id: 'widen',
+        label: 'Wider',
+        accelerator: 'CmdOrCtrl+]',
+        registerAccelerator: false,
+        click: () => sendCommand('widen'),
+      },
+      {
+        id: 'narrow',
+        label: 'Narrower',
+        accelerator: 'CmdOrCtrl+[',
+        registerAccelerator: false,
+        click: () => sendCommand('narrow'),
+      },
       { type: 'separator' },
       // Zoom sits on Shift as it does in Typora, which leaves plain Command
       // with the plus and the minus for walking a block up and down the

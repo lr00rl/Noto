@@ -23,14 +23,23 @@ async function launch(name: string, contents: string): Promise<{
   return { app, page, file };
 }
 
-/** Click until the selection is genuinely inside the target, then stop. */
+/**
+ * Click until the editor agrees the caret is in the target, then stop.
+ *
+ * Checking the browser's own selection is not enough, and that is what made
+ * this test fail about one run in four. The click moves the DOM selection at
+ * once and ProseMirror learns of it from a `selectionchange` a moment later, so
+ * between the two the editor still holds the position it had before, and a
+ * command run in that window acts on the old one: the second footnote's
+ * reference landed inside the first footnote's definition.
+ *
+ * The editor marks the block the caret is in, and that mark is set from its own
+ * state, so waiting for it is waiting for the thing that actually matters.
+ */
 async function caretIn(page: Page, target: ReturnType<Page['locator']>): Promise<void> {
   await expect.poll(async () => {
     await placeCaret(page, target);
-    return target.evaluate((node) => {
-      const anchor = document.getSelection()?.anchorNode ?? null;
-      return anchor !== null && node.contains(anchor);
-    });
+    return target.evaluate((node) => node.classList.contains('noto-active-block'));
   }, { timeout: 10_000 }).toBe(true);
 }
 
