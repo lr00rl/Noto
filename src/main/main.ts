@@ -306,6 +306,36 @@ async function run(): Promise<void> {
       if (folder) void session?.openFolderPath(folder).catch(() => logger.log('workspace_open_folder_failed', {}));
       if (target) void session?.openPath(target).then(refreshMenu).catch(reportOpenFailure);
     });
+  } else {
+    /*
+     * Nothing named, so the folder from last time comes back.
+     *
+     * Launching from the dock gave an empty window and an invitation to open a
+     * folder, to somebody who has opened the same one every day. The folder
+     * only: which note was in front is not restored, because reopening a
+     * document is a change to it as far as the recovery journal is concerned
+     * and starting a session by touching a file nobody asked for is not worth
+     * the convenience.
+     *
+     * Not marked as chosen, because the reader is not choosing it now. That
+     * leaves the rail obeying its own setting instead of springing open.
+     */
+    window.webContents.once('did-finish-load', () => {
+      /*
+       * Loaded again here rather than trusted from startup. The window can
+       * finish loading before the read of the recent folders that startup
+       * began has come back, and then the list is empty and there is nothing
+       * to restore. The renderer catches a folder that arrives after it has
+       * mounted: it attaches its listener before it asks.
+       */
+      void (async () => {
+        await recentFolders.load();
+        const [last] = recentFolders.list();
+        if (!last) return;
+        await session?.openFolderPath(last.path, false)
+          .catch(() => logger.log('workspace_restore_folder_failed', {}));
+      })();
+    });
   }
 
   app.on('activate', () => {
