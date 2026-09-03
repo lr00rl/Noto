@@ -107,6 +107,36 @@ test.describe('the rail tree', () => {
       await app.close();
     }
   });
+
+  test('lights only the branch that leads to the note in front', async () => {
+    const { app, page } = await launch('lit-branch');
+    try {
+      // Open a note, then expand a folder that has nothing to do with it.
+      await page.getByTestId('tree-file').first().click();
+      await page.waitForSelector('[data-testid="noto-editor"]', { state: 'visible' });
+      await page.getByTestId('tree-directory').first().click();
+      await expect(page.getByTestId('tree-directory')).not.toHaveCount(1);
+
+      const lit = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.tree-body .tree-level')]
+        .map((level) => ({
+          // The lit length is what the accent stem is drawn to.
+          lit: getComputedStyle(level).backgroundSize.split(',')[0].trim(),
+          onPath: Boolean(level.querySelector(
+            ':scope > .tree-node-active, :scope > .tree-node:has(> .tree-on-path)')),
+        })));
+
+      // These are custom properties, so a level nested inside a lit one used to
+      // inherit its length and draw a stub of accent against its own first
+      // child: a branch highlight pointing at a file nobody had opened.
+      expect(lit.length).toBeGreaterThan(1);
+      for (const level of lit) {
+        if (!level.onPath) expect(level.lit).toBe('1px 0px');
+      }
+      expect(lit.some((level) => level.onPath && level.lit !== '1px 0px')).toBe(true);
+    } finally {
+      await app.close();
+    }
+  });
 });
 
 test.describe('a note opened on its own', () => {
