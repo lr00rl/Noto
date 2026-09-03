@@ -38,10 +38,9 @@ test.describe('launching with nothing named', () => {
       // The rail obeys its own setting rather than opening itself, so the tree
       // is asked for before it is looked at.
       await expect(back.getByTestId('file-tree')).toBeHidden();
-      await back.evaluate(() => {
-        const menu = document.querySelector('[data-testid="sidebar-toggle"]') as HTMLElement | null;
-        menu?.click();
-      });
+      // A click that waits for the button, rather than one fired at whatever
+      // happens to be in the document at that instant.
+      await back.getByTestId('sidebar-toggle').click();
       console.log('DIAG shell: ' + (await back.locator('.app-shell').innerText()).replace(/\n/g, ' | ').slice(0, 200));
       console.log('DIAG recent: ' + (await readFile(path.join(userData, 'recent-folders.json'), 'utf8').catch(() => 'missing')).slice(0, 200));
       await expect(back.getByTestId('tree-vault')).toContainText('vault');
