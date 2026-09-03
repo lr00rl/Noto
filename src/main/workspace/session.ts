@@ -32,6 +32,7 @@ import type { StructuredLogger } from '../logger';
 import type { FileTruthStoreV1 } from '../file-truth/v1/file-truth-store';
 import type { RecentFiles } from './recent-files';
 import { isEditableFile, listDirectory, type FileTreeEntryV1, isInside } from './file-tree';
+import { buildTreeRowMenu } from './tree-row-menu';
 import { buildFileIndex } from './file-index';
 import { searchContent } from './content-search';
 
@@ -326,21 +327,11 @@ export class WorkspaceSession {
       return { version: NOTO_WORKSPACE_VERSION, accepted: false };
     }
 
-    const items: MenuItemConstructorOptions[] = [];
-    if (kind === 'file') {
-      items.push({ label: 'Open', click: () => { void this.openPath(real).catch(() => {}); } });
-    }
-    items.push({
-      label: process.platform === 'darwin' ? 'Reveal in Finder'
-        : process.platform === 'win32' ? 'Reveal in File Explorer' : 'Reveal in File Manager',
-      click: () => shell.showItemInFolder(real),
+    const items = buildTreeRowMenu(real, kind, {
+      open: (target) => { void this.openPath(target).catch(() => {}); },
+      reveal: (target) => shell.showItemInFolder(target),
+      copyPath: (target) => clipboard.writeText(target),
     });
-    items.push({ label: 'Copy Path', click: () => clipboard.writeText(real) });
-    /*
-     * Opened after this call has answered. A native menu holds the input loop
-     * until somebody dismisses it, so a reply sent behind it would not reach
-     * the renderer until then, and nothing on either side can proceed.
-     */
     setImmediate(() => Menu.buildFromTemplate(items).popup({ window }));
     return { version: NOTO_WORKSPACE_VERSION, accepted: true };
   }

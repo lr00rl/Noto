@@ -1100,6 +1100,27 @@ The nested indent is the one place the vault has no majority: four spaces
 serializer picks, half the lists it touches will move. It picks the minimum,
 which is at least consistent.
 
+## 59. Right clicking a row of the tree did nothing. Closed.
+
+Every other file tree answers a right click and this one did not, though the
+editor's context menu already carried a comment saying the rail had its own
+answer. It did not.
+
+The renderer names the row it was pressed on and main does the rest. The path
+is resolved through any symlink and checked against the open folder before
+anything is drawn, so a renderer naming a path outside it gets nothing: a
+sibling of the folder, a path that climbs out with `..` and an absolute path
+elsewhere are all turned away, and that is driven in a packaged test.
+
+A file offers Open, Reveal and Copy Path; a folder offers the last two,
+because a click already opens it. Every action takes the path the menu was
+built with and none of them reads it again.
+
+What a row offers is read from the template rather than the screen, in a unit
+test, for the reason the editor's own context menu is tested the same way: a
+native menu holds the input loop until somebody dismisses it, and no automated
+pointer here can reach one, so a test that opens one hangs the run.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
