@@ -953,6 +953,10 @@
 
 .tree-level {
   --tree-indent: 13px;
+  /* How far down a row the arm crosses. The script that sizes the stem reads
+     the same number, so the stem ends exactly on the arm rather than a few
+     pixels past it. */
+  --tree-arm: 13px;
   padding-left: var(--tree-indent);
   margin-left: 8px;
   /* Two stems on top of each other: the branch to the file in front in the
@@ -964,7 +968,13 @@
   background-image:
     linear-gradient(var(--tree-accent), var(--tree-accent)),
     linear-gradient(var(--tree-line), var(--tree-line));
-  background-size: 1px var(--path-stop, 0px), 1px 100%;
+  /* The quiet stem stops at the last child's arm rather than running to the
+     bottom of the level and being covered up again. It was drawn full height
+     with a rounded corner over it and a strip of panel colour masking the
+     overshoot, and the three of them met at a place where the corner's
+     antialiasing showed past the mask as a nick in the line. Two straight
+     lines meeting is the same corner with nothing to go wrong. */
+  background-size: 1px var(--path-stop, 0px), 1px var(--stem-stop, 100%);
   background-repeat: no-repeat;
   background-position: left top, left top;
 }
@@ -986,27 +996,8 @@
   left: calc(var(--tree-indent) * -1);
   top: 0;
   width: var(--tree-indent);
-  height: 13px;
+  height: var(--tree-arm);
   border-bottom: 1px solid var(--tree-line);
-  pointer-events: none;
-}
-
-/* The last sibling ends the stem with a corner. The mask covers the gradient
-   below the corner, and the radius is what stops it reading as a bracket. */
-.tree-level:not(.is-root) > .tree-node:last-child::before {
-  border-left: 1px solid var(--tree-line);
-  border-bottom-left-radius: 6px;
-  height: 13px;
-}
-
-.tree-level:not(.is-root) > .tree-node:last-child::after {
-  content: '';
-  position: absolute;
-  left: calc(var(--tree-indent) * -1 - 1px);
-  top: 13px;
-  bottom: 0;
-  width: 2px;
-  background: var(--panel);
   pointer-events: none;
 }
 
