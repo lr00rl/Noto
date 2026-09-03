@@ -1211,6 +1211,32 @@
   white-space: nowrap;
 }
 
+/*
+ * The field a row wears while it is being named.
+ *
+ * Sized and spaced to sit exactly where the name was, so the row does not jump
+ * when the field appears and the reader's eye stays on the word it was on. It
+ * takes the width that is left rather than a fixed one, because a rail the
+ * reader has narrowed is the case where a fixed width would overflow.
+ */
+.tree-name-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--paper);
+  padding: 1px 4px;
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.2;
+}
+
+.tree-name-field:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
 /* The spine, and the whole job of the accent in this app: it marks where you
    are and nothing else. A straight bar with its own rounded caps rather than an
    inset shadow, because an inset shadow follows the row's border radius and

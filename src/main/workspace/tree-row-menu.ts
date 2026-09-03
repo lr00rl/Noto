@@ -17,6 +17,11 @@ import type { MenuItemConstructorOptions } from 'electron';
 export interface TreeRowActions {
   readonly open: (target: string) => void;
   readonly newNote: (directory: string) => void;
+  readonly newFolder: (directory: string) => void;
+  /** Asks the renderer for a name, which is where the row and the caret are. */
+  readonly rename: (target: string) => void;
+  readonly duplicate: (target: string) => void;
+  readonly trash: (target: string, kind: 'file' | 'directory') => void;
   readonly reveal: (target: string) => void;
   readonly copyPath: (target: string) => void;
 }
@@ -26,6 +31,13 @@ export function revealLabel(platform: NodeJS.Platform): string {
   if (platform === 'darwin') return 'Reveal in Finder';
   if (platform === 'win32') return 'Reveal in File Explorer';
   return 'Reveal in File Manager';
+}
+
+/** What the system calls its trash, which differs on each of them. */
+export function trashLabel(platform: NodeJS.Platform): string {
+  if (platform === 'darwin') return 'Move to Trash';
+  if (platform === 'win32') return 'Move to Recycle Bin';
+  return 'Move to Rubbish Bin';
 }
 
 export function buildTreeRowMenu(
@@ -43,8 +55,22 @@ export function buildTreeRowMenu(
     // menu's New Note goes and is rarely the folder they are looking at.
     items.push({ id: 'tree-new-note', label: 'New Note Here', click: () => actions.newNote(target) });
   }
+  if (kind === 'directory') {
+    items.push({ id: 'tree-new-folder', label: 'New Folder Here', click: () => actions.newFolder(target) });
+  }
+  items.push({ type: 'separator' });
+  items.push({ id: 'tree-rename', label: 'Rename…', click: () => actions.rename(target) });
+  items.push({ id: 'tree-duplicate', label: 'Duplicate', click: () => actions.duplicate(target) });
   items.push({ type: 'separator' });
   items.push({ id: 'tree-reveal', label: revealLabel(platform), click: () => actions.reveal(target) });
   items.push({ id: 'tree-copy-path', label: 'Copy Path', click: () => actions.copyPath(target) });
+  items.push({ type: 'separator' });
+  // Last, and alone below a rule. It is the one action here with no undo, so
+  // it is the hardest to hit by accident and the furthest from Open.
+  items.push({
+    id: 'tree-trash',
+    label: trashLabel(platform),
+    click: () => actions.trash(target, kind),
+  });
   return items;
 }

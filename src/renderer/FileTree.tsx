@@ -31,6 +31,75 @@ export interface FileTreeProps {
    * gives. An action belongs on the thing it acts on.
    */
   readonly vaultMenu?: ReactNode;
+  /**
+   * The row wearing a name field, and what will be done with what is typed.
+   *
+   * Driven from outside because main is what starts a rename, from the row
+   * menu, and the tree is what has the row to put the field on.
+   */
+  readonly editing?: { readonly path: string; readonly intent: 'rename' | 'new-folder' } | null;
+  /** The typed name, or null when the reader gave up. */
+  readonly onEditingDone?: (name: string | null) => void;
+  /** Refreshed listings, so a folder changed on disk is read again. */
+  readonly reloadToken?: number;
+}
+
+/**
+ * The name field that sits in a row while it is being renamed or created.
+ *
+ * A field on the row rather than a dialog, because the row is where the reader
+ * is looking and the neighbouring names are usually the reason they are
+ * renaming this one. Escape gives up, Enter commits, and clicking away commits
+ * too, which is what every file manager does and what a reader who has typed a
+ * name and moved on expects.
+ *
+ * The extension is left out of the initial selection for a file, so typing
+ * replaces the name and keeps the `.md` that makes it a note.
+ */
+function NameField({ initial, onDone }: {
+  initial: string;
+  onDone: (name: string | null) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const settled = useRef(false);
+
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.focus();
+    const dot = initial.lastIndexOf('.');
+    if (dot > 0) input.setSelectionRange(0, dot);
+    else input.select();
+  }, [initial]);
+
+  const finish = (name: string | null) => {
+    if (settled.current) return;
+    settled.current = true;
+    onDone(name);
+  };
+
+  return (
+    <input
+      ref={inputRef}
+      className="tree-name-field"
+      data-testid="tree-name-field"
+      defaultValue={initial}
+      spellCheck={false}
+      aria-label="Name"
+      onClick={(event) => event.stopPropagation()}
+      onBlur={(event) => finish(event.currentTarget.value.trim() || null)}
+      onKeyDown={(event) => {
+        event.stopPropagation();
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          finish(event.currentTarget.value.trim() || null);
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          finish(null);
+        }
+      }}
+    />
+  );
 }
 
 /** The height of one row, which the sticky offsets are multiples of. */
@@ -39,7 +108,10 @@ export const TREE_ROW_HEIGHT = 32;
 /** Where the arm crosses a row, matching `--tree-arm` in the stylesheet. */
 const TREE_ARM_OFFSET = 13;
 
-export function FileTree({ root, rootName, activePath, list, onOpenFile, onRowMenu, onChooseFolder, vaultMenu }: FileTreeProps) {
+export function FileTree({
+  root, rootName, activePath, list, onOpenFile, onRowMenu, onChooseFolder, vaultMenu,
+  editing = null, onEditingDone, reloadToken = 0,
+}: FileTreeProps) {
   const [children, setChildren] = useState<ReadonlyMap<string, readonly WorkspaceEntryV1[]>>(new Map());
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [failed, setFailed] = useState<string | null>(null);
@@ -75,6 +147,20 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onRowMe
    */
   const childrenRef = useRef(children);
   childrenRef.current = children;
+
+  /*
+   * Read every open folder again when something moved.
+   *
+   * The tree holds a listing per folder and nothing on disk tells it when one
+   * went stale. After a rename, a duplicate or a trash, every listing already
+   * on screen is suspect, and re-reading only the folder that changed would
+   * leave a moved file showing in its old place.
+   */
+  useEffect(() => {
+    if (reloadToken === 0) return;
+    for (const directory of [...childrenRef.current.keys()]) void load(directory);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadToken]);
   useEffect(() => {
     if (!root || !activePath) return;
     const separator = root.includes('\\') ? '\\' : '/';
@@ -254,8 +340,21 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onRowMe
                 >
                   <span className={isOpen ? 'tree-twisty tree-twisty-open' : 'tree-twisty'} aria-hidden="true" />
                   <FolderGlyph open={isOpen} />
-                  <span className="tree-name">{entry.name}</span>
+                  {editing?.intent === 'rename' && editing.path === entry.path
+                    ? <NameField initial={entry.name} onDone={commitEdit} />
+                    : <span className="tree-name">{entry.name}</span>}
                 </button>
+                {editing?.intent === 'new-folder' && editing.path === entry.path && (
+                  <div className="tree-level" style={{ '--tree-depth': depth + 1 } as React.CSSProperties}>
+                    <div className="tree-node">
+                      <div className="tree-row tree-directory" data-depth={depth + 1}>
+                        <span className="tree-twisty tree-twisty-blank" aria-hidden="true" />
+                        <FolderGlyph open={false} />
+                        <NameField initial="New Folder" onDone={commitEdit} />
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {isOpen && renderLevel(entry.path, depth + 1)}
               </div>
             );
@@ -276,7 +375,9 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onRowMe
               >
                 <span className="tree-twisty tree-twisty-blank" aria-hidden="true" />
                 <FileGlyph />
-                <span className="tree-name">{entry.name}</span>
+                {editing?.intent === 'rename' && editing.path === entry.path
+                  ? <NameField initial={entry.name} onDone={commitEdit} />
+                  : <span className="tree-name">{entry.name}</span>}
               </button>
             </div>
           );
@@ -284,6 +385,8 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onRowMe
       </div>
     );
   };
+
+  const commitEdit = (name: string | null) => onEditingDone?.(name);
 
   const vaultName = rootName ?? root.split(/[\\/]/).filter(Boolean).at(-1) ?? root;
 

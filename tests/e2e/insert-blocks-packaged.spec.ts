@@ -23,6 +23,9 @@ async function launch(name: string, contents: string): Promise<{
   return { app, page, file };
 }
 
+/** Definitions on screen, which is how the effect of an insert is waited for. */
+const definitions = (page: Page) => page.locator('.ProseMirror .noto-footnote-definition');
+
 /**
  * Click the real menu item, without opening a native menu.
  *
@@ -53,6 +56,7 @@ test.describe('the things Typora\'s Paragraph menu inserts', () => {
       await placeCaret(page, page.locator('.ProseMirror > p').first());
       await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End');
       await run(app, 'insert-footnote');
+      await expect(definitions(page)).toHaveCount(1);
       await page.keyboard.type('Where it came from.');
       await page.getByTestId('save-button').click();
       await expect.poll(() => readFile(file, 'utf8'), { timeout: 15_000 })
@@ -69,9 +73,20 @@ test.describe('the things Typora\'s Paragraph menu inserts', () => {
       await placeCaret(page, page.locator('.ProseMirror > p').first());
       await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End');
       await run(app, 'insert-footnote');
+      // Wait for the first to land. Clicking a menu item returns as soon as
+      // main has sent the command, not when the renderer has applied it, and
+      // the second footnote's number is read from the document.
+      // Both halves of the first footnote have to be on screen before the
+      // second is asked for: its number is read from the definitions in the
+      // document, and clicking a menu item returns when main has sent the
+      // command, not when the renderer has applied it.
+      await expect(definitions(page)).toHaveCount(1);
+      await expect(page.locator('.ProseMirror > p').first()).toContainText('[1]');
       await placeCaret(page, page.locator('.ProseMirror > p').nth(1));
       await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End');
       await run(app, 'insert-footnote');
+      await expect(definitions(page)).toHaveCount(2);
+      await expect(page.locator('.ProseMirror > p').nth(1)).toContainText('[2]');
       await page.getByTestId('save-button').click();
       await expect.poll(() => readFile(file, 'utf8'), { timeout: 15_000 }).toContain('[^2]');
       const written = await readFile(file, 'utf8');
@@ -87,6 +102,7 @@ test.describe('the things Typora\'s Paragraph menu inserts', () => {
     try {
       await placeCaret(page, page.locator('.ProseMirror > p').first());
       await run(app, 'insert-toc');
+      await expect(page.locator('.ProseMirror')).toContainText('[TOC]');
       await page.getByTestId('save-button').click();
       // Unescaped, or it stops being a marker anything reads.
       await expect.poll(() => readFile(file, 'utf8'), { timeout: 15_000 }).toContain('\n[TOC]\n');
@@ -101,6 +117,7 @@ test.describe('the things Typora\'s Paragraph menu inserts', () => {
     try {
       await placeCaret(page, page.locator('.ProseMirror > p').first());
       await run(app, 'insert-frontmatter');
+      await expect(page.locator('.ProseMirror .noto-frontmatter')).toHaveCount(1);
       await page.keyboard.type('A title');
       await run(app, 'insert-frontmatter');
       await page.getByTestId('save-button').click();
@@ -129,6 +146,7 @@ test.describe('table source', () => {
 
       await placeCaret(page, page.locator('.ProseMirror td').first());
       await run(app, 'table-prettify');
+      await expect(page.getByTestId('save-button')).toBeEnabled();
       await page.getByTestId('save-button').click();
       await expect.poll(() => readFile(file, 'utf8'), { timeout: 15_000 })
         .toContain('| Name | Description        |');

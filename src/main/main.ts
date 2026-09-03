@@ -20,7 +20,7 @@ import { installNotoProtocol, isAllowedRendererUrl, registerNotoScheme } from '.
 import { IPC_CHANNELS } from '../shared/ipc/contracts';
 import type { PluginCatalog } from '../shared/plugins/catalog';
 import { PLUGIN_LIFECYCLE_VERSION } from '../shared/plugins/lifecycle';
-import { createEditorWindow, type RendererConsoleState } from './windows/create-editor-window';
+import { createEditorWindow, headless, type RendererConsoleState } from './windows/create-editor-window';
 import { RecentFiles } from './workspace/recent-files';
 import { SettingsStore } from './workspace/settings-store';
 import { registerSettingsHandlers } from './workspace/register-settings-handlers';
@@ -117,7 +117,7 @@ if (!app.requestSingleInstanceLock()) {
         code: error instanceof Error ? error.message.split(':', 1)[0] : 'OPEN_FAILED',
       }));
     }
-    if (editorWindow) {
+    if (editorWindow && !headless()) {
       if (editorWindow.isMinimized()) editorWindow.restore();
       editorWindow.focus();
     }
