@@ -149,6 +149,24 @@ export interface NotoUnit {
   readonly markdown: string | null;
 }
 
+/**
+ * What a save is asked to make the file's line endings and last byte.
+ *
+ * Carried on the transaction rather than read from the document, because this
+ * is the one thing a save may deliberately change about bytes it was not asked
+ * to edit. Every other rewrite is confined to the blocks the reader touched;
+ * converting line endings is by definition a rewrite of every line in the file,
+ * so it has to be asked for explicitly and it has to be visible in the payload
+ * that asks for it.
+ *
+ * `mixed` means leave the endings as they are, which is what every save does
+ * today, said out loud rather than implied by the absence of a field.
+ */
+export interface NotoTargetEnvelope {
+  readonly lineEnding: NotoLineEnding;
+  readonly hasFinalNewline: boolean;
+}
+
 export type NotoTransaction =
   | {
       readonly version: typeof NOTO_MARKDOWN_VERSION;
@@ -156,6 +174,8 @@ export type NotoTransaction =
       readonly documentId: NotoDocumentId;
       readonly revisionId: NotoRevisionId;
       readonly units: readonly NotoUnit[];
+      /** How the file should end up. See `NotoTargetEnvelope`. */
+      readonly envelope: NotoTargetEnvelope;
     }
   | {
       readonly version: typeof NOTO_MARKDOWN_VERSION;

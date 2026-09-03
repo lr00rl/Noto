@@ -33,6 +33,7 @@ function editing(document: NotoDocument, ordinal: number, markdown: string): Not
   return {
     version: NOTO_MARKDOWN_VERSION,
     mode: 'blocks',
+    envelope: { lineEnding: 'mixed' as const, hasFinalNewline: true },
     documentId: document.documentId,
     revisionId: document.revisionId,
     units,
@@ -337,6 +338,7 @@ describe('an unchanged save skips the reparse without weakening the result', () 
     const result = serializeDocument(document, {
       version: NOTO_MARKDOWN_VERSION,
       mode: 'blocks',
+      envelope: { lineEnding: 'mixed' as const, hasFinalNewline: true },
       documentId: document.documentId,
       revisionId: document.revisionId,
       units,

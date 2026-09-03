@@ -13,6 +13,7 @@ import {
   type NotoBlockOrigin,
   type NotoDocumentWire,
   type NotoTransaction,
+  type NotoTargetEnvelope,
   type NotoUnit,
 } from '../../../shared/markdown/v3/contracts';
 
@@ -27,6 +28,12 @@ export interface CaptureInput {
   readonly origins: readonly (NotoBlockOrigin | null)[];
   readonly document: NotoDocumentWire;
   readonly pristine: ReadonlyMap<string, PristineBlock>;
+  /**
+   * What the file should end up as, when the reader has asked for something
+   * other than what it already is. Absent means leave it alone, which is what
+   * every save does unless a line-ending command has been used.
+   */
+  readonly envelope?: NotoTargetEnvelope;
 }
 
 export interface CaptureStats {
@@ -105,6 +112,12 @@ export function captureTransaction(input: CaptureInput): { transaction: NotoTran
       documentId: input.document.documentId,
       revisionId: input.document.revisionId,
       units,
+      // `mixed` and the document's own final newline mean "as it is", so a save
+      // nobody asked to convert is byte for byte what it always was.
+      envelope: input.envelope ?? {
+        lineEnding: 'mixed',
+        hasFinalNewline: input.document.envelope.hasFinalNewline,
+      },
     },
     stats,
   };

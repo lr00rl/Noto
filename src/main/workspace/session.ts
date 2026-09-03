@@ -37,6 +37,13 @@ import type { RecentFiles } from './recent-files';
 import { isEditableFile, listDirectory, type FileTreeEntryV1, isInside } from './file-tree';
 import { buildTreeRowMenu, trashLabel } from './tree-row-menu';
 import {
+  findPandoc,
+  importDocument,
+  IMPORTABLE_EXTENSIONS,
+  runPandoc,
+  type ImportOutcome,
+} from './import-document';
+import {
   duplicateName,
   isEntryName,
   renamedFileName,
@@ -592,6 +599,41 @@ export class WorkspaceSession {
     for (const [openPath, document] of rebuilt) this.documents.set(openPath, document);
     this.publishTabs();
     await this.recent.remember(this.activePath ?? to).catch(() => {});
+  }
+
+  /**
+   * Convert a document that is not markdown and open the result.
+   *
+   * The note lands in the open folder, so it is in the vault and visible in the
+   * tree the moment it arrives, rather than beside a file the reader picked
+   * from somewhere else entirely.
+   */
+  async importDocument(): Promise<ImportOutcome> {
+    const window = this.getWindow();
+    const outcome = await importDocument({
+      folder: this.folderRoot,
+      choose: async () => {
+        const options = {
+          title: 'Import',
+          properties: ['openFile' as const],
+          filters: [{ name: 'Documents', extensions: [...IMPORTABLE_EXTENSIONS] }],
+        };
+        const result = window
+          ? await dialog.showOpenDialog(window, options)
+          : await dialog.showOpenDialog(options);
+        return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+      },
+      findPandoc: () => findPandoc(),
+      run: runPandoc,
+    });
+    if (outcome.imported) {
+      this.logger.log('document_imported', {});
+      await this.openPath(outcome.path);
+      this.send(WORKSPACE_CHANNELS.treeChanged, { version: NOTO_WORKSPACE_VERSION });
+    } else {
+      this.logger.log('document_import_refused', { reason: outcome.reason });
+    }
+    return outcome;
   }
 
   /**

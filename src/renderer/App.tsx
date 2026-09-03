@@ -1423,6 +1423,21 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
           setLocalMessage('That does not apply where the cursor is.');
         }
         break;
+      case 'line-endings-lf': case 'line-endings-crlf': case 'toggle-final-newline': {
+        const editor = editorRef.current;
+        if (!editor) { setLocalMessage('Open a note first.'); break; }
+        const changed = event.command === 'toggle-final-newline'
+          ? editor.setEnvelope({ hasFinalNewline: !editor.envelope.hasFinalNewline })
+          : editor.setEnvelope({ lineEnding: event.command === 'line-endings-lf' ? 'lf' : 'crlf' });
+        // Nothing is written yet, and a reader who chose an ending and saw no
+        // change at all would reasonably think the menu did nothing.
+        if (changed) {
+          setLocalMessage(editor.envelope.hasFinalNewline || event.command !== 'toggle-final-newline'
+            ? 'Saved with that from now on. Save to write it.'
+            : 'The file will no longer end with a newline. Save to write it.');
+        }
+        break;
+      }
       case 'toggle-always-on-top':
         void changeSettings({ alwaysOnTop: !settings.alwaysOnTop });
         break;

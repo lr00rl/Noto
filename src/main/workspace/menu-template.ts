@@ -22,6 +22,8 @@ export interface MenuActions {
   closeTab: () => void;
   openDialog: () => void;
   openPath: (filePath: string) => void;
+  /** Convert a document that is not markdown and open the result. */
+  importDocument: () => void;
   clearRecent: () => void;
 }
 
@@ -40,7 +42,13 @@ export interface MenuTemplateOptions {
    * Passed in rather than remembered here, so the menu is a pure function of
    * what it is given and the state has exactly one home.
    */
-  readonly state?: { readonly readOnly: boolean; readonly alwaysOnTop: boolean };
+  readonly state?: {
+    readonly readOnly: boolean;
+    readonly alwaysOnTop: boolean;
+    /** What the note in front will be written with. Per document, not a setting. */
+    readonly lineEnding?: 'lf' | 'crlf' | 'mixed';
+    readonly finalNewline?: boolean;
+  };
 }
 
 function recentSubmenu(
@@ -63,6 +71,8 @@ function recentSubmenu(
 export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstructorOptions[] {
   const { platform, appName, recent, actions, sendCommand, openExternal } = options;
   const state = options.state ?? { readOnly: false, alwaysOnTop: false };
+  const lineEnding = state.lineEnding ?? 'lf';
+  const finalNewline = state.finalNewline ?? true;
   const mac = platform === 'darwin';
 
   // Each command item carries its command as its id, so the menu can be driven
@@ -102,6 +112,11 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
         'reveal-document',
       ),
       { type: 'separator' },
+      // Not a renderer command: the dialog, the conversion and the file all
+      // belong to main, exactly as Open does, so nothing about it has to cross
+      // the boundary and come back.
+      { id: 'import-document', label: 'Import…', click: () => actions.importDocument() },
+      { type: 'separator' },
       command('Reload from Disk', 'CmdOrCtrl+R', 'reload-from-disk'),
       { type: 'separator' },
       command('Save', 'CmdOrCtrl+S', 'save'),
@@ -133,6 +148,36 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       command('Copy as Plain Text', undefined, 'copy-as-plain'),
       command('Copy as Markdown', 'CmdOrCtrl+Shift+C', 'copy-as-markdown'),
       command('Copy as HTML', undefined, 'copy-as-html'),
+      { type: 'separator' },
+      {
+        // Per document, like Typora: what this file is written with, not a
+        // preference about what new files should be.
+        label: 'Line Endings',
+        submenu: [
+          {
+            id: 'line-endings-lf',
+            label: 'Unix Line Endings (LF)',
+            type: 'radio',
+            checked: lineEnding === 'lf',
+            click: () => sendCommand('line-endings-lf'),
+          },
+          {
+            id: 'line-endings-crlf',
+            label: 'Windows Line Endings (CRLF)',
+            type: 'radio',
+            checked: lineEnding === 'crlf',
+            click: () => sendCommand('line-endings-crlf'),
+          },
+          { type: 'separator' },
+          {
+            id: 'toggle-final-newline',
+            label: 'Insert Final New Line on Save',
+            type: 'checkbox',
+            checked: finalNewline,
+            click: () => sendCommand('toggle-final-newline'),
+          },
+        ],
+      },
       { type: 'separator' },
       command('Find…', 'CmdOrCtrl+F', 'find'),
       command('Find and Replace…', 'CmdOrCtrl+Alt+F', 'find-replace'),

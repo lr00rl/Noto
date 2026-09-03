@@ -27,7 +27,11 @@ import { blockFromSpan, docFromSpans } from '../../../shared/markdown/v3/pm/from
 import { blockToMarkdown } from '../../../shared/markdown/v3/pm/to-mdast';
 import { parseSingleBlock, splitBlocks } from '../../../shared/markdown/v3/blocks';
 import { toLf } from '../../../shared/markdown/v3/line-endings';
-import type { NotoDocumentWire, NotoTransaction } from '../../../shared/markdown/v3/contracts';
+import type {
+  NotoDocumentWire,
+  NotoTargetEnvelope,
+  NotoTransaction,
+} from '../../../shared/markdown/v3/contracts';
 import { captureMarkdown, captureTransaction, type CaptureStats, type PristineBlock } from './capture';
 import type { NotoEditorPort } from './NotoEditorPort';
 import { createOriginPlugin, getBlockOrigins, rebaseOrigins } from './origin-plugin';
@@ -122,6 +126,15 @@ export class NotoEditor implements NotoEditorPort {
   private docVersion = 0;
   /** Reading rather than writing. Nothing about the file changes with it. */
   private readOnly = false;
+  /**
+   * What the next save should make the file's endings and last byte.
+   *
+   * Held here rather than written straight through, because neither is a
+   * preference and neither reaches disk on its own: they are a pending change
+   * to this file that the ordinary save carries, exactly as Typora does it.
+   * Null means whatever the file already is.
+   */
+  private target: NotoTargetEnvelope | null = null;
   private imageContext: ImageContext;
   /** The pictures on screen, so a changed context can redraw them and nothing else. */
   private readonly imageViews = new Set<Refreshable>();
@@ -332,6 +345,49 @@ export class NotoEditor implements NotoEditorPort {
     return this.readOnly;
   }
 
+  /** The endings and last byte this file has, or is about to be given. */
+  get envelope(): NotoTargetEnvelope {
+    return this.target ?? {
+      lineEnding: this.document.envelope.lineEnding,
+      hasFinalNewline: this.document.envelope.hasFinalNewline,
+    };
+  }
+
+  /**
+   * Ask for the file to be written with different endings, or with or without
+   * a final newline.
+   *
+   * Nothing is written now. The document is marked as having unsaved changes,
+   * so the ordinary save carries it and the reader can see there is something
+   * to save, which is what Typora does and is the honest presentation: this is
+   * a change to the file, not a setting about the app.
+   *
+   * Asking for what the file already is clears the pending change rather than
+   * recording a no-op, so toggling back and forth leaves nothing behind.
+   */
+  setEnvelope(next: Partial<NotoTargetEnvelope>): boolean {
+    if (this.readOnly) return false;
+    const current = this.envelope;
+    const wanted: NotoTargetEnvelope = {
+      lineEnding: next.lineEnding ?? current.lineEnding,
+      hasFinalNewline: next.hasFinalNewline ?? current.hasFinalNewline,
+    };
+    const own = this.document.envelope;
+    const same = wanted.lineEnding === own.lineEnding && wanted.hasFinalNewline === own.hasFinalNewline;
+    const before = this.target;
+    this.target = same ? null : wanted;
+    if (before?.lineEnding === this.target?.lineEnding
+      && before?.hasFinalNewline === this.target?.hasFinalNewline) return false;
+
+    // Dirty for as long as the file on disk does not match what was asked for.
+    // A document with no other change would otherwise offer nothing to save.
+    if (this.target && !this.dirty) {
+      this.dirty = true;
+      this.options.onDirtyChange?.(true);
+    }
+    return true;
+  }
+
   /** What is selected, as markdown, HTML, or the words on their own. */
   copySelection(as: 'markdown' | 'html' | 'plain'): string | null {
     const view = this.view;
@@ -408,7 +464,10 @@ export class NotoEditor implements NotoEditorPort {
     // edit did not touch, so comparing a document against its saved state is a
     // walk of pointer comparisons. Measured, adding a size precheck in front of
     // it changed nothing.
-    const next = this.dirty ? !view.state.doc.eq(this.baselineDoc) : true;
+    // A pending change to the file's endings keeps it dirty even when the
+    // document itself is back where it started: there is still something to
+    // write, and it is not in the document.
+    const next = this.dirty ? this.target !== null || !view.state.doc.eq(this.baselineDoc) : true;
     if (next === this.dirty) return;
     this.dirty = next;
     this.options.onDirtyChange?.(next);
@@ -755,6 +814,7 @@ export class NotoEditor implements NotoEditorPort {
       origins: getBlockOrigins(view.state),
       document: this.document,
       pristine: this.pristine,
+      envelope: this.target ?? undefined,
     });
   }
 
@@ -769,6 +829,18 @@ export class NotoEditor implements NotoEditorPort {
     if (!view) return;
 
     this.document = document;
+    /*
+     * Clear the pending change only when this document is what it asked for.
+     *
+     * A save takes a moment, and a reader can choose a different ending while
+     * one is in flight. Clearing unconditionally threw that choice away as the
+     * older save landed, so the second choice appeared to do nothing at all.
+     */
+    if (this.target
+      && this.target.hasFinalNewline === document.envelope.hasFinalNewline
+      && (this.target.lineEnding === 'mixed' || this.target.lineEnding === document.envelope.lineEnding)) {
+      this.target = null;
+    }
     // Slice the block text out of the accepted document rather than parsing it
     // again. Main already worked out where every block sits and sent the
     // offsets, so a save no longer costs a full parse in the renderer too.
@@ -786,7 +858,11 @@ export class NotoEditor implements NotoEditorPort {
     this.baselineDoc = view.state.doc;
     view.dispatch(rebaseOrigins(view.state.tr, document.origins));
 
-    if (this.dirty) {
+    // A change to the file's endings that this save did not carry is still
+    // waiting, so the document is not clean and the reader still has something
+    // to save. Clearing regardless threw away a choice made while the save was
+    // in flight, and took the Save button away with it.
+    if (this.dirty && this.target === null) {
       this.dirty = false;
       this.options.onDirtyChange?.(false);
     }

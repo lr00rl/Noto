@@ -30,6 +30,7 @@ import {
   type NotoSerializeFailureCode,
   type NotoSerializeResult,
   type NotoTransaction,
+  type NotoTargetEnvelope,
   type NotoUnit,
 } from './contracts';
 
@@ -155,11 +156,31 @@ function gapBetween(
 function serializeBlocks(
   document: NotoDocument,
   units: readonly NotoUnit[],
+  target: NotoTargetEnvelope,
 ): NotoSerializeResult {
   const originFailure = validateOrigins(document, units);
   if (originFailure) return originFailure;
 
-  const { lineEnding, bom } = document.envelope;
+  const { bom } = document.envelope;
+  /*
+   * The endings the output is written with.
+   *
+   * `mixed` on the target means leave them as they are, so it resolves to
+   * whatever the document already had and nothing is rewritten. Anything else
+   * is a deliberate conversion of the whole file, and that is the one case in
+   * this serializer where a block nobody edited is written out again.
+   */
+  const lineEnding = target.lineEnding === 'mixed' ? document.envelope.lineEnding : target.lineEnding;
+  const converting = lineEnding !== document.envelope.lineEnding;
+  /*
+   * A converted file has no preserved ranges, and must not claim any.
+   *
+   * `preserved` is the evidence that a byte range came through a save
+   * untouched, which the store checks. Every line in the file has moved, so
+   * there is nothing to point at, and pointing at it anyway would be a lie the
+   * verification would then have to catch.
+   */
+  const keep = (range: NotoPreservedRange) => { if (!converting) preserved.push(range); };
 
   // A file with no blocks is pure whitespace. It has no units to drive the
   // loop below, so preserve it directly rather than emitting nothing.
@@ -184,13 +205,15 @@ function serializeBlocks(
   let cursor = 0;
   const emit = (text: string) => { parts.push(text); cursor += text.length; };
 
-  if (bom === 'utf8') preserved.push({ role: 'bom', start: 0, end: 3, sha256: sha256(UTF8_BOM) });
+  if (bom === 'utf8') keep({ role: 'bom', start: 0, end: 3, sha256: sha256(UTF8_BOM) });
 
   const startsAtFirstBlock = units[0]?.origin?.ordinal === 0;
-  const emittedLeading = startsAtFirstBlock ? document.leading : '';
+  const emittedLeading = startsAtFirstBlock
+    ? (converting ? fromLf(toLf(document.leading), lineEnding) : document.leading)
+    : '';
   if (emittedLeading.length > 0) {
     emit(emittedLeading);
-    preserved.push({ role: 'leading', start: 0, end: document.leading.length, sha256: sha256(document.leading) });
+    keep({ role: 'leading', start: 0, end: document.leading.length, sha256: sha256(document.leading) });
   }
 
   const pristine = units.map((unit) => isPristine(unit, unit.origin ? document.blocks[unit.origin.ordinal] : undefined));
@@ -198,18 +221,22 @@ function serializeBlocks(
   for (let index = 0; index < units.length; index += 1) {
     const unit = units[index];
     if (index > 0) {
-      const gap = gapBetween(document, units[index - 1], unit, pristine[index - 1], pristine[index], lineEnding);
+      const found = gapBetween(document, units[index - 1], unit, pristine[index - 1], pristine[index], lineEnding);
+      const gap = converting ? { text: fromLf(toLf(found.text), lineEnding), preserved: null } : found;
       emittedGaps.push(gap.text);
       emit(gap.text);
-      if (gap.preserved) preserved.push(gap.preserved);
+      if (gap.preserved) keep(gap.preserved);
     }
 
     if (pristine[index] && unit.origin) {
       const block = document.blocks[unit.origin.ordinal];
+      const source = document.text.slice(block.start, block.end);
       unitStart.push(cursor);
-      emit(document.text.slice(block.start, block.end));
+      // A block nobody edited is copied byte for byte, unless the whole file is
+      // being converted, in which case its own line endings have to move too.
+      emit(converting ? fromLf(toLf(source), lineEnding) : source);
       unitEnd.push(cursor);
-      preserved.push({ role: 'block', start: block.start, end: block.end, sha256: block.sha256 });
+      keep({ role: 'block', start: block.start, end: block.end, sha256: block.sha256 });
       continue;
     }
 
@@ -232,19 +259,28 @@ function serializeBlocks(
 
   const lastUnit = units.at(-1);
   const endsAtLastBlock = lastUnit?.origin?.ordinal === document.blocks.length - 1;
+  const trailingUnchanged = !converting && target.hasFinalNewline === document.envelope.hasFinalNewline;
   let emittedTrailing = '';
-  if (endsAtLastBlock && pristine[units.length - 1] && document.trailing.length > 0) {
+  if (endsAtLastBlock && pristine[units.length - 1] && document.trailing.length > 0 && trailingUnchanged) {
     const lastBlock = document.blocks[document.blocks.length - 1];
     emittedTrailing = document.trailing;
     emit(emittedTrailing);
-    preserved.push({
+    keep({
       role: 'trailing',
       start: lastBlock.end,
       end: document.text.length,
       sha256: sha256(document.trailing),
     });
-  } else if (document.envelope.hasFinalNewline && units.length > 0) {
-    emittedTrailing = fromLf('\n', lineEnding);
+  } else if (target.hasFinalNewline && units.length > 0) {
+    /*
+     * Whatever the file ended with, in the endings it is being written with.
+     *
+     * A file that ended with a blank line keeps it: the option is about
+     * whether the file ends with a newline, not about how many, and silently
+     * deleting a blank line the author left is not what it was asked to do.
+     */
+    const source = endsAtLastBlock && document.trailing.length > 0 ? toLf(document.trailing) : '\n';
+    emittedTrailing = fromLf(source, lineEnding);
     emit(emittedTrailing);
   }
 
@@ -298,6 +334,7 @@ function serializeBlocks(
     outputText,
     outputBytes,
     bom,
+    lineEnding,
     units,
     effective: effective as string[],
     unitStart,
@@ -331,6 +368,8 @@ function buildNextDocument(input: {
   outputText: string;
   outputBytes: Uint8Array;
   bom: 'utf8' | 'none';
+  /** What the output was written with, which a conversion changes. */
+  lineEnding: NotoDocument['envelope']['lineEnding'];
   units: readonly NotoUnit[];
   effective: readonly string[];
   unitStart: readonly number[];
@@ -387,7 +426,10 @@ function buildNextDocument(input: {
       version: NOTO_MARKDOWN_VERSION,
       byteLength: input.outputBytes.byteLength,
       bom: input.bom,
-      lineEnding: input.previous.envelope.lineEnding,
+      // What the file was actually written with, which after a conversion is
+      // not what the previous revision had. Carrying the old value forward
+      // meant a converted file went on claiming the endings it used to have.
+      lineEnding: input.lineEnding,
       hasFinalNewline: input.outputText.endsWith('\n'),
       sourceSha256,
     },
@@ -442,7 +484,7 @@ export function serializeDocument(
     };
   }
 
-  return serializeBlocks(document, transaction.units);
+  return serializeBlocks(document, transaction.units, transaction.envelope);
 }
 
 /**
@@ -456,5 +498,7 @@ export function identityTransaction(document: NotoDocument): NotoTransaction {
     documentId: document.documentId,
     revisionId: document.revisionId,
     units: document.blocks.map((block) => ({ origin: block.origin, markdown: block.markdown })),
+    // Nothing about the file's shape changes, which is what makes it identity.
+    envelope: { lineEnding: 'mixed', hasFinalNewline: document.envelope.hasFinalNewline },
   };
 }
