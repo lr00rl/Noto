@@ -370,7 +370,11 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   align-items: flex-start;
   align-self: stretch;
   gap: 14px;
-  margin: 10px 12px 8px;
+  /* The bottom margin is small on purpose: the padding below already holds the
+     underline off the words, and a second gap under that put the best part of
+     a row's height of nothing between the tabs and the first file. The top
+     margin clears the traffic lights and cannot go with it. */
+  margin: 10px 12px 3px;
   padding: 0 0 6px;
 }
 
@@ -478,6 +482,9 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   display: flex;
   flex-direction: column;
   gap: 1px;
+  /* The same small hold off the tab strip the file tree keeps, so switching
+     between the two tabs does not move the first row. */
+  padding-top: 3px;
 }
 
 /* Recent documents, in the status bar

@@ -38,6 +38,8 @@ export interface NotoCanvasProps {
   readonly onError: (message: string) => void;
   /** Writes pasted picture bytes and answers with the reference to insert. */
   readonly onWriteImage?: (bytes: Uint8Array) => Promise<InsertedImage | null>;
+  /** Command and a bracket, when the caret is not in a list to indent. */
+  readonly onWidthStep?: (direction: 1 | -1) => void;
 }
 
 export function NotoCanvas({
@@ -61,6 +63,7 @@ export function NotoCanvas({
   onTeardown,
   onError,
   onWriteImage,
+  onWidthStep,
 }: NotoCanvasProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<NotoEditor | null>(null);
@@ -86,6 +89,7 @@ export function NotoCanvas({
         onCountChanged,
         onError,
         onWriteImage,
+        onWidthStep,
       });
     } catch (error) {
       onError(error instanceof Error ? error.message : 'The editor failed to start.');

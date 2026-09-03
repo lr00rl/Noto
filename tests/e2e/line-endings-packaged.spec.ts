@@ -126,10 +126,16 @@ test.describe('the final newline', () => {
       await page.getByTestId('save-button').click();
       await expect.poll(() => readFile(file, 'utf8'), { timeout: 15_000 })
         .toBe('# Title\n\nFirst paragraph.\n\nLast.');
+      // The save is not finished when the bytes land: the accepted document
+      // still has to come back. Waiting for the button to go is waiting for
+      // that, and is worth asserting anyway, since a save that leaves the note
+      // looking unsaved would be a fault of its own.
+      await expect(page.getByTestId('save-button')).toHaveCount(0);
 
       await run(app, 'toggle-final-newline');
       await page.getByTestId('save-button').click();
       await expect.poll(() => readFile(file, 'utf8'), { timeout: 15_000 }).toBe(LF);
+      await expect(page.getByTestId('save-button')).toHaveCount(0);
     } finally {
       await app.close();
     }

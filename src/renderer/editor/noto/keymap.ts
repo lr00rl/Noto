@@ -377,8 +377,33 @@ export const EDITOR_COMMANDS: Readonly<Record<string, Command>> = {
  * accelerator is handled before the document ever sees the key, so indenting a
  * list item from the keyboard did nothing at all.
  */
-export function notoBindings({ mac }: { mac: boolean }): Record<string, Command> {
+export interface KeymapOptions {
+  readonly mac: boolean;
+  /**
+   * Widen or narrow the writing column.
+   *
+   * Not a document command, so it is handed in rather than imported: the width
+   * belongs to the shell, and the editor only knows which key was pressed.
+   */
+  readonly onWidthStep?: (direction: 1 | -1) => void;
+}
+
+export function notoBindings({ mac, onWidthStep }: KeymapOptions): Record<string, Command> {
   const mod = mac ? 'Meta' : 'Ctrl';
+  /**
+   * The width, when the brackets are not doing something else.
+   *
+   * Command and a bracket is the page width in the author's own Typora plugin
+   * and list indentation in Typora itself, and both are right where they apply.
+   * A list wins, because inside a list that is unambiguously what the key means
+   * and Tab is not always available there; everywhere else there is no list to
+   * indent and the key would otherwise do nothing at all.
+   */
+  const stepWidth = (direction: 1 | -1): Command => () => {
+    if (!onWidthStep) return false;
+    onWidthStep(direction);
+    return true;
+  };
   return {
     [`${mod}-b`]: toggleMark(marks.strong),
     [`${mod}-i`]: toggleMark(marks.emphasis),
@@ -435,11 +460,11 @@ export function notoBindings({ mac }: { mac: boolean }): Record<string, Command>
     [`${mod}-Ctrl-ArrowLeft`]: moveColumn(true),
     [`${mod}-Ctrl-ArrowRight`]: moveColumn(false),
 
-    [`${mod}-]`]: sinkListItem(nodes.list_item),
-    [`${mod}-[`]: liftListItem(nodes.list_item),
+    [`${mod}-]`]: chainCommands(sinkListItem(nodes.list_item), stepWidth(1)),
+    [`${mod}-[`]: chainCommands(liftListItem(nodes.list_item), stepWidth(-1)),
   };
 }
 
-export function notoKeymap({ mac }: { mac: boolean }): Plugin[] {
-  return [keymap(notoBindings({ mac })), keymap(baseKeymap)];
+export function notoKeymap(options: KeymapOptions): Plugin[] {
+  return [keymap(notoBindings(options)), keymap(baseKeymap)];
 }

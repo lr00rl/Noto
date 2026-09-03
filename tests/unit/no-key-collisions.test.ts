@@ -10,12 +10,34 @@ import { notoBindings } from '../../src/renderer/editor/noto/keymap';
  * bracket to the page width while the editor gave the same pair to list
  * indentation, and indenting a list item from the keyboard did nothing.
  */
+/**
+ * The chords the menu actually takes.
+ *
+ * `registerAccelerator: false` puts the chord on the item as a label without
+ * claiming the key, which is how an item can say what the shortcut is while
+ * leaving the editor to decide what it does. Those are not claims and must not
+ * be counted as any: counting them would forbid the one arrangement that lets
+ * a chord mean one thing in a list and another outside it.
+ */
 function accelerators(items: readonly MenuItemConstructorOptions[]): string[] {
+  const found: string[] = [];
+  for (const item of items) {
+    if (typeof item.accelerator === 'string' && item.registerAccelerator !== false) {
+      found.push(item.accelerator);
+    }
+    const submenu = item.submenu;
+    if (Array.isArray(submenu)) found.push(...accelerators(submenu));
+  }
+  return found;
+}
+
+/** Every chord an item shows, claimed or merely displayed. */
+function displayed(items: readonly MenuItemConstructorOptions[]): string[] {
   const found: string[] = [];
   for (const item of items) {
     if (typeof item.accelerator === 'string') found.push(item.accelerator);
     const submenu = item.submenu;
-    if (Array.isArray(submenu)) found.push(...accelerators(submenu));
+    if (Array.isArray(submenu)) found.push(...displayed(submenu));
   }
   return found;
 }
@@ -74,6 +96,13 @@ describe('no key is claimed twice', () => {
       const contested = ['Meta-]', 'Meta-[', 'Ctrl-]', 'Ctrl-['].filter((chord) => chords.has(chord));
       const claimed = accelerators(built(mac)).map((accelerator) => asChord(accelerator, mac));
       expect(claimed.filter((chord) => contested.includes(chord))).toEqual([]);
+
+      // And the pair is still offered, as a label, so the reader can find it.
+      // Without this the test would pass just as well if the item said nothing
+      // at all, which is the state this was written to get out of.
+      const shown = displayed(built(mac)).map((accelerator) => asChord(accelerator, mac));
+      expect(shown.filter((chord) => contested.includes(chord)).sort())
+        .toEqual([...contested].sort());
     });
   }
 });

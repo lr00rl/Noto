@@ -106,6 +106,8 @@ export interface NotoEditorOptions extends Omit<InputRuleOptions, 'smartQuotes' 
    * handling rather than failing.
    */
   readonly onWriteImage?: (bytes: Uint8Array) => Promise<InsertedImage | null>;
+  /** Command and a bracket, when the caret is not in a list to indent. */
+  readonly onWidthStep?: (direction: 1 | -1) => void;
 }
 
 /** What main says it wrote: the text for the brackets, and the alt for it. */
@@ -200,7 +202,7 @@ export class NotoEditor implements NotoEditorPort {
         smartDashes: () => this.substitutions.dashes,
         smartEllipsis: () => this.substitutions.ellipsis,
       }),
-      ...notoKeymap({ mac: this.options.mac }),
+      ...notoKeymap({ mac: this.options.mac, onWidthStep: (d) => this.options.onWidthStep?.(d) }),
       history(),
       dropCursor({ color: 'var(--accent)' }),
       gapCursor(),
