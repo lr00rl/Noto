@@ -957,6 +957,17 @@
      the same number, so the stem ends exactly on the arm rather than a few
      pixels past it. */
   --tree-arm: 13px;
+  /*
+   * Each level answers for itself.
+   *
+   * These are custom properties, so a level nested inside a lit one inherited
+   * its length and drew a 16px stub of accent against its own first child,
+   * which is a branch highlight pointing at a file nobody opened. Declaring
+   * them here gives every level its own value, and the inline style the tree
+   * sets still wins on the levels that really are on the path.
+   */
+  --path-stop: 0px;
+  --stem-stop: 100%;
   padding-left: var(--tree-indent);
   margin-left: 8px;
   /* Two stems on top of each other: the branch to the file in front in the
@@ -974,7 +985,7 @@
      overshoot, and the three of them met at a place where the corner's
      antialiasing showed past the mask as a nick in the line. Two straight
      lines meeting is the same corner with nothing to go wrong. */
-  background-size: 1px var(--path-stop, 0px), 1px var(--stem-stop, 100%);
+  background-size: 1px var(--path-stop), 1px var(--stem-stop);
   background-repeat: no-repeat;
   background-position: left top, left top;
 }
