@@ -1345,6 +1345,52 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
           window title belongs and icons that stay quiet until they are wanted.
           Open moved to the File menu and the empty state, Outline into the
           rail, Theme into preferences, Find to its shortcut. */}
+      {/* A column of its own, floor to ceiling, as Typora has it. It used to sit
+          under a title bar that spanned the whole window, which gave the left
+          side two header rows where Typora has one. */}
+      {rail.open && (
+          <WorkspaceRail
+            onSearch={() => {
+              setPrefs((current) => ({ ...current, open: false }));
+              void ensureFileIndex();
+              setQuickOpen({ open: true, mode: 'name' });
+            }}
+            view={rail.view}
+            onView={(view) => setRail({ open: true, view })}
+            width={settings.railWidth}
+            onResize={(railWidth) => changeSettings({ railWidth })}
+            outline={outline}
+            currentHeading={currentHeading}
+            onGoToBlock={(blockIndex) => editorRef.current?.focusBlock(blockIndex)}
+            tree={{
+              vaultMenu: (
+                <RailFooter
+                  folderName={folder.name}
+                  folderPath={folder.root}
+                  recentFolders={recentFolders}
+                  open={folderMenu}
+                  onToggle={() => setFolderMenu((current) => !current)}
+                  onClose={() => setFolderMenu(false)}
+                  onChooseFolder={chooseFolder}
+                  onOpenRecentFolder={openRecentFolder}
+                  onRefresh={() => { void ensureFileIndex(); setFolder((current) => ({ ...current })); }}
+                  fileManagerName={fileManagerName}
+                  onReveal={() => { void window.notoWorkspace.reveal({
+                    version: 1, requestId: rid('reveal'), target: 'folder',
+                  }); }}
+                />
+              ),
+              root: folder.root,
+              rootName: folder.name,
+              activePath: opened?.path ?? null,
+              list: listFolder,
+              onOpenFile: openFromTree,
+              onRowMenu: showTreeMenu,
+              onChooseFolder: chooseFolder,
+            }}
+          />
+      )}
+
       <header className="titlebar">
         <div className="title-left">
           <button type="button" className="icon-button" data-testid="sidebar-toggle"
@@ -1443,49 +1489,6 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       />
 
       <div className={`workspace-layout ${rail.open ? 'has-rail' : ''}`}>
-        {rail.open && (
-          <WorkspaceRail
-            onSearch={() => {
-              setPrefs((current) => ({ ...current, open: false }));
-              void ensureFileIndex();
-              setQuickOpen({ open: true, mode: 'name' });
-            }}
-            view={rail.view}
-            onView={(view) => setRail({ open: true, view })}
-            width={settings.railWidth}
-            onResize={(railWidth) => changeSettings({ railWidth })}
-            outline={outline}
-            currentHeading={currentHeading}
-            onGoToBlock={(blockIndex) => editorRef.current?.focusBlock(blockIndex)}
-            tree={{
-              vaultMenu: (
-                <RailFooter
-                  folderName={folder.name}
-                  folderPath={folder.root}
-                  recentFolders={recentFolders}
-                  open={folderMenu}
-                  onToggle={() => setFolderMenu((current) => !current)}
-                  onClose={() => setFolderMenu(false)}
-                  onChooseFolder={chooseFolder}
-                  onOpenRecentFolder={openRecentFolder}
-                  onRefresh={() => { void ensureFileIndex(); setFolder((current) => ({ ...current })); }}
-                  fileManagerName={fileManagerName}
-                  onReveal={() => { void window.notoWorkspace.reveal({
-                    version: 1, requestId: rid('reveal'), target: 'folder',
-                  }); }}
-                />
-              ),
-              root: folder.root,
-              rootName: folder.name,
-              activePath: opened?.path ?? null,
-              list: listFolder,
-              onOpenFile: openFromTree,
-              onRowMenu: showTreeMenu,
-              onChooseFolder: chooseFolder,
-            }}
-          />
-        )}
-
         {/* A sibling of the canvas rather than a child of it, so opening find
             overlays the document instead of pushing every line down. */}
         {document && (

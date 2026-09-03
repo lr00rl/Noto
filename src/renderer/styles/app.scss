@@ -133,6 +133,11 @@ button:disabled { color: var(--muted); opacity: 0.7; }
      it said 38 while the bar is 32, and the six pixels between showed the
      page's own ground as a pale band across the top of the rail. */
   grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  /* Two columns: the rail, floor to ceiling, and everything else. Typora's
+     sidebar is the full height of the window with the title bar starting to
+     its right, and that is the difference that made this window look like it
+     had two header rows stacked on the left where Typora has one. */
+  grid-template-columns: auto minmax(0, 1fr);
   width: 100%;
   max-width: 100%;
   height: 100%;
@@ -146,11 +151,12 @@ button:disabled { color: var(--muted); opacity: 0.7; }
    the row a region landed in depended on how many of its siblings happened to
    be rendered. Naming the rows makes the layout independent of what is on
    screen. */
-.app-shell > .titlebar { grid-row: 1; }
-.app-shell > .tab-bar { grid-row: 2; }
-.app-shell > .workspace-layout { grid-row: 3; }
-.app-shell > .file-truth-alert { grid-row: 4; }
-.app-shell > .operational-status { grid-row: 5; }
+.app-shell > .titlebar { grid-row: 1; grid-column: 2; }
+.app-shell > .tab-bar { grid-row: 2; grid-column: 2; }
+.app-shell > .workspace-layout { grid-row: 3; grid-column: 2; }
+.app-shell > .file-truth-alert { grid-row: 4; grid-column: 2; }
+.app-shell > .operational-status { grid-row: 5; grid-column: 2; }
+.app-shell > .workspace-rail { grid-row: 1 / -1; grid-column: 1; }
 
 /* Title bar
    -------------------------------------------------------------------------
@@ -171,22 +177,20 @@ button:disabled { color: var(--muted); opacity: 0.7; }
      a few controls that have to stay reachable, so it is 32: enough for a
      26px control with air, and six pixels less window furniture than before. */
   height: 32px;
-  /* The rail's ground above the rail, the page's above the page, so the two
-     columns read floor to ceiling. A band of panel across the whole window
-     cut the page off from its own title.
-     Read through a property of its own rather than straight from
-     `--shell-rail`, because that one is an inline style and no stylesheet can
-     outrank it. The narrow window needs to say the rail is not there. */
-  --titlebar-rail: var(--shell-rail, 0px);
-  background: linear-gradient(to right,
-    var(--panel) 0 var(--titlebar-rail),
-    var(--paper) var(--titlebar-rail));
+  /* No gradient any more. The rail is a column of the grid rather than a
+     region painted under a full width bar, so the two grounds meet at a real
+     edge and there is nothing to fake. */
+  background: var(--paper);
 }
 
 /* macOS opens the window with `hiddenInset`, which floats the traffic lights
    over the top left of the page, so the bar starts clear of them. Windows and
    Linux keep their own title bar and this reservation would just be a hole. */
-[data-platform='darwin'] .titlebar { padding-left: 78px; }
+/* The traffic lights float over the top left of the window, which is the rail
+   when the rail is open and the page when it is not, so whichever is there
+   starts clear of them. */
+[data-platform='darwin'] .app-shell:not(:has(> .workspace-rail)) .titlebar { padding-left: 78px; }
+[data-platform='darwin'] .workspace-rail { padding-top: 22px; }
 
 .titlebar button,
 .titlebar input { -webkit-app-region: no-drag; }
@@ -340,7 +344,9 @@ button:disabled { color: var(--muted); opacity: 0.7; }
      as the difference between a readable tree and five rows that all say
      "Done_TaskGro…". */
   position: relative;
-  flex: 0 0 var(--rail-width, 248px);
+  /* A grid column now, not a flex item, so the width is its own rather than a
+     basis nobody is reading. */
+  width: var(--rail-width, 248px);
   display: flex;
   flex-direction: column;
   min-width: 0;
