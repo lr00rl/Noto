@@ -153,3 +153,22 @@ scroll sideways to the rest.
 Right clicking a row of the tree did nothing, which every other file tree
 answers, and now offers Open, Reveal and Copy Path with the path checked
 against the open folder in main before anything is drawn.
+
+## What the last hour cost, and what it taught
+
+Launching from the dock gave an empty window to somebody who opens the same
+vault every day. The recent folders were already on disk and nothing read them
+at startup; the most recent one comes back now. Measured against the author's
+own vault, the window is ready in 401 milliseconds, the tree has the vault at
+1.7 seconds, and a keystroke is 4: the walk stays a background job.
+
+Most of the hour went into a fault that was mine, and the lesson is worth more
+than the feature. The test fired a click at whatever was in the document at
+that instant instead of waiting for the button, so the rail never opened and
+the assertion failed for a reason that had nothing to do with folders. I read
+main's log, talked myself into a delivery problem that did not exist, and
+removed the one `await` the restore actually needed. Asking main directly from
+the restored window, one line, settled it in a single run and showed the
+folder had never been there at all.
+
+Read the log to know what happened; ask the running thing to know what is true.
