@@ -276,7 +276,7 @@ export class WorkspaceSession {
    * renamed or removed between one launch and the next and the honest answer
    * then is to leave the current one alone.
    */
-  async openFolderPath(target: string): Promise<WorkspaceFolderEventV1> {
+  async openFolderPath(target: string, chosen = true): Promise<WorkspaceFolderEventV1> {
     const resolved = path.resolve(target);
     try {
       if (!(await stat(resolved)).isDirectory()) return this.folderEvent();
@@ -285,7 +285,7 @@ export class WorkspaceSession {
       await this.recentFolders?.forget(resolved);
       return this.folderEvent();
     }
-    return this.adoptFolder(resolved);
+    return this.adoptFolder(resolved, chosen);
   }
 
   private async adoptFolder(root: string, chosen = true): Promise<WorkspaceFolderEventV1> {
