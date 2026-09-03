@@ -102,7 +102,6 @@ function dotState(lifecycle: Entry['lifecycle']): string {
 export function PluginCenter({ api, snapshots, availability, open, evidenceControls }: PluginCenterProps) {
   const [pendingAction, setPendingAction] = useState<PendingActions>(emptyPending);
   const [operationError, setOperationError] = useState<OperationErrors>(emptyErrors);
-  const [selectedId, setSelectedId] = useState<string>(titleShiftManifest.id);
   const snapshotsRef = useRef(snapshots);
   const completionTrackerRef = useRef<ReturnType<typeof createPluginActionCompletionTracker> | null>(null);
   if (!completionTrackerRef.current) {
@@ -309,8 +308,6 @@ export function PluginCenter({ api, snapshots, availability, open, evidenceContr
       lifecycle: filesystem?.lifecycle ?? 'absent',
     },
   ];
-  const selected = entries.find((entry) => entry.id === selectedId) ?? entries[0];
-  const pending = selected ? pendingAction[selected.section] !== null : false;
 
   const primaryFor = (entry: Entry) => {
     if (entry.id === rendererProofManifest.id) return () => rendererPresentation.primaryAction
@@ -327,40 +324,32 @@ export function PluginCenter({ api, snapshots, availability, open, evidenceContr
     return `plugin-${entry.id}`;
   };
 
-  const renderIndexGroup = (group: Entry['group'], label: string) => (
-    <div className="plugin-index-group" key={group}>
-      <span className="pref-group-label">{label}</span>
-      {entries.filter((entry) => entry.group === group).map((entry) => (
-        <button key={entry.id} type="button"
-          className={entry.id === selected?.id ? 'plugin-pick is-current' : 'plugin-pick'}
-          data-testid={`plugin-pick-${entry.id}`}
-          aria-current={entry.id === selected?.id ? 'true' : undefined}
-          onClick={() => setSelectedId(entry.id)}>
-          <span className="plugin-dot" data-state={dotState(entry.lifecycle)} aria-hidden="true" />
-          <span className="plugin-pick-name">{entry.name}</span>
-        </button>
-      ))}
-    </div>
-  );
-
-  return (
-    <div className="plugin-center" id="plugin-drawer">
-      <nav className="plugin-index" aria-label="Plugins">
-        {renderIndexGroup('installed', 'Installed')}
-        {renderIndexGroup('examples', 'Examples')}
-      </nav>
-
-      {selected && (
-        <section key={selected.id}
-          className={`plugin-detail plugin-section plugin-tone-${selected.presentation.tone}`}
-          data-testid={detailTestId(selected)} aria-busy={pending}>
+  /**
+   * One plugin, laid out in full.
+   *
+   * Every plugin is drawn, one after another, rather than one at a time behind
+   * an index. The index was a second column of navigation inside a pane that
+   * already sat behind one, so reaching a plugin's switch took two choices and
+   * the panel showed three levels of nesting at once. There are five of these,
+   * not fifty; a list of five that answers itself beats a list of five that
+   * has to be clicked through.
+   */
+  const renderEntry = (entry: Entry) => {
+    // Per plugin now, not per panel: with every plugin on screen at once, one
+    // shared flag would have greyed out every button while any one of them
+    // was working.
+    const pending = pendingAction[entry.section] !== null;
+    return (
+      <section key={entry.id}
+          className={`plugin-detail plugin-section plugin-tone-${entry.presentation.tone}`}
+          data-testid={detailTestId(entry)} aria-busy={pending}>
           <header className="plugin-detail-head">
             <div className="plugin-name-row">
-              <strong>{selected.name}</strong>
-              <span className="plugin-kind">{selected.kind}</span>
+              <strong>{entry.name}</strong>
+              <span className="plugin-kind">{entry.kind}</span>
             </div>
-            <p className="plugin-scope">{pluginDescriptions.get(selected.id) ?? selected.presentation.scope}</p>
-            {selected.group === 'examples' && (
+            <p className="plugin-scope">{pluginDescriptions.get(entry.id) ?? entry.presentation.scope}</p>
+            {entry.group === 'examples' && (
               <p className="plugin-scope plugin-example-note">
                 A bundled example, one of each kind, to read before writing your own. Not a product feature.
               </p>
@@ -369,25 +358,25 @@ export function PluginCenter({ api, snapshots, availability, open, evidenceContr
 
           <div className="plugin-state-row">
             <p className="plugin-status" aria-live="polite"
-              data-testid={selected.id === rendererProofManifest.id ? 'renderer-plugin-lifecycle'
-                : selected.id === filesystemProofManifest.id ? 'filesystem-plugin-lifecycle' : undefined}>
-              {selected.presentation.status}
+              data-testid={entry.id === rendererProofManifest.id ? 'renderer-plugin-lifecycle'
+                : entry.id === filesystemProofManifest.id ? 'filesystem-plugin-lifecycle' : undefined}>
+              {entry.presentation.status}
             </p>
             <button type="button" className="plugin-primary"
-              disabled={selected.presentation.actionDisabled || pending}
-              onClick={primaryFor(selected)}>
-              {pending ? 'Working…' : selected.presentation.primaryLabel}
+              disabled={entry.presentation.actionDisabled || pending}
+              onClick={primaryFor(entry)}>
+              {pending ? 'Working…' : entry.presentation.primaryLabel}
             </button>
           </div>
 
-          {(pluginCommands.get(selected.id)?.length ?? 0) > 0 && (
+          {(pluginCommands.get(entry.id)?.length ?? 0) > 0 && (
             <p className="plugin-commands">
               <span className="plugin-commands-label">In the palette (⌘K)</span>
-              {pluginCommands.get(selected.id)?.join(' · ')}
+              {pluginCommands.get(entry.id)?.join(' · ')}
             </p>
           )}
 
-          {selected.id === rendererProofManifest.id && (
+          {entry.id === rendererProofManifest.id && (
             <label className="setting-row">
               <input type="checkbox" checked={renderer?.settings.focusEnabled ?? true}
                 disabled={!renderer || availability !== 'ready' || pending}
@@ -404,10 +393,10 @@ export function PluginCenter({ api, snapshots, availability, open, evidenceContr
           )}
 
           <p className="plugin-operation-message" aria-live="polite" aria-atomic="true" role="status">
-            {operationError[selected.section] ?? ''}
+            {operationError[entry.section] ?? ''}
           </p>
 
-          {selected.id === rendererProofManifest.id && (
+          {entry.id === rendererProofManifest.id && (
             <details className="plugin-diagnostics">
               <summary>Diagnostics</summary>
               <div className="diagnostic-actions">
@@ -430,7 +419,7 @@ export function PluginCenter({ api, snapshots, availability, open, evidenceContr
             </details>
           )}
 
-          {selected.id === filesystemProofManifest.id && (
+          {entry.id === filesystemProofManifest.id && (
             <details className="plugin-diagnostics">
               <summary>Diagnostics</summary>
               <div className="diagnostic-actions">
@@ -474,11 +463,28 @@ export function PluginCenter({ api, snapshots, availability, open, evidenceContr
             </details>
           )}
 
-          {selected.id === filesystemProofManifest.id && evidenceControls && (
+          {entry.id === filesystemProofManifest.id && evidenceControls && (
             <details className="plugin-evidence"><summary>G001 evidence controls</summary>{evidenceControls}</details>
           )}
-        </section>
-      )}
+      </section>
+    );
+  };
+
+  const renderGroup = (group: Entry['group'], label: string) => {
+    const inGroup = entries.filter((candidate) => candidate.group === group);
+    if (inGroup.length === 0) return null;
+    return (
+      <section className="plugin-group" key={group}>
+        <p className="pref-group">{label}</p>
+        {inGroup.map(renderEntry)}
+      </section>
+    );
+  };
+
+  return (
+    <div className="plugin-center" id="plugin-drawer">
+      {renderGroup('installed', 'Installed')}
+      {renderGroup('examples', 'Examples')}
     </div>
   );
 }

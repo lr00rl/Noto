@@ -281,9 +281,14 @@ describe('plugin center interaction and production structure', () => {
     // modality and the focus trap. A second trap inside it fought the first.
     expect(center).not.toMatch(/role=\{modal|aria-modal=\{modal/);
     expect(app).toContain('<Preferences');
-    // One detail at a time, busy while an action of its own kind is pending.
+    // Every plugin is drawn at once, and each is busy only while an action of
+    // its own kind is pending. A flag shared across the pane would grey out
+    // every button while any one of them was working.
     expect(center).toContain('aria-busy={pending}');
-    expect(center).toContain('pendingAction[selected.section] !== null');
+    expect(center).toContain('pendingAction[entry.section] !== null');
+    // No index inside a pane that already sits behind one.
+    expect(center).not.toContain('plugin-index');
+    expect(center).not.toContain('setSelectedId');
     expect(center).toContain("action === 'disable' || action === 'retry-cleanup'");
     expect(center).toContain("action === 'retry-cleanup'");
     expect(center).toContain('Restart service (revokes current access)');
@@ -302,13 +307,12 @@ describe('plugin center interaction and production structure', () => {
   it('keeps plugin chrome neutral and reachable', async () => {
     const css = await readFile(new URL('../../src/renderer/styles/app.scss', import.meta.url), 'utf8');
     const pluginChrome = css.slice(css.indexOf('.plugin-center {'), css.indexOf('.search-field'));
-    // The accent marks where you are and nothing else. In the plugin chrome
-    // that is exactly one rule, the spine on the selected row of the index,
-    // the same mark the preferences nav beside it uses. Tone is carried by
-    // the warning and danger rails.
+    // The accent marks where you are and nothing else. Nothing in this pane is
+    // "where you are" any more: every plugin is on screen at once, so there is
+    // no selected row to mark and the accent has no business here at all. Tone
+    // is carried by the warning and danger rails.
     expect(pluginChrome).not.toMatch(/gradient|box-shadow|backdrop-filter/);
-    expect(pluginChrome.match(/var\(--accent\)/g) ?? []).toHaveLength(1);
-    expect(pluginChrome).toMatch(/\.is-current::before \{[^}]*var\(--accent\)/s);
+    expect(pluginChrome.match(/var\(--accent\)/g) ?? []).toHaveLength(0);
     expect(pluginChrome).toContain('border-color: var(--hairline);');
     expect(pluginChrome).toContain('background: transparent;');
     expect(pluginChrome).not.toMatch(/\.plugin-primary[^}]*background:\s*var\(--ink\)/s);
