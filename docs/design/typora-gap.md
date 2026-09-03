@@ -1031,6 +1031,15 @@ be four per cent wider than Typora, because the Latin glyphs resolve to
 different faces at the same nominal size. The eye was right and now there is a
 number for it.
 
+A code fence was the one construct the comparison had never covered, and the
+one thing in it that was not proportional was the padding. Typora pads a fence
+one em at the top, 1.11 at the right and 0.94 at the bottom, in the code's own
+size; this padded 0.9, 1 and 0.85, a tenth tighter all round. On the commonest
+block in this vault that reads as a different theme rather than a different
+number. The gutter's vertical padding moved with it, or the line numbers drift
+off their lines. Everything else about a fence already matched to the byte:
+the fill, the border, the radius, the face, the leading and both margins.
+
 What did not match was the fallback chain. Typora lists PingFang SC and
 Hiragino Sans GB after the three serif faces; this stopped at the third and
 then at whatever the system calls serif. On a machine with Songti SC, which
