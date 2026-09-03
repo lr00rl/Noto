@@ -169,6 +169,9 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
           command('Delete Row', undefined, 'table-row-delete'),
           command('Delete Column', undefined, 'table-column-delete'),
           command('Delete Table', undefined, 'table-delete'),
+          { type: 'separator' },
+          command('Copy Table', undefined, 'table-copy'),
+          command('Prettify Table', undefined, 'table-prettify'),
         ],
       },
       { type: 'separator' },
@@ -192,6 +195,13 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
           command('Caution', undefined, 'block-alert-caution'),
         ],
       },
+      { type: 'separator' },
+      // The four Typora's Paragraph menu inserts and Noto could not write
+      // without opening the source, in the order it lists them.
+      command('Footnote', undefined, 'insert-footnote'),
+      command('Table of Contents', undefined, 'insert-toc'),
+      command('YAML Front Matter', undefined, 'insert-frontmatter'),
+      command('Link Reference', undefined, 'insert-link-reference'),
     ],
   };
 

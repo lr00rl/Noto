@@ -16,6 +16,7 @@ import type {
   TableRow,
 } from 'mdast';
 import { renderMarkdown } from '../syntax';
+import { alignTableMarkdown } from '../table-align';
 
 type AlignType = 'left' | 'right' | 'center' | null;
 
@@ -273,5 +274,11 @@ export function blockToMarkdown(node: ProseNode): string {
   if (node.type.name === 'code_block' && node.attrs.fenced === false) {
     return textOf(node).split('\n').map((line) => (line.length > 0 ? `    ${line}` : line)).join('\n');
   }
-  return renderMarkdown(blockToMdast(node)).replace(/\n+$/, '');
+  const markdown = renderMarkdown(blockToMdast(node)).replace(/\n+$/, '');
+  // Alignment is a pure transform of the finished text, so it needs no place in
+  // the mdast conversion: the reader asked for this table's source to be lined
+  // up, and this is the one funnel every block's markdown passes through.
+  return node.type.name === 'table' && node.attrs.pretty === true
+    ? alignTableMarkdown(markdown)
+    : markdown;
 }

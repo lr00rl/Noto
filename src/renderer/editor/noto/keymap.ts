@@ -39,6 +39,14 @@ import { moveBlock, moveColumn } from './move-block';
 import { openLinkEditor } from './link-plugin';
 import { TextSelection, type Command, type Plugin, type Transaction } from 'prosemirror-state';
 import { notoSchema } from '../../../shared/markdown/v3/pm/schema';
+import {
+  insertFootnote,
+  insertFrontmatter,
+  insertLinkReference,
+  copyTable,
+  insertTableOfContents,
+  prettifyTable,
+} from './insert-blocks';
 
 const { nodes, marks } = notoSchema;
 
@@ -326,6 +334,10 @@ export const EDITOR_COMMANDS: Readonly<Record<string, Command>> = {
   'block-bullet-list': wrapInList(nodes.bullet_list),
   'block-task-list': toggleTaskList,
   'block-rule': insertRule,
+  'insert-footnote': insertFootnote,
+  'insert-toc': insertTableOfContents,
+  'insert-frontmatter': insertFrontmatter,
+  'insert-link-reference': insertLinkReference,
   'mark-strong': toggleMark(marks.strong),
   'mark-emphasis': toggleMark(marks.emphasis),
   'mark-code': toggleMark(marks.inline_code),
@@ -334,6 +346,8 @@ export const EDITOR_COMMANDS: Readonly<Record<string, Command>> = {
   'mark-highlight': surround('==', '=='),
   'mark-math': wrapInMath,
   'table-insert': insertTable(2, 3),
+  'table-prettify': prettifyTable,
+  'table-copy': copyTable,
   'table-row-above': addRowBefore,
   'table-row-below': addRowAfter,
   'table-column-before': addColumnBefore,
