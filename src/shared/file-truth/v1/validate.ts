@@ -165,11 +165,19 @@ function isOrigin(value: unknown): boolean {
     && typeof value.semanticKey === 'string' && value.semanticKey.length <= 2_000_000;
 }
 
+/** What the save is asked to make the file's endings and last byte. */
+function isTargetEnvelope(value: unknown): boolean {
+  return record(value) && exact(value, ['lineEnding', 'hasFinalNewline'])
+    && ['lf', 'crlf', 'mixed'].includes(String(value.lineEnding))
+    && typeof value.hasFinalNewline === 'boolean';
+}
+
 function isTransaction(value: unknown): boolean {
   if (!record(value) || value.version !== 3 || typeof value.documentId !== 'string'
     || !value.documentId.startsWith('noto-doc-v3:') || typeof value.revisionId !== 'string'
     || !value.revisionId.startsWith('noto-rev-v3:')) return false;
-  if (value.mode === 'blocks') return exact(value, ['version', 'mode', 'documentId', 'revisionId', 'units'])
+  if (value.mode === 'blocks') return exact(value, ['version', 'mode', 'documentId', 'revisionId', 'units', 'envelope'])
+    && isTargetEnvelope(value.envelope)
     && Array.isArray(value.units) && value.units.length <= 100_000
     && value.units.every((unit) => record(unit) && exact(unit, ['origin', 'markdown'])
       && (unit.origin === null || isOrigin(unit.origin))

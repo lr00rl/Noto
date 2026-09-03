@@ -22,6 +22,7 @@ function editing(document: NotoDocument, edits: ReadonlyMap<number, string>): No
   return {
     version: NOTO_MARKDOWN_VERSION,
     mode: 'blocks',
+    envelope: { lineEnding: 'mixed' as const, hasFinalNewline: true },
     documentId: document.documentId,
     revisionId: document.revisionId,
     units: document.blocks.map((block, ordinal) => ({

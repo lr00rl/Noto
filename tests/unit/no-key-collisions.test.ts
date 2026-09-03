@@ -41,7 +41,8 @@ describe('no key is claimed twice', () => {
     recent: [],
     actions: {
       openFolder: () => {}, closeTab: () => {}, openDialog: () => {},
-      openPath: () => {}, clearRecent: () => {},
+      openPath: () => {},
+    importDocument: () => {}, clearRecent: () => {},
     },
     sendCommand: () => {},
     openExternal: () => {},

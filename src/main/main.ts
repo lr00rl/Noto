@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, dialog } from 'electron';
 import { FileTruthStoreV1 } from './file-truth/v1/file-truth-store';
 import { registerFileTruthHandlers } from './file-truth/v1/register-file-truth-handlers';
 import { registerIpcHandlers } from './ipc/register-handlers';
@@ -252,12 +252,43 @@ async function run(): Promise<void> {
    * note and expects a fresh window to be writable.
    */
   windowAlwaysOnTop = settings.current().alwaysOnTop;
+  /*
+   * The line endings shown as ticked.
+   *
+   * Read from the document in front, because that is where the truth is, with
+   * an override for the moment between the reader choosing an ending and the
+   * save that writes it: until then the file still has the old one and the menu
+   * would keep saying so. Cleared when a different document comes forward.
+   */
+  const chosen: { lineEnding?: 'lf' | 'crlf'; finalNewline?: boolean } = {};
+  let shownDocument: string | null = null;
+  const documentShape = () => {
+    const current = session?.current ?? null;
+    if (current?.document.documentId !== shownDocument) {
+      shownDocument = current?.document.documentId ?? null;
+      chosen.lineEnding = undefined;
+      chosen.finalNewline = undefined;
+    }
+    const own = current?.document.envelope;
+    return {
+      // A file with no newline at all in it has no ending of its own, so the
+      // menu shows the one a new file would be written with.
+      lineEnding: chosen.lineEnding ?? (own?.lineEnding === 'crlf' ? 'crlf' : 'lf'),
+      finalNewline: chosen.finalNewline ?? own?.hasFinalNewline ?? true,
+    } as const;
+  };
   const menuState = { readOnly: false, alwaysOnTop: windowAlwaysOnTop };
   if (windowAlwaysOnTop) editorWindow?.setAlwaysOnTop(true);
   const refreshMenu = () => installApplicationMenu(() => editorWindow, recent.list(), {
     openDialog: () => { void session?.openWithDialog().then(refreshMenu).catch(reportOpenFailure); },
     openPath: (filePath) => { void session?.openPath(filePath).then(refreshMenu).catch(reportOpenFailure); },
     openFolder: () => { void session?.openFolderWithDialog().catch(reportOpenFailure); },
+    importDocument: () => {
+      void session?.importDocument().then((outcome) => {
+        refreshMenu();
+        if (!outcome.imported && outcome.reason !== 'cancelled') reportImportRefusal(outcome.reason);
+      }).catch(() => reportImportRefusal('failed'));
+    },
     closeTab: () => {
       const current = session?.currentPath;
       if (current) session?.close(current);
@@ -265,15 +296,51 @@ async function run(): Promise<void> {
     clearRecent: () => {
       void Promise.all(recent.list().map((file) => recent.forget(file.path))).then(refreshMenu);
     },
-  }, menuState, (command) => {
+  }, { ...menuState, ...documentShape() }, (command) => {
     // The renderer owns whether the editor is read-only, and this menu shows a
     // tick for it. Both flip on the same press, from the same starting point,
     // so the tick and the editor agree without a second message to keep them
     // in step.
+    if (command === 'line-endings-lf' || command === 'line-endings-crlf') {
+      chosen.lineEnding = command === 'line-endings-lf' ? 'lf' : 'crlf';
+      refreshMenu();
+      return;
+    }
+    if (command === 'toggle-final-newline') {
+      chosen.finalNewline = !documentShape().finalNewline;
+      refreshMenu();
+      return;
+    }
     if (command !== 'toggle-read-only') return;
     menuState.readOnly = !menuState.readOnly;
     refreshMenu();
   });
+  /*
+   * Say why an import did nothing, in a box rather than in the log.
+   *
+   * The one that matters is pandoc being absent: the reader has asked for a
+   * conversion this app cannot do on its own, and the useful answer names the
+   * program and how to get it rather than reporting a failure they cannot act
+   * on. It is a message box because main owns the whole operation and there is
+   * nothing in the page to attach a message to.
+   */
+  const reportImportRefusal = (reason: string) => {
+    const window = editorWindow;
+    const message = reason === 'no-pandoc'
+      ? 'Importing needs Pandoc, which is not installed.'
+      : reason === 'no-folder'
+        ? 'Open a folder first, and the imported note goes in it.'
+        : reason === 'unsupported'
+          ? 'Noto cannot import that kind of file.'
+          : 'That document could not be converted.';
+    const detail = reason === 'no-pandoc'
+      ? 'Install it with "brew install pandoc", then try again. Noto does not ship Pandoc: it is a large program with its own releases, and one you may already have.'
+      : undefined;
+    logger.log('document_import_reported', { reason });
+    if (!window) return;
+    void dialog.showMessageBox(window, { type: 'info', message, detail, buttons: ['OK'] });
+  };
+
   const reportOpenFailure = (error: unknown) => logger.log('workspace_open_failed', {
     code: error instanceof Error ? error.message.split(':', 1)[0] : 'OPEN_FAILED',
   });
@@ -319,7 +386,7 @@ async function run(): Promise<void> {
     recent,
     getWindow: () => editorWindow,
     logger,
-    onRecentChanged: refreshMenu,
+    onMenuStale: refreshMenu,
     recentFolders: async () => { await recentFolders.load(); return recentFolders.list(); },
   });
 

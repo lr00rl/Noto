@@ -16,6 +16,7 @@ function template(platform: NodeJS.Platform, recent: readonly RecentFileV1[] = [
       closeTab: noop,
       openDialog: noop,
       openPath: noop,
+      importDocument: noop,
       clearRecent: noop,
     },
     sendCommand: noop,
@@ -107,7 +108,9 @@ describe('the menu and the renderer agree on commands', () => {
   it('emits only commands the contract defines', () => {
     const ids = menuCommandIds(template('darwin'));
     // Items handled inside main rather than sent to the renderer.
-    const mainOnly = new Set(['open-dialog', 'open-folder', 'close-tab']);
+    // Import belongs here too: the dialog, the conversion and the file are all
+    // main's, so nothing about it has to cross the boundary and come back.
+    const mainOnly = new Set(['open-dialog', 'open-folder', 'close-tab', 'import-document']);
     const sent = ids.filter((id) => !mainOnly.has(id));
     for (const id of sent) {
       expect(known).toContain(id as WorkspaceMenuCommandV1);

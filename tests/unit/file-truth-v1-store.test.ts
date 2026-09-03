@@ -44,6 +44,7 @@ function editParagraph(document: NotoDocumentWire, saveToken: FileTruthSaveToken
     transaction: {
       version: NOTO_MARKDOWN_VERSION,
       mode: 'blocks',
+      envelope: { lineEnding: 'mixed' as const, hasFinalNewline: true },
       documentId: document.documentId,
       revisionId: document.revisionId,
       units,

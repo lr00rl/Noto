@@ -109,9 +109,27 @@ describe('Noto file-truth v1 contracts', () => {
       byteLength: 4, mtimeNanoseconds: '1', contentSha256: 'a'.repeat(64) };
     const saveToken = { version: 1, documentRevisionId: `noto-rev-v3:${'b'.repeat(64)}`, editorRevision: 0, fingerprint };
     const base = { version: 3, documentId: `noto-doc-v3:${'b'.repeat(64)}`, revisionId: saveToken.documentRevisionId };
+    const envelope = { lineEnding: 'mixed', hasFinalNewline: true };
     const blockRequest = { version: 1, requestId: 'save:v3', candidate: { version: 3, saveToken,
-      transaction: { ...base, mode: 'blocks', units: [{ origin: null, markdown: 'Text.' }] } } };
+      transaction: { ...base, mode: 'blocks', envelope, units: [{ origin: null, markdown: 'Text.' }] } } };
     expect(isFileTruthSaveRequestV1(blockRequest)).toBe(true);
+    // The shape a save is asked to write the file in is checked like everything
+    // else that crosses the boundary: an unknown ending, or a missing flag, is
+    // a request to rewrite every line of a file in a way nobody defined.
+    for (const bad of [
+      { lineEnding: 'cr', hasFinalNewline: true },
+      { lineEnding: 'lf' },
+      { lineEnding: 'lf', hasFinalNewline: 'yes' },
+      { lineEnding: 'lf', hasFinalNewline: true, extra: 1 },
+    ]) {
+      expect(isFileTruthSaveRequestV1({ ...blockRequest, candidate: { ...blockRequest.candidate,
+        transaction: { ...blockRequest.candidate.transaction, envelope: bad } } })).toBe(false);
+    }
+    // And a transaction that carries none at all is refused, rather than
+    // quietly defaulting to something on this side of the boundary.
+    const { envelope: _dropped, ...withoutEnvelope } = blockRequest.candidate.transaction;
+    expect(isFileTruthSaveRequestV1({ ...blockRequest,
+      candidate: { ...blockRequest.candidate, transaction: withoutEnvelope } })).toBe(false);
     expect(isFileTruthSaveRequestV1({ ...blockRequest, candidate: { ...blockRequest.candidate,
       transaction: { ...blockRequest.candidate.transaction, extra: true } } })).toBe(false);
     // The retired v2 shape must not be accepted through the same lease.

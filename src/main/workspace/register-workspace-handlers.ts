@@ -42,7 +42,14 @@ export function registerWorkspaceHandlers(deps: {
   recent: RecentFiles;
   getWindow: () => BrowserWindow | null;
   logger: StructuredLogger;
-  onRecentChanged: () => void;
+  /**
+   * Something the application menu shows has changed.
+   *
+   * The recent list, and also which document is in front: the Line Endings
+   * items show what the note being edited is written with, so switching tabs
+   * changes them as surely as opening a file does.
+   */
+  onMenuStale: () => void;
   /** The folders opened before, read at call time so the list is current. */
   recentFolders: () => Promise<readonly RecentFileV1[]>;
 }): void {
@@ -119,25 +126,27 @@ export function registerWorkspaceHandlers(deps: {
       const opened = deps.session.activate(request.path);
       // A tab that is not open is not an error worth failing the call over; the
       // renderer's list was simply a moment out of date.
+      if (opened) deps.onMenuStale();
       return { version: NOTO_WORKSPACE_VERSION, opened } as const;
     });
 
   register(WORKSPACE_CHANNELS.closeTab, isWorkspaceTabRequestV1,
     (request: WorkspaceTabRequestV1) => {
       deps.session.close(request.path);
+      deps.onMenuStale();
       return { version: NOTO_WORKSPACE_VERSION, tabs: deps.session.tabs() } as const;
     });
 
   register(WORKSPACE_CHANNELS.openDialog, isWorkspaceRequestV1, async () => {
     const opened = await deps.session.openWithDialog();
-    if (opened) deps.onRecentChanged();
+    if (opened) deps.onMenuStale();
     return { version: NOTO_WORKSPACE_VERSION, opened } as const;
   });
 
   register(WORKSPACE_CHANNELS.openPath, isWorkspaceOpenPathRequestV1,
     async (request: WorkspaceOpenPathRequestV1) => {
       const opened = await deps.session.openPath(request.path);
-      deps.onRecentChanged();
+      deps.onMenuStale();
       return { version: NOTO_WORKSPACE_VERSION, opened } as const;
     });
 
