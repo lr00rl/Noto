@@ -12,8 +12,8 @@
  */
 
 import path from 'node:path';
-import { stat, writeFile } from 'node:fs/promises';
-import { BrowserWindow, dialog, shell } from 'electron';
+import { realpath, stat, writeFile } from 'node:fs/promises';
+import { BrowserWindow, Menu, clipboard, dialog, shell, type MenuItemConstructorOptions } from 'electron';
 import type { FileTruthOpenReplyV1 } from '../../shared/file-truth/v1/contracts';
 import { openableExternalUrl } from '../../shared/workspace/v1/validate';
 import {
@@ -22,6 +22,7 @@ import {
   type WorkspaceTabV1,
   type WorkspaceFolderEventV1,
   type WorkspaceNewFileReplyV1,
+  type WorkspaceTreeMenuReplyV1,
   type WorkspaceOpenExternalReplyV1,
 } from '../../shared/workspace/v1/contracts';
 import type {
@@ -30,7 +31,7 @@ import type {
 import type { StructuredLogger } from '../logger';
 import type { FileTruthStoreV1 } from '../file-truth/v1/file-truth-store';
 import type { RecentFiles } from './recent-files';
-import { isEditableFile, listDirectory, type FileTreeEntryV1 } from './file-tree';
+import { isEditableFile, listDirectory, type FileTreeEntryV1, isInside } from './file-tree';
 import { buildFileIndex } from './file-index';
 import { searchContent } from './content-search';
 
@@ -296,6 +297,52 @@ export class WorkspaceSession {
     const event = this.folderEvent();
     this.send(WORKSPACE_CHANNELS.folderChanged, event);
     return event;
+  }
+
+  /**
+   * Draw the menu for a row of the file tree.
+   *
+   * The renderer names the row; everything the menu does runs here, where the
+   * filesystem is. The path is resolved through any symlink and checked
+   * against the open folder first, because a renderer naming a path is a
+   * renderer asking about somewhere, and only somewhere inside the folder the
+   * reader opened is an answerable question.
+   */
+  async treeMenu(target: string, kind: 'file' | 'directory'): Promise<WorkspaceTreeMenuReplyV1> {
+    const window = this.getWindow();
+    const root = this.folderRoot;
+    if (!window || root === null) return { version: NOTO_WORKSPACE_VERSION, accepted: false };
+
+    let real: string;
+    let realRoot: string;
+    try {
+      real = await realpath(path.resolve(target));
+      realRoot = await realpath(root);
+    } catch {
+      return { version: NOTO_WORKSPACE_VERSION, accepted: false };
+    }
+    if (!isInside(realRoot, real)) {
+      this.logger.log('tree_menu_refused', {});
+      return { version: NOTO_WORKSPACE_VERSION, accepted: false };
+    }
+
+    const items: MenuItemConstructorOptions[] = [];
+    if (kind === 'file') {
+      items.push({ label: 'Open', click: () => { void this.openPath(real).catch(() => {}); } });
+    }
+    items.push({
+      label: process.platform === 'darwin' ? 'Reveal in Finder'
+        : process.platform === 'win32' ? 'Reveal in File Explorer' : 'Reveal in File Manager',
+      click: () => shell.showItemInFolder(real),
+    });
+    items.push({ label: 'Copy Path', click: () => clipboard.writeText(real) });
+    /*
+     * Opened after this call has answered. A native menu holds the input loop
+     * until somebody dismisses it, so a reply sent behind it would not reach
+     * the renderer until then, and nothing on either side can proceed.
+     */
+    setImmediate(() => Menu.buildFromTemplate(items).popup({ window }));
+    return { version: NOTO_WORKSPACE_VERSION, accepted: true };
   }
 
   /**

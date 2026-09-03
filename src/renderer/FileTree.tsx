@@ -20,6 +20,8 @@ export interface FileTreeProps {
   readonly activePath: string | null;
   readonly list: (directory: string) => Promise<readonly WorkspaceEntryV1[]>;
   readonly onOpenFile: (filePath: string) => void;
+  /** A press of the right button on a row: main draws the menu for it. */
+  readonly onRowMenu: (rowPath: string, kind: 'file' | 'directory') => void;
   readonly onChooseFolder: () => void;
   /**
    * The folder's own actions, drawn on the folder's own row.
@@ -34,7 +36,7 @@ export interface FileTreeProps {
 /** The height of one row, which the sticky offsets are multiples of. */
 export const TREE_ROW_HEIGHT = 32;
 
-export function FileTree({ root, rootName, activePath, list, onOpenFile, onChooseFolder, vaultMenu }: FileTreeProps) {
+export function FileTree({ root, rootName, activePath, list, onOpenFile, onRowMenu, onChooseFolder, vaultMenu }: FileTreeProps) {
   const [children, setChildren] = useState<ReadonlyMap<string, readonly WorkspaceEntryV1[]>>(new Map());
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [failed, setFailed] = useState<string | null>(null);
@@ -232,6 +234,7 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
                   title={entry.name}
                   aria-expanded={isOpen}
                   onClick={() => toggle(entry.path)}
+                  onContextMenu={(event) => { event.preventDefault(); onRowMenu(entry.path, 'directory'); }}
                 >
                   <span className={isOpen ? 'tree-twisty tree-twisty-open' : 'tree-twisty'} aria-hidden="true" />
                   <FolderGlyph open={isOpen} />
@@ -253,6 +256,7 @@ export function FileTree({ root, rootName, activePath, list, onOpenFile, onChoos
                 title={entry.name}
                 aria-current={isActive ? 'true' : undefined}
                 onClick={() => onOpenFile(entry.path)}
+                onContextMenu={(event) => { event.preventDefault(); onRowMenu(entry.path, 'file'); }}
               >
                 <span className="tree-twisty tree-twisty-blank" aria-hidden="true" />
                 <FileGlyph />

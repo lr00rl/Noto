@@ -1066,6 +1066,18 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     followWikiLink(target.replace(/^\.\//, ''));
   }, [followWikiLink]);
   followLinkRef.current = followLink;
+
+  /**
+   * Ask main for the menu on a tree row.
+   *
+   * The path only names the row; main resolves it, checks it is inside the
+   * open folder and draws the menu itself, so nothing the menu does runs here.
+   */
+  const showTreeMenu = useCallback((rowPath: string, kind: 'file' | 'directory') => {
+    void window.notoWorkspace.treeMenu({
+      version: 1, requestId: rid('tree-menu'), path: rowPath, kind,
+    });
+  }, []);
   countRef.current = (documentId, next) => {
     if (documentId === activeIdRef.current) setCount(next);
   };
@@ -1468,6 +1480,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
               activePath: opened?.path ?? null,
               list: listFolder,
               onOpenFile: openFromTree,
+              onRowMenu: showTreeMenu,
               onChooseFolder: chooseFolder,
             }}
           />

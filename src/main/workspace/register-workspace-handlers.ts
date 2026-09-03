@@ -16,6 +16,7 @@ import {
   type WorkspaceFolderRequestV1,
   type RecentFileV1,
   type WorkspaceOpenExternalRequestV1,
+  type WorkspaceTreeMenuRequestV1,
   type WorkspaceRevealRequestV1,
   type WorkspaceContentRequestV1,
 } from '../../shared/workspace/v1/contracts';
@@ -25,6 +26,7 @@ import {
   isWorkspaceTabRequestV1,
   isWorkspaceFolderRequestV1,
   isWorkspaceOpenExternalRequestV1,
+  isWorkspaceTreeMenuRequestV1,
   isWorkspaceRevealRequestV1,
   isWorkspaceContentRequestV1,
 } from '../../shared/workspace/v1/validate';
@@ -97,6 +99,9 @@ export function registerWorkspaceHandlers(deps: {
 
   register(WORKSPACE_CHANNELS.newFile, isWorkspaceRequestV1,
     () => deps.session.newFile());
+
+  register(WORKSPACE_CHANNELS.treeMenu, isWorkspaceTreeMenuRequestV1,
+    (request: WorkspaceTreeMenuRequestV1) => deps.session.treeMenu(request.path, request.kind));
 
   register(WORKSPACE_CHANNELS.searchContent, isWorkspaceContentRequestV1,
     (request: WorkspaceContentRequestV1) => deps.session.searchContent(request.query));
