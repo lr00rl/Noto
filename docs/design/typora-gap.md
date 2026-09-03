@@ -1047,6 +1047,24 @@ this one has, it makes no difference at all, which is why it went unnoticed.
 On a machine without it, Typora would still be setting Chinese in PingFang
 while this dropped to Times. The stack is now Typora's, face for face.
 
+## 56. A checkbox that did not grow with the text. Closed.
+
+The task list was the next construct never measured. Everything about it lines
+up with Typora, the list's indent to the pixel once the base size is taken
+out, and the box did not: 13 pixels where the proportion wanted 11.25.
+
+The reason was worse than the number. The box was written in pixels, so it
+stayed 13 while the words around it grew, and the reader who sets the text to
+22 got a checkbox for a different document. Everything in this document that
+has a size is in `em`, which the theming guide says in as many words; this one
+rule was not.
+
+It is 0.8em now, with its border, its corner and its tick in em to match.
+Typora's is a native checkbox fixed at 12 pixels, which is 0.8em at its own
+16, so the same 0.8em lands on exactly 12 at the default here and keeps
+following the setting afterwards, which Typora's does not. Checked at 15 and
+at 22.
+
 # Where things stand
 
 ## Plugins: eight of sixteen, in some form
