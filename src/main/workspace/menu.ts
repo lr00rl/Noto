@@ -37,14 +37,21 @@ export function buildApplicationMenu(
   getWindow: () => BrowserWindow | null,
   recent: readonly RecentFileV1[],
   actions: MenuActions,
+  state?: { readonly readOnly: boolean; readonly alwaysOnTop: boolean },
+  /** Told about every command sent, so a tick in this menu can follow one. */
+  onCommand?: (command: WorkspaceMenuCommandV1) => void,
 ): Menu {
   return Menu.buildFromTemplate(buildMenuTemplate({
     platform: process.platform,
     appName: app.name,
     recent,
     actions,
-    sendCommand: (command) => sendCommand(getWindow(), command),
+    sendCommand: (command) => {
+      sendCommand(getWindow(), command);
+      onCommand?.(command);
+    },
     openExternal: (url) => { void shell.openExternal(url); },
+    state,
   }));
 }
 
@@ -52,6 +59,8 @@ export function installApplicationMenu(
   getWindow: () => BrowserWindow | null,
   recent: readonly RecentFileV1[],
   actions: MenuActions,
+  state?: { readonly readOnly: boolean; readonly alwaysOnTop: boolean },
+  onCommand?: (command: WorkspaceMenuCommandV1) => void,
 ): void {
-  Menu.setApplicationMenu(buildApplicationMenu(getWindow, recent, actions));
+  Menu.setApplicationMenu(buildApplicationMenu(getWindow, recent, actions, state, onCommand));
 }

@@ -42,6 +42,7 @@ import { RailFooter } from './RailFooter';
 import { Preferences, type PreferencesSection } from './Preferences';
 import { DEFAULT_SETTINGS, stepWidthMode, type NotoSettingsV1 } from '../shared/settings/v1/contracts';
 import type { AssetRefusalV1 } from '../shared/assets/v1/contracts';
+import { copyThroughSelection } from './editor/noto/clipboard';
 import type { WorkspaceEntryRefusalV1 } from '../shared/workspace/v1/contracts';
 import { EMPTY_TRAIL, forget as forgetTrail, record as recordTrail, stepBack, stepForward, type Trail } from './trail';
 import type { NotoEditor } from './editor/noto/NotoEditor';
@@ -1282,6 +1283,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const reloadFromDiskRef = useRef(reloadFromDisk);
   reloadFromDiskRef.current = reloadFromDisk;
 
+  /** Reading rather than writing, for the status line to say so. */
+  const [readOnly, setReadOnly] = useState(false);
+
   /** The row wearing a name field, put there by the row menu in main. */
   const [treeEditing, setTreeEditing] = useState<
     { path: string; intent: 'rename' | 'new-folder' } | null
@@ -1419,6 +1423,31 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
           setLocalMessage('That does not apply where the cursor is.');
         }
         break;
+      case 'toggle-always-on-top':
+        void changeSettings({ alwaysOnTop: !settings.alwaysOnTop });
+        break;
+      case 'toggle-read-only': {
+        const editor = editorRef.current;
+        if (!editor) break;
+        const next = !editor.isReadOnly;
+        editor.setReadOnly(next);
+        setReadOnly(next);
+        setLocalMessage(next
+          ? 'Read-only. Nothing you type will change this note.'
+          : null);
+        break;
+      }
+      case 'copy-as-markdown': case 'copy-as-html': case 'copy-as-plain': {
+        const as = event.command === 'copy-as-html' ? 'html'
+          : event.command === 'copy-as-plain' ? 'plain' : 'markdown';
+        const copied = editorRef.current?.copySelection(as) ?? null;
+        if (copied === null) {
+          setLocalMessage('Select something first.');
+          break;
+        }
+        if (!copyThroughSelection(copied)) setLocalMessage('The clipboard refused it.');
+        break;
+      }
       case 'reload-from-disk': {
         const id = activeIdRef.current;
         if (id) void reloadFromDiskRef.current(id);
@@ -1890,7 +1919,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
           on something the reader has already read. The containing folder is
           what the title bar cannot tell them, and the full path is on hover. */}
       {opened && (
-        <footer className="operational-status">
+        <footer className={readOnly ? 'operational-status has-flag' : 'operational-status'}>
           <RecentStrip tabs={tabs} dirty={dirtyDocumentIds} onActivate={activateTab} />
           <span className="status-path" title={opened.path}>{containingFolder}</span>
           {/* Only the resting states. Every other state is already on the title
@@ -1902,6 +1931,10 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
               message changes and the fade starts again. The line says its
               piece and then recedes: a promise that is always on screen stops
               being read, and the window is quieter for its absence. */}
+          {/* Read-only is a mode with no other sign on screen, and a reader
+              whose typing does nothing needs to be told why rather than
+              concluding the app is broken. */}
+          {readOnly && <span className="status-flag" data-testid="read-only-flag">Read-only</span>}
           <span key={notice ?? state} className={notice ? 'status-message is-notice' : 'status-message'}
             data-testid={notice ? 'status-notice' : undefined} aria-live="polite">
             {notice ?? (state === 'Opened' ? 'Exact source preserved' : state === 'Saved' ? 'Exact source saved' : '')}

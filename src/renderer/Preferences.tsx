@@ -66,7 +66,7 @@ function SectionGlyph({ name }: { name: PreferencesSection }) {
 }
 
 const SECTIONS: readonly { value: PreferencesSection; label: string; keywords: string }[] = [
-  { value: 'appearance', label: 'Appearance', keywords: 'theme dark light text size line height width rail stylesheet css font' },
+  { value: 'appearance', label: 'Appearance', keywords: 'theme dark light text size line height width rail stylesheet css font always on top float window' },
   { value: 'editor', label: 'Editor', keywords: 'spell check images brackets pairs focus typewriter save autosave line numbers guides reload external disk sync watch' },
   { value: 'markdown', label: 'Markdown', keywords: 'smart quotes dashes ellipsis punctuation typography syntax' },
   { value: 'images', label: 'Images', keywords: 'image picture paste drop screenshot assets folder copy relative path escape url' },
@@ -435,6 +435,13 @@ export function Preferences({
                   checked={settings.sidebarOnLaunch}
                   onChange={(value) => onChange({ sidebarOnLaunch: value })}
                   testId="setting-sidebar-launch"
+                />
+                <Switch
+                  label="Keep the window on top"
+                  hint="Above every other window, for writing beside something you are reading from."
+                  checked={settings.alwaysOnTop}
+                  onChange={(value) => onChange({ alwaysOnTop: value })}
+                  testId="setting-always-on-top"
                 />
                 <ThemeFile settings={settings} onChange={onChange}
                   problem={themeProblem} onReload={onReloadCss} />

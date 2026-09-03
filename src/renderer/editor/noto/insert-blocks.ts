@@ -18,7 +18,7 @@
 import { TextSelection, type Command } from 'prosemirror-state';
 import { notoSchema } from '../../../shared/markdown/v3/pm/schema';
 import { blockToMarkdown } from '../../../shared/markdown/v3/pm/to-mdast';
-import { tableToHtml } from './clipboard';
+import { copyRichThroughSelection, tableToHtml } from './clipboard';
 
 const nodes = notoSchema.nodes;
 
@@ -195,34 +195,14 @@ export const prettifyTable: Command = (state, dispatch) => {
   return true;
 };
 
-/**
- * Put the table on the clipboard as both markdown and HTML.
- *
- * The write is asynchronous and the command is not, so the promise is started
- * and not waited on. Nothing in the document changes, so there is nothing for a
- * failure to leave half done, and the reader finds out the ordinary way: by
- * pasting and seeing nothing.
- */
+/** Put the table on the clipboard as both markdown and HTML. */
 export const copyTable: Command = (state, dispatch) => {
   const found = tableAround(state);
   if (!found) return false;
   if (dispatch) {
-    const markdown = blockToMarkdown(found.node);
-    const html = tableToHtml(found.node);
-    void writeClipboard(markdown, html);
+    // Both flavours, through the copy command: the asynchronous clipboard API
+    // asks for a permission this app refuses to every page.
+    copyRichThroughSelection(blockToMarkdown(found.node), tableToHtml(found.node));
   }
   return true;
 };
-
-async function writeClipboard(markdown: string, html: string): Promise<void> {
-  try {
-    await navigator.clipboard.write([new ClipboardItem({
-      'text/plain': new Blob([markdown], { type: 'text/plain' }),
-      'text/html': new Blob([html], { type: 'text/html' }),
-    })]);
-  } catch {
-    // A browser that will not take two flavours at once still takes one, and
-    // the markdown is the one that matters in a markdown editor.
-    await navigator.clipboard.writeText(markdown).catch(() => {});
-  }
-}

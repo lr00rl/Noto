@@ -201,6 +201,10 @@ export class TableView implements NodeView {
     if (!(target instanceof HTMLElement)) return;
     const handle = target.closest<HTMLElement>('.noto-table-handle');
     if (!handle || event.button !== 0) return;
+    // A node view's own pointer handler never sees the view's `editable`, so
+    // read-only has to be refused here as well or a table could still be
+    // rearranged by dragging while everything else was locked.
+    if (!this.view.editable) return;
     const geometry = this.geometry();
     if (!geometry) return;
 

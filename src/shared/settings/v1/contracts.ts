@@ -185,6 +185,8 @@ export interface NotoSettingsV1 {
    * field.
    */
   readonly customCssPath: string;
+  /** Keep the window above every other, for writing beside something else. */
+  readonly alwaysOnTop: boolean;
   /**
    * Take an external edit into a note with no unsaved changes, without asking.
    *
@@ -228,6 +230,7 @@ export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   customCssPath: '',
   // Typora's own default, and the one that keeps a note portable: the note and
   // its pictures move together.
+  alwaysOnTop: false,
   reloadExternalChanges: true,
   imageDestination: 'assets',
   imageCustomFolder: './images',

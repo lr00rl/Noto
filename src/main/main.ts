@@ -128,8 +128,19 @@ app.on('web-contents-created', (_event, contents) => {
   contents.on('will-attach-webview', (event) => event.preventDefault());
 });
 
+/**
+ * Whether a window should come up above the others.
+ *
+ * Held here rather than read from the store, because a window is rebuilt on
+ * `activate` after every window has been closed, which happens outside the
+ * scope the store lives in. Losing the setting at that moment would be losing
+ * it exactly when the reader notices.
+ */
+let windowAlwaysOnTop = false;
+
 function createApplicationWindow(preloadPath: string): BrowserWindow {
   editorWindow = createEditorWindow(preloadPath, logger, rendererConsole);
+  if (windowAlwaysOnTop) editorWindow.setAlwaysOnTop(true);
   editorWindow.on('closed', () => { editorWindow = null; });
   return editorWindow;
 }
@@ -233,6 +244,16 @@ async function run(): Promise<void> {
   session = new WorkspaceSession(createStore, recent, () => editorWindow, logger, recentFolders);
   app.once('before-quit', () => session?.closeAll());
 
+  /*
+   * The two ticks in the View menu.
+   *
+   * Read-only lives here rather than in settings because it is a property of
+   * this window right now, not a preference: a reader turns it on to consult a
+   * note and expects a fresh window to be writable.
+   */
+  windowAlwaysOnTop = settings.current().alwaysOnTop;
+  const menuState = { readOnly: false, alwaysOnTop: windowAlwaysOnTop };
+  if (windowAlwaysOnTop) editorWindow?.setAlwaysOnTop(true);
   const refreshMenu = () => installApplicationMenu(() => editorWindow, recent.list(), {
     openDialog: () => { void session?.openWithDialog().then(refreshMenu).catch(reportOpenFailure); },
     openPath: (filePath) => { void session?.openPath(filePath).then(refreshMenu).catch(reportOpenFailure); },
@@ -244,6 +265,14 @@ async function run(): Promise<void> {
     clearRecent: () => {
       void Promise.all(recent.list().map((file) => recent.forget(file.path))).then(refreshMenu);
     },
+  }, menuState, (command) => {
+    // The renderer owns whether the editor is read-only, and this menu shows a
+    // tick for it. Both flip on the same press, from the same starting point,
+    // so the tick and the editor agree without a second message to keep them
+    // in step.
+    if (command !== 'toggle-read-only') return;
+    menuState.readOnly = !menuState.readOnly;
+    refreshMenu();
   });
   const reportOpenFailure = (error: unknown) => logger.log('workspace_open_failed', {
     code: error instanceof Error ? error.message.split(':', 1)[0] : 'OPEN_FAILED',
@@ -273,7 +302,17 @@ async function run(): Promise<void> {
     settings,
     getWindow: () => editorWindow,
     logger,
-    onChanged: (reply) => logger.log('settings_changed', { theme: reply.settings.theme }),
+    onChanged: (reply) => {
+      logger.log('settings_changed', { theme: reply.settings.theme });
+      // The window has to be told, and the menu's tick has to follow, or the
+      // preference and what the window is doing drift apart.
+      if (reply.settings.alwaysOnTop !== menuState.alwaysOnTop) {
+        menuState.alwaysOnTop = reply.settings.alwaysOnTop;
+        windowAlwaysOnTop = reply.settings.alwaysOnTop;
+        editorWindow?.setAlwaysOnTop(reply.settings.alwaysOnTop);
+        refreshMenu();
+      }
+    },
   });
   registerWorkspaceHandlers({
     session,
