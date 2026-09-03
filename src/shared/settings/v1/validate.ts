@@ -54,6 +54,13 @@ const record = (value: unknown): value is Record<string, unknown> =>
 
 const SETTING_KEYS = Object.keys(DEFAULT_SETTINGS) as (keyof NotoSettingsV1)[];
 
+/** One of the three substitutions, falling back to the switch they used to share. */
+function substitution(value: Record<string, unknown>, key: 'smartQuotes' | 'smartDashes' | 'smartEllipsis'): boolean {
+  if (typeof value[key] === 'boolean') return value[key];
+  if (typeof value.smartTypography === 'boolean') return value.smartTypography;
+  return DEFAULT_SETTINGS[key];
+}
+
 /** Read whatever is usable, and fall back for whatever is not. */
 export function coerceSettings(value: unknown): NotoSettingsV1 {
   if (!record(value)) return DEFAULT_SETTINGS;
@@ -62,9 +69,12 @@ export function coerceSettings(value: unknown): NotoSettingsV1 {
     fontSize: numeric(value, 'fontSize'),
     lineHeight: numeric(value, 'lineHeight'),
     widthMode: isWidthMode(value.widthMode) ? value.widthMode : DEFAULT_SETTINGS.widthMode,
-    smartTypography: typeof value.smartTypography === 'boolean'
-      ? value.smartTypography
-      : DEFAULT_SETTINGS.smartTypography,
+    /* The three were one switch called `smartTypography`. A file written by
+       the older build carries only that, and its answer stands for all three
+       rather than being thrown away. */
+    smartQuotes: substitution(value, 'smartQuotes'),
+    smartDashes: substitution(value, 'smartDashes'),
+    smartEllipsis: substitution(value, 'smartEllipsis'),
     spellCheck: typeof value.spellCheck === 'boolean' ? value.spellCheck : DEFAULT_SETTINGS.spellCheck,
     remoteImages: typeof value.remoteImages === 'boolean' ? value.remoteImages : DEFAULT_SETTINGS.remoteImages,
     codeLineNumbers: typeof value.codeLineNumbers === 'boolean'
@@ -135,7 +145,9 @@ export function isSettingsReplyV1(value: unknown): value is SettingsReplyV1 {
   return themes.includes(settings.theme as NotoTheme)
     && isWidthMode(settings.widthMode)
     && numericKeys.every((key) => typeof settings[key] === 'number' && Number.isFinite(settings[key]))
-    && typeof settings.smartTypography === 'boolean'
+    && typeof settings.smartQuotes === 'boolean'
+    && typeof settings.smartDashes === 'boolean'
+    && typeof settings.smartEllipsis === 'boolean'
     && typeof settings.spellCheck === 'boolean'
     && typeof settings.remoteImages === 'boolean'
     && typeof settings.codeLineNumbers === 'boolean'

@@ -1519,7 +1519,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
               <NotoCanvas
                 document={doc.document}
                 mac={platform === 'darwin'}
-                smartTypography={settings.smartTypography}
+                smartQuotes={settings.smartQuotes}
+                smartDashes={settings.smartDashes}
+                smartEllipsis={settings.smartEllipsis}
                 spellCheck={settings.spellCheck}
                 documentPath={doc.opened.path}
                 remoteImages={settings.remoteImages}

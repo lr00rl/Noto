@@ -87,7 +87,18 @@ export interface NotoSettingsV1 {
   /** How much of the canvas the text column takes. See `WIDTH_MODES`. */
   readonly widthMode: WidthModeV1;
   /** Turn quotes and dashes into their typographic forms as you type. */
-  readonly smartTypography: boolean;
+  /*
+   * The three substitutions, each on its own switch.
+   *
+   * They were one, and one is the wrong number: a reader who wants an em dash
+   * typed for them very often does not want their quotes curled, because a
+   * curled quote inside a code span or a shell command is wrong in a way a
+   * dash never is. Typora keeps them apart on its Edit menu for the same
+   * reason.
+   */
+  readonly smartQuotes: boolean;
+  readonly smartDashes: boolean;
+  readonly smartEllipsis: boolean;
   readonly spellCheck: boolean;
   /**
    * Show images that live on the web.
@@ -171,7 +182,9 @@ export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   widthMode: 'default',
   // On by default because it is what a writing tool should do, and it is
   // reversible per document by undoing the substitution.
-  smartTypography: true,
+  smartQuotes: true,
+  smartDashes: true,
+  smartEllipsis: true,
   spellCheck: true,
   remoteImages: true,
   codeLineNumbers: true,

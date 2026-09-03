@@ -15,7 +15,9 @@ import type { DocumentCount } from './word-count';
 export interface NotoCanvasProps {
   readonly document: NotoDocumentWire;
   readonly mac: boolean;
-  readonly smartTypography?: boolean;
+  readonly smartQuotes?: boolean;
+  readonly smartDashes?: boolean;
+  readonly smartEllipsis?: boolean;
   readonly spellCheck?: boolean;
   /** Where the document lives, so its relative images know where to start. */
   readonly documentPath: string | null;
@@ -39,7 +41,9 @@ export interface NotoCanvasProps {
 export function NotoCanvas({
   document,
   mac,
-  smartTypography,
+  smartQuotes,
+  smartDashes,
+  smartEllipsis,
   spellCheck,
   documentPath,
   remoteImages,
@@ -66,7 +70,9 @@ export function NotoCanvas({
     try {
       editor = new NotoEditor(host, document, {
         mac,
-        smartTypography,
+        smartQuotes,
+  smartDashes,
+  smartEllipsis,
         spellCheck,
         images: { documentDir: documentDirOf(documentPath), remote: remoteImages ?? true },
         onActiveBlockChanged,
@@ -102,8 +108,8 @@ export function NotoCanvas({
   // Settings reach the running editor rather than rebuilding it, so changing a
   // preference never costs the user their undo history or cursor.
   useEffect(() => {
-    editorRef.current?.applySettings({ smartTypography, spellCheck, remoteImages, typewriterMode, autoPair });
-  }, [smartTypography, spellCheck, remoteImages, typewriterMode, autoPair]);
+    editorRef.current?.applySettings({ smartQuotes, smartDashes, smartEllipsis, spellCheck, remoteImages, typewriterMode, autoPair });
+  }, [smartQuotes, smartDashes, smartEllipsis, spellCheck, remoteImages, typewriterMode, autoPair]);
 
   return <div ref={hostRef} className="noto-editor-host" data-testid="noto-editor" />;
 }

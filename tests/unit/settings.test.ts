@@ -52,7 +52,7 @@ describe('writing settings', () => {
     const updated = await store.update({ theme: 'dark' });
     expect(updated.theme).toBe('dark');
     expect(updated.widthMode).toBe(DEFAULT_SETTINGS.widthMode);
-    expect(updated.smartTypography).toBe(DEFAULT_SETTINGS.smartTypography);
+    expect(updated.smartQuotes).toBe(DEFAULT_SETTINGS.smartQuotes);
   });
 
   it('persists across a restart', async () => {
@@ -89,5 +89,27 @@ describe('validating a write from the renderer', () => {
 
   it('rejects an empty patch, which would be a write that changes nothing', () => {
     expect(isSettingsWriteRequestV1({ ...base, patch: {} })).toBe(false);
+  });
+});
+
+describe('the three substitutions that used to be one switch', () => {
+  it('take the old switch as their answer when a file only carries that', () => {
+    // A file written before the split carries the old key and none of the new.
+    const { smartQuotes, smartDashes, smartEllipsis, ...rest } = DEFAULT_SETTINGS;
+    void smartQuotes; void smartDashes; void smartEllipsis;
+    const older = coerceSettings({ ...rest, smartTypography: false });
+    expect(older.smartQuotes).toBe(false);
+    expect(older.smartDashes).toBe(false);
+    expect(older.smartEllipsis).toBe(false);
+  });
+
+  it('keep their own answers once they have them', () => {
+    const mixed = coerceSettings({
+      ...DEFAULT_SETTINGS, smartTypography: false,
+      smartQuotes: false, smartDashes: true, smartEllipsis: true,
+    });
+    expect(mixed.smartQuotes).toBe(false);
+    expect(mixed.smartDashes).toBe(true);
+    expect(mixed.smartEllipsis).toBe(true);
   });
 });

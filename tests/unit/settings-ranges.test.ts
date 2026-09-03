@@ -35,10 +35,17 @@ describe('numeric settings', () => {
   });
 
   it('reads a settings file written by an older build, giving new keys defaults', () => {
-    const old = { theme: 'dark', smartTypography: false };
-    expect(coerceSettings(old)).toEqual({
-      ...DEFAULT_SETTINGS, theme: 'dark', smartTypography: false,
-    });
+    const old = { theme: 'dark', autoSave: false };
+    expect(coerceSettings(old)).toEqual({ ...DEFAULT_SETTINGS, theme: 'dark', autoSave: false });
+  });
+
+  it('gives the three substitutions the answer the one switch used to hold', () => {
+    // The reader turned typography off once. Splitting one switch into three is
+    // not a reason to turn it back on for them.
+    const old = coerceSettings({ theme: 'dark', smartTypography: false });
+    expect(old.smartQuotes).toBe(false);
+    expect(old.smartDashes).toBe(false);
+    expect(old.smartEllipsis).toBe(false);
   });
 
   it('coerces an out-of-range stored value instead of refusing the whole file', () => {
