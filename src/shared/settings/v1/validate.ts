@@ -114,6 +114,9 @@ export function coerceSettings(value: unknown): NotoSettingsV1 {
     customCssPath: isCssPath(value.customCssPath)
       ? value.customCssPath
       : DEFAULT_SETTINGS.customCssPath,
+    reloadExternalChanges: typeof value.reloadExternalChanges === 'boolean'
+      ? value.reloadExternalChanges
+      : DEFAULT_SETTINGS.reloadExternalChanges,
     imageDestination: IMAGE_DESTINATIONS.includes(value.imageDestination as ImageDestinationV1)
       ? value.imageDestination as ImageDestinationV1
       : DEFAULT_SETTINGS.imageDestination,
@@ -186,6 +189,7 @@ export function isSettingsReplyV1(value: unknown): value is SettingsReplyV1 {
     && typeof settings.sidebarOnLaunch === 'boolean'
     && typeof settings.autoSave === 'boolean'
     && typeof settings.imageEscapeUrl === 'boolean'
+    && typeof settings.reloadExternalChanges === 'boolean'
     && IMAGE_DESTINATIONS.includes(settings.imageDestination as ImageDestinationV1)
     && isImageFolder(settings.imageCustomFolder)
     && isCssPath(settings.customCssPath);

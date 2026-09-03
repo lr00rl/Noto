@@ -62,3 +62,77 @@ test.describe('a note that changed on disk while it was open', () => {
     }
   });
 });
+
+test.describe('following the file when it changes underneath', () => {
+  test('takes another program\'s edit into a note with nothing unsaved', async () => {
+    const { app, page, file } = await launch('follow-clean');
+    try {
+      await expect(page.locator('.ProseMirror')).toContainText('The body as it was.');
+
+      // A pull, a sync client, another editor. Nothing here is unsaved, so
+      // there is nothing to lose and no reason to ask.
+      await writeFile(file, '# Shared\n\nRewritten by something else.\n', 'utf8');
+
+      await expect(page.locator('.ProseMirror')).toContainText('Rewritten by something else.', { timeout: 20_000 });
+      await expect(page.locator('.ProseMirror')).not.toContainText('The body as it was.');
+
+      // Taken as one undoable step, so it can be walked back like any change.
+      await placeCaret(page, page.locator('.ProseMirror > p').first());
+      await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+      await expect(page.locator('.ProseMirror')).toContainText('The body as it was.');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('never replaces unsaved work, and offers the reload instead', async () => {
+    const { app, page, file } = await launch('follow-dirty');
+    try {
+      await placeCaret(page, page.locator('.ProseMirror > p').first());
+      await page.keyboard.type(' Mine, not saved.');
+
+      await writeFile(file, '# Shared\n\nTheirs, on disk.\n', 'utf8');
+
+      await expect(page.getByTestId('file-truth-alert')).toContainText('Changed on disk', { timeout: 20_000 });
+      // The unsaved sentence is still there. That is the whole point.
+      await expect(page.locator('.ProseMirror')).toContainText('Mine, not saved.');
+
+      await page.getByTestId('reload-from-disk').click();
+      await expect(page.locator('.ProseMirror')).toContainText('Theirs, on disk.', { timeout: 20_000 });
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('saves cleanly after taking the other version, which the conflict used to block', async () => {
+    const { app, page, file } = await launch('reload-then-save');
+    try {
+      await writeFile(file, '# Shared\n\nTheirs, on disk.\n', 'utf8');
+      await expect(page.locator('.ProseMirror')).toContainText('Theirs, on disk.', { timeout: 20_000 });
+
+      // The reload moved the identity a save checks against, so writing now
+      // succeeds instead of being refused against a file that no longer exists.
+      await placeCaret(page, page.locator('.ProseMirror > p').first());
+      await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End');
+      await page.keyboard.type(' And mine after it.');
+      await page.getByTestId('save-button').click();
+      await expect.poll(() => readFile(file, 'utf8'), { timeout: 20_000 })
+        .toContain('Theirs, on disk. And mine after it.');
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('says the file is gone without throwing away the only copy left', async () => {
+    const { app, page, file } = await launch('removed');
+    try {
+      await expect(page.locator('.ProseMirror')).toContainText('The body as it was.');
+      await rm(file);
+      await expect(page.getByTestId('file-truth-alert')).toContainText('File removed', { timeout: 20_000 });
+      // What is on screen is now the only copy of this note anywhere.
+      await expect(page.locator('.ProseMirror')).toContainText('The body as it was.');
+    } finally {
+      await app.close();
+    }
+  });
+});

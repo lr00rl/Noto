@@ -1,10 +1,19 @@
-import { chmod, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { FileTruthStoreV1 } from '../../src/main/file-truth/v1/file-truth-store';
 import type { FileTruthFailurePointV1 } from '../../src/main/file-truth/v1/node-platform';
 import { splitBlocks } from '../../src/shared/markdown/v3/blocks';
+
+/**
+ * Long enough for the watcher to notice and for its burst to settle.
+ *
+ * The watcher reports on a trailing delay so that a writer streaming a file
+ * produces one report rather than a dozen, and reading the file between two of
+ * somebody's writes would give half a document.
+ */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 700));
 import { toLf } from '../../src/shared/markdown/v3/line-endings';
 import { NOTO_MARKDOWN_VERSION, type NotoDocumentWire, type NotoUnit } from '../../src/shared/markdown/v3/contracts';
 import type { FileTruthEditCandidateV1, FileTruthSaveTokenV1 } from '../../src/shared/file-truth/v1/contracts';
@@ -507,18 +516,79 @@ describe('Noto file-truth v1 save transaction', () => {
     expect(recoveryValidations).toBe(1);
   });
 
-  it('classifies watcher self events separately from foreign advisory changes', async () => {
+  it('reports somebody else writing the file, and stays quiet about its own save', async () => {
     const { file, store, candidate } = await harness();
-    await writeFile(file, source.replace('Original', 'Foreign!'));
-    await new Promise((resolve) => setTimeout(resolve, 80));
-    expect(store.diagnostics().watcherEvents.foreign).toBeGreaterThan(0);
-    await writeFile(file, source);
-    const reopened = new FileTruthStoreV1(path.join(path.dirname(file), 'watcher-user-data'), logger);
-    const next = await reopened.open(file);
-    expect((await reopened.save(editParagraph(next.document, next.saveToken))).status).toBe('saved');
-    await new Promise((resolve) => setTimeout(resolve, 80));
-    expect(reopened.diagnostics().watcherEvents.self).toBeGreaterThan(0);
-    store.close(); reopened.close();
+    const seen: string[] = [];
+    store.onExternalChange = (event) => { seen.push(event.kind); };
+
+    // This app's own save replaces the file by rename, which is exactly the
+    // operation that used to leave the watcher holding a file nothing points at.
+    expect((await store.save(candidate)).status).toBe('saved');
+    await settle();
+    expect(seen).toEqual([]);
+
+    // And the watcher is still listening afterwards, which is the part that
+    // was broken: a rename left it permanently deaf.
+    await writeFile(file, 'Edited paragraph.\n\nSomebody else wrote this.\n');
+    await settle();
+    expect(seen).toEqual(['changed']);
+    store.close();
+  });
+
+  it('calls the same content under a new identity a rebase, not a change', async () => {
+    const { root, file, store } = await harness();
+    const seen: string[] = [];
+    store.onExternalChange = (event) => { seen.push(event.kind); };
+
+    // What a git checkout or a stash pop does: the same bytes arrive as a new
+    // file. Nothing needs reloading, but the identity a save checks against has
+    // moved and has to move with it.
+    const replacement = path.join(root, 'same.md');
+    await writeFile(replacement, source);
+    await rename(replacement, file);
+    await settle();
+    expect(seen).toEqual(['rebased']);
+    expect((await store.reload()).status).toBe('unchanged');
+    store.close();
+  });
+
+  it('reports the file being taken away without touching the accepted document', async () => {
+    const { file, store } = await harness();
+    const seen: string[] = [];
+    store.onExternalChange = (event) => { seen.push(event.kind); };
+    await rm(file);
+    await settle();
+    expect(seen).toEqual(['missing']);
+    // The buffer now holds the only copy, so a reload must not replace it.
+    expect((await store.reload()).status).toBe('missing');
+    store.close();
+  });
+
+  it('reloads what another program wrote, keeping the document identity', async () => {
+    const { file, store } = await harness();
+    const before = store.diagnostics();
+    expect(before.state).toBe('opened');
+    await writeFile(file, '# Replaced\n\nBy something else entirely.\n');
+    const outcome = await store.reload();
+    expect(outcome.status).toBe('reloaded');
+    if (outcome.status !== 'reloaded') return;
+    expect(outcome.opened.document.text).toContain('By something else entirely.');
+    // The renderer keys its editors on this, so a reload that changed it would
+    // tear the editor down and take the caret and the undo history with it.
+    const reopened = await store.reload();
+    expect(reopened.status).toBe('unchanged');
+    store.close();
+  });
+
+  it('refuses a reload while a recovery record stands, rather than making the replay unverifiable', async () => {
+    const { file, userData, store, candidate } = await harness();
+    store.platform.injector.arm('after-replacement-before-journal-completion');
+    expect((await store.save(candidate)).status).toBe('recovery-needed');
+    const blocked = new FileTruthStoreV1(userData, logger);
+    await blocked.open(file);
+    expect(await blocked.reload()).toEqual({ version: 1, status: 'refused', reason: 'recovery-pending' });
+    blocked.close();
+    store.close();
   });
 
   it('reconciles a crash after replacement and keeps malformed journals safe', async () => {
@@ -575,10 +645,20 @@ describe('Noto file-truth v1 save transaction', () => {
       expect(await readFile(file, 'utf8')).toBe(source);
     });
 
-  it('installs an advisory watcher error boundary instead of exposing an unhandled EventEmitter error', async () => {
-    const implementation = await readFile(new URL('../../src/main/file-truth/v1/file-truth-store.ts', import.meta.url), 'utf8');
-    expect(implementation).toContain("watcher.on('error', (error) => {");
-    expect(implementation).toContain("this.logger.log('file_truth_watcher_failed'");
-    expect(implementation).toContain('this.watcher = null;');
+  it('re-arms after the file is replaced, which is what a rename used to break', async () => {
+    const { root, file, store } = await harness();
+    const seen: string[] = [];
+    store.onExternalChange = (event) => { seen.push(event.kind); };
+
+    // Three replacements in a row. Every one of them is a rename over the path,
+    // and before the watcher re-armed on a rename only the first was ever seen.
+    for (const line of ['one', 'two', 'three']) {
+      const temp = path.join(root, `${line}.tmp`);
+      await writeFile(temp, `# Note\n\n${line}\n`);
+      await rename(temp, file);
+      await settle();
+    }
+    expect(seen).toEqual(['changed', 'changed', 'changed']);
+    store.close();
   });
 });

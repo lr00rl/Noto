@@ -46,6 +46,9 @@ import type {
   FileTruthSaveOutcomeV1,
   FileTruthSaveCopyRequestV1,
   FileTruthSaveRequestV1,
+  FileTruthExternalChangeEventV1,
+  FileTruthReloadOutcomeV1,
+  FileTruthReloadRequestV1,
   NotoFileTruthApiV1,
 } from '../shared/file-truth/v1/contracts';
 import { FILE_TRUTH_CHANNELS } from '../shared/file-truth/v1/contracts';
@@ -71,7 +74,10 @@ import type {
 import {
   isFileTruthBootstrapResultV1,
   isFileTruthDiagnosticsResultV1,
+  isFileTruthExternalChangeEventV1,
   isFileTruthOpenResultV1,
+  isFileTruthReloadRequestV1,
+  isFileTruthReloadResultV1,
   isFileTruthRequestV1,
   isFileTruthSaveCopyRequestV1,
   isFileTruthSaveRequestV1,
@@ -255,6 +261,11 @@ const fileTruthApi: NotoFileTruthApiV1 = Object.freeze({
   diagnostics: (request: FileTruthRequestV1) => isFileTruthRequestV1(request)
     ? invokeFileTruth<FileTruthDiagnosticsV1>(FILE_TRUTH_CHANNELS.diagnostics, request, request.requestId, isFileTruthDiagnosticsResultV1)
     : Promise.resolve(rejectedFileTruth<FileTruthDiagnosticsV1>('invalid', 'Invalid file-truth diagnostics request')),
+  reload: (request: FileTruthReloadRequestV1) => isFileTruthReloadRequestV1(request)
+    ? invokeFileTruth<FileTruthReloadOutcomeV1>(FILE_TRUTH_CHANNELS.reload, request, request.requestId, isFileTruthReloadResultV1)
+    : Promise.resolve(rejectedFileTruth<FileTruthReloadOutcomeV1>('invalid', 'Invalid file-truth reload request')),
+  onExternalChange: (listener: (event: FileTruthExternalChangeEventV1) => void) =>
+    subscribe(FILE_TRUTH_CHANNELS.externalChange, isFileTruthExternalChangeEventV1, listener),
 });
 
 contextBridge.exposeInMainWorld('notoFileTruth', fileTruthApi);
