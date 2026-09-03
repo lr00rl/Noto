@@ -23,6 +23,17 @@ async function launch(name: string, contents: string): Promise<{
   return { app, page, file };
 }
 
+/** Click until the selection is genuinely inside the target, then stop. */
+async function caretIn(page: Page, target: ReturnType<Page['locator']>): Promise<void> {
+  await expect.poll(async () => {
+    await placeCaret(page, target);
+    return target.evaluate((node) => {
+      const anchor = document.getSelection()?.anchorNode ?? null;
+      return anchor !== null && node.contains(anchor);
+    });
+  }, { timeout: 10_000 }).toBe(true);
+}
+
 /** Definitions on screen, which is how the effect of an insert is waited for. */
 const definitions = (page: Page) => page.locator('.ProseMirror .noto-footnote-definition');
 
@@ -82,7 +93,12 @@ test.describe('the things Typora\'s Paragraph menu inserts', () => {
       // command, not when the renderer has applied it.
       await expect(definitions(page)).toHaveCount(1);
       await expect(page.locator('.ProseMirror > p').first()).toContainText('[1]');
-      await placeCaret(page, page.locator('.ProseMirror > p').nth(1));
+      // Verify the caret actually landed before asking for the second
+      // footnote. `placeCaret` waits for a `selectionchange`, and the first
+      // insert moves the selection into its own definition, which fires the
+      // same event: that can satisfy the wait before the click has happened,
+      // leaving the caret in the definition and the reference inserted there.
+      await caretIn(page, page.locator('.ProseMirror > p').nth(1));
       await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End');
       await run(app, 'insert-footnote');
       await expect(definitions(page)).toHaveCount(2);

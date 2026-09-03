@@ -20,6 +20,7 @@ import type { EditorView, NodeView } from 'prosemirror-view';
 import { digitsForLineCount, gutterText, lineCount } from './fence-gutter';
 import { supportedLanguages } from './highlight';
 import { DiagramFrame, isDiagramLanguage } from './diagram-frame';
+import { copyThroughSelection } from './clipboard';
 
 /** How long "Copied" stays before the button says "Copy" again. */
 const COPIED_MS = 1400;
@@ -226,36 +227,6 @@ export class FenceView implements NodeView {
       this.copiedTimer = null;
     }, COPIED_MS);
   }
-}
-
-/**
- * Copy through a selection and the copy command.
- *
- * Not the asynchronous clipboard API: the app's session refuses every
- * permission a page can ask for, that API asks for one, and a copy button
- * that fails quietly is worse than none. The copy command needs no permission
- * and is what the editor's own Cmd+C already goes through. A textarea outside
- * the editor holds the text for the length of one command, so the editor's
- * own selection is never touched.
- *
- * yagni: if the command is ever withdrawn, the upgrade is a small channel to
- * main's clipboard, which is where the file menu's copy would live anyway.
- */
-function copyThroughSelection(text: string): boolean {
-  const holder = document.createElement('textarea');
-  holder.value = text;
-  holder.setAttribute('aria-hidden', 'true');
-  holder.style.position = 'fixed';
-  holder.style.opacity = '0';
-  document.body.append(holder);
-  holder.select();
-  let copied = false;
-  try {
-    copied = document.execCommand('copy');
-  } finally {
-    holder.remove();
-  }
-  return copied;
 }
 
 export function fenceNodeViews() {

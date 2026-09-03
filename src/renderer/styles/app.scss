@@ -1495,6 +1495,25 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   white-space: nowrap;
 }
 
+/* A fifth column, and only when there is a fifth thing. Declaring it always
+   would leave an empty track with a gap on either side of it. */
+.operational-status.has-flag {
+  grid-template-columns: auto auto auto minmax(0, 1fr) auto;
+}
+
+/* Said quietly and continuously, unlike the message beside it, because it
+   describes a mode that is still on rather than something that just happened. */
+.status-flag {
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 999px;
+  padding: 0 7px;
+  color: var(--accent);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  line-height: 15px;
+  white-space: nowrap;
+}
+
 .status-message {
   min-width: 0;
   justify-self: end;

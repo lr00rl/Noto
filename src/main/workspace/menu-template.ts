@@ -34,6 +34,13 @@ export interface MenuTemplateOptions {
   /** Sends a command to the renderer, which owns the editor's contents. */
   readonly sendCommand: (command: WorkspaceMenuCommandV1) => void;
   readonly openExternal: (url: string) => void;
+  /**
+   * The two things in this menu that show a tick.
+   *
+   * Passed in rather than remembered here, so the menu is a pure function of
+   * what it is given and the state has exactly one home.
+   */
+  readonly state?: { readonly readOnly: boolean; readonly alwaysOnTop: boolean };
 }
 
 function recentSubmenu(
@@ -55,6 +62,7 @@ function recentSubmenu(
 
 export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstructorOptions[] {
   const { platform, appName, recent, actions, sendCommand, openExternal } = options;
+  const state = options.state ?? { readOnly: false, alwaysOnTop: false };
   const mac = platform === 'darwin';
 
   // Each command item carries its command as its id, so the menu can be driven
@@ -118,6 +126,13 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       { role: 'paste' },
       { role: 'pasteAndMatchStyle' },
       { role: 'selectAll' },
+      { type: 'separator' },
+      // Plain copy already puts markdown on the clipboard, which is what a
+      // markdown editor should do. These are the three other things a reader
+      // might mean, in the order Typora lists them.
+      command('Copy as Plain Text', undefined, 'copy-as-plain'),
+      command('Copy as Markdown', 'CmdOrCtrl+Shift+C', 'copy-as-markdown'),
+      command('Copy as HTML', undefined, 'copy-as-html'),
       { type: 'separator' },
       command('Find…', 'CmdOrCtrl+F', 'find'),
       command('Find and Replace…', 'CmdOrCtrl+Alt+F', 'find-replace'),
@@ -236,6 +251,20 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       command('Toggle Sidebar', 'CmdOrCtrl+Shift+L', 'toggle-sidebar'),
       command('Toggle Outline', 'CmdOrCtrl+Shift+O', 'toggle-outline'),
       command('Toggle Source Mode', 'CmdOrCtrl+/', 'toggle-source'),
+      {
+        id: 'toggle-read-only',
+        label: 'Read-Only Mode',
+        type: 'checkbox',
+        checked: state.readOnly,
+        click: () => sendCommand('toggle-read-only'),
+      },
+      {
+        id: 'toggle-always-on-top',
+        label: 'Always on Top',
+        type: 'checkbox',
+        checked: state.alwaysOnTop,
+        click: () => sendCommand('toggle-always-on-top'),
+      },
       { type: 'separator' },
       // Typora's two writing modes. It gives neither a shortcut, and neither
       // wants one: they are settled once for a session, not reached for mid

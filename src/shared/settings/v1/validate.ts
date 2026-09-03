@@ -114,6 +114,9 @@ export function coerceSettings(value: unknown): NotoSettingsV1 {
     customCssPath: isCssPath(value.customCssPath)
       ? value.customCssPath
       : DEFAULT_SETTINGS.customCssPath,
+    alwaysOnTop: typeof value.alwaysOnTop === 'boolean'
+      ? value.alwaysOnTop
+      : DEFAULT_SETTINGS.alwaysOnTop,
     reloadExternalChanges: typeof value.reloadExternalChanges === 'boolean'
       ? value.reloadExternalChanges
       : DEFAULT_SETTINGS.reloadExternalChanges,
@@ -190,6 +193,7 @@ export function isSettingsReplyV1(value: unknown): value is SettingsReplyV1 {
     && typeof settings.autoSave === 'boolean'
     && typeof settings.imageEscapeUrl === 'boolean'
     && typeof settings.reloadExternalChanges === 'boolean'
+    && typeof settings.alwaysOnTop === 'boolean'
     && IMAGE_DESTINATIONS.includes(settings.imageDestination as ImageDestinationV1)
     && isImageFolder(settings.imageCustomFolder)
     && isCssPath(settings.customCssPath);

@@ -35,6 +35,7 @@ import { notoInputRules, type InputRuleOptions } from './input-rules';
 import { EDITOR_COMMANDS, notoKeymap } from './keymap';
 import { activeNodePlugin } from './active-node-plugin';
 import { imageFromTransfer } from './image-drop';
+import { sliceToHtml, sliceToPlainText } from './clipboard';
 import { alertPlugin } from './alert-plugin';
 import { typoraMarksPlugin } from './typora-marks-plugin';
 import { typewriterPlugin } from './typewriter-plugin';
@@ -119,6 +120,8 @@ export class NotoEditor implements NotoEditorPort {
   /* Bumped by every change, so a picture that arrives after the document moved
      under it is put where the caret is now rather than at a stale offset. */
   private docVersion = 0;
+  /** Reading rather than writing. Nothing about the file changes with it. */
+  private readOnly = false;
   private imageContext: ImageContext;
   /** The pictures on screen, so a changed context can redraw them and nothing else. */
   private readonly imageViews = new Set<Refreshable>();
@@ -147,6 +150,10 @@ export class NotoEditor implements NotoEditorPort {
       state: EditorState.create({ doc, plugins: this.plugins(document) }),
       dispatchTransaction: (transaction) => this.apply(transaction),
       attributes: { spellcheck: String(this.options.spellCheck ?? true) },
+      // The one place read-only is enforced for typing. The node views that
+      // take pointer input have to refuse separately, because a node view's
+      // own handlers never see this.
+      editable: () => !this.readOnly,
       // What leaves on the clipboard is the markdown, not the words without it.
       clipboardTextSerializer: (slice) => sliceToMarkdown(slice),
       handlePaste: (view, event) => this.handleTransfer(view, event.clipboardData, null),
@@ -303,6 +310,39 @@ export class NotoEditor implements NotoEditorPort {
     view.focus();
   }
 
+  /**
+   * Read without writing.
+   *
+   * The document is untouched by this: nothing is saved, nothing is marked, and
+   * turning it off leaves the note exactly as it was. It exists for the times a
+   * note is open to be consulted rather than written, where a stray keystroke
+   * is the thing to prevent.
+   */
+  setReadOnly(value: boolean): void {
+    if (this.readOnly === value) return;
+    this.readOnly = value;
+    const view = this.view;
+    if (!view) return;
+    // `editable` is a function the view calls, so it has to be asked again.
+    view.setProps({ editable: () => !this.readOnly });
+    view.dom.classList.toggle('noto-read-only', value);
+  }
+
+  get isReadOnly(): boolean {
+    return this.readOnly;
+  }
+
+  /** What is selected, as markdown, HTML, or the words on their own. */
+  copySelection(as: 'markdown' | 'html' | 'plain'): string | null {
+    const view = this.view;
+    if (!view) return null;
+    const slice = view.state.selection.content();
+    if (slice.content.size === 0) return null;
+    if (as === 'html') return sliceToHtml(slice);
+    if (as === 'plain') return sliceToPlainText(slice);
+    return sliceToMarkdown(slice);
+  }
+
   /** Insert a picture main already wrote, for the Insert Image menu command. */
   insertWrittenImage(image: InsertedImage): void {
     const view = this.view;
@@ -451,6 +491,9 @@ export class NotoEditor implements NotoEditorPort {
     const view = this.view;
     const command = EDITOR_COMMANDS[name];
     if (!view || !command) return false;
+    // Every editor command changes the document, so read-only refuses them all
+    // rather than each one having to remember to check.
+    if (this.readOnly) return false;
     const ran = command(view.state, view.dispatch, view);
     if (ran) view.focus();
     return ran;
