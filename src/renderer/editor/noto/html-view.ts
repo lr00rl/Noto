@@ -21,6 +21,27 @@ import { parseImageTag, type HtmlImage } from './html-image';
 import type { ImageContext } from './image-source';
 import { ImageFrame, type Picture, type Refreshable } from './image-view';
 
+/**
+ * Whether a block is nothing but an HTML comment.
+ *
+ * A comment is the one kind of raw HTML that says nothing to the reader: it is
+ * a note to a person editing the source, or a marker some tool writes. The
+ * author's vault is full of the second kind, `<!-- note-assistant:index:start
+ * -->` around generated sections, and drawing each one as a bordered block of
+ * source puts a grey slab in the middle of the prose for a line nobody reads.
+ * Typora draws them quietly and so does this.
+ *
+ * Only a block that is entirely one comment counts. A comment with markup
+ * after it is still markup, and hiding its frame would hide that too.
+ */
+export function isHtmlComment(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('<!--') || !trimmed.endsWith('-->')) return false;
+  // No second comment inside it, or the block holds more than one thing and the
+  // text between them is not a comment at all.
+  return !trimmed.slice(4, -3).includes('-->');
+}
+
 const pictureOf = (tag: HtmlImage): Picture => ({
   src: tag.src,
   alt: tag.alt,
@@ -89,6 +110,9 @@ export class HtmlBlockView implements NodeView {
   }
 
   private render(): void {
+    // Said quietly rather than drawn as a slab of source. The text is still
+    // there and still editable; only its frame is dropped.
+    this.dom.dataset.comment = String(isHtmlComment(this.node.textContent));
     const tag = parseImageTag(this.node.textContent);
     if (tag) {
       this.frame.render(pictureOf(tag));

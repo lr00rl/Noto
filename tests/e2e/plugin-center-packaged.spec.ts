@@ -44,12 +44,12 @@ async function launch(name: string): Promise<RunningApp & { file: string }> {
 }
 
 /**
- * The centre is an index and a detail: one plugin shows at a time, and the
- * detail is reached by picking the plugin's row.
+ * Every plugin is on screen at once, so reaching one is scrolling to it rather
+ * than picking it out of an index.
  */
 async function pickPlugin(page: Page, name: string) {
-  await page.locator('.plugin-pick', { hasText: name }).click();
-  const detail = page.locator('.plugin-detail', { hasText: name });
+  const detail = page.locator('.plugin-detail').filter({ has: page.locator('strong', { hasText: name }) });
+  await detail.scrollIntoViewIfNeeded();
   await expect(detail).toBeVisible();
   return detail;
 }

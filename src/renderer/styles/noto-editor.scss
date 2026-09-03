@@ -271,6 +271,32 @@
    as its source while the caret is in the block, which is Typora's rule. The
    block's source is never removed, only kept out of sight, so the caret's
    path into it is the same as for any other text. */
+/*
+ * A comment is not a slab.
+ *
+ * The frame is right for raw markup, which the reader has to see to edit. A
+ * comment says nothing to a reader, and the author's vault has pairs of them
+ * wrapped around every generated section, so drawn as blocks they put two grey
+ * slabs through the middle of a page of prose. Quiet, small, and out of the way
+ * until the caret is in it, which is when the text matters.
+ */
+.ProseMirror .noto-html-block[data-comment='true'] {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  color: color-mix(in srgb, var(--muted) 62%, transparent);
+  font-size: 0.72em;
+  line-height: 1.6;
+  opacity: 0.85;
+  transition: color 140ms ease, opacity 140ms ease;
+}
+
+.ProseMirror .noto-html-block[data-comment='true']:hover,
+.ProseMirror .noto-html-block[data-comment='true'].noto-active-block {
+  color: var(--muted);
+  opacity: 1;
+}
+
 .ProseMirror .noto-html-block { position: relative; }
 .ProseMirror .noto-html-block[data-preview='image']:not(.noto-html-editing) {
   border: 0;
