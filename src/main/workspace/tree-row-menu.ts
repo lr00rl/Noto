@@ -16,6 +16,7 @@ import type { MenuItemConstructorOptions } from 'electron';
 
 export interface TreeRowActions {
   readonly open: (target: string) => void;
+  readonly newNote: (directory: string) => void;
   readonly reveal: (target: string) => void;
   readonly copyPath: (target: string) => void;
 }
@@ -37,8 +38,12 @@ export function buildTreeRowMenu(
   // A folder opens by being expanded, which the row already does on a click.
   if (kind === 'file') {
     items.push({ id: 'tree-open', label: 'Open', click: () => actions.open(target) });
-    items.push({ type: 'separator' });
+  } else {
+    // Where the reader pressed, not the folder's root, which is where the File
+    // menu's New Note goes and is rarely the folder they are looking at.
+    items.push({ id: 'tree-new-note', label: 'New Note Here', click: () => actions.newNote(target) });
   }
+  items.push({ type: 'separator' });
   items.push({ id: 'tree-reveal', label: revealLabel(platform), click: () => actions.reveal(target) });
   items.push({ id: 'tree-copy-path', label: 'Copy Path', click: () => actions.copyPath(target) });
   return items;

@@ -1112,8 +1112,12 @@ anything is drawn, so a renderer naming a path outside it gets nothing: a
 sibling of the folder, a path that climbs out with `..` and an absolute path
 elsewhere are all turned away, and that is driven in a packaged test.
 
-A file offers Open, Reveal and Copy Path; a folder offers the last two,
-because a click already opens it. Every action takes the path the menu was
+A file offers Open, Reveal and Copy Path. A folder offers New Note Here in
+place of Open, because a click already opens a folder and because the File
+menu's own New Note lands in the vault's root, which is rarely the folder the
+reader is looking at. The directory it makes the note in is the one already
+resolved and checked above, so the note goes where the press was and nowhere
+else. Every action takes the path the menu was
 built with and none of them reads it again.
 
 What a row offers is read from the template rather than the screen, in a unit

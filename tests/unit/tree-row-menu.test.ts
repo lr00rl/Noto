@@ -6,7 +6,7 @@ import { buildTreeRowMenu, revealLabel } from '../../src/main/workspace/tree-row
  * pointer can reach one, so what a row offers is read from the template rather
  * than from the screen. The editor's own context menu is tested the same way.
  */
-const actions = () => ({ open: vi.fn(), reveal: vi.fn(), copyPath: vi.fn() });
+const actions = () => ({ open: vi.fn(), newNote: vi.fn(), reveal: vi.fn(), copyPath: vi.fn() });
 const labels = (items: readonly { label?: string; type?: string }[]) =>
   items.map((item) => (item.type === 'separator' ? '---' : item.label));
 
@@ -16,9 +16,19 @@ describe('the menu on a row of the tree', () => {
     expect(labels(items)).toEqual(['Open', '---', 'Reveal in Finder', 'Copy Path']);
   });
 
-  it('does not offer to open a folder, which a click already does', () => {
+  it('offers a folder a new note in it, rather than offering to open it', () => {
+    // A click already opens a folder, and a new note otherwise lands in the
+    // folder's root, which is rarely the folder the reader is looking at.
     const items = buildTreeRowMenu('/vault/sub', 'directory', actions(), 'darwin');
-    expect(labels(items)).toEqual(['Reveal in Finder', 'Copy Path']);
+    expect(labels(items)).toEqual(['New Note Here', '---', 'Reveal in Finder', 'Copy Path']);
+  });
+
+  it('makes the new note in the folder that was pressed', () => {
+    const spies = actions();
+    const items = buildTreeRowMenu('/vault/sub', 'directory', spies, 'darwin');
+    const item = items.find((candidate) => candidate.id === 'tree-new-note');
+    (item?.click as () => void)();
+    expect(spies.newNote).toHaveBeenCalledWith('/vault/sub');
   });
 
   it('calls the file manager what each system calls it', () => {
