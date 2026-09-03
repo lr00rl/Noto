@@ -14,6 +14,23 @@
 import { Schema, type MarkSpec, type NodeSpec } from 'prosemirror-model';
 import { tableNodes } from 'prosemirror-tables';
 
+/**
+ * The table nodes, with one attribute of our own on the table itself.
+ *
+ * `pretty` says the source should be written with its columns lined up. It is a
+ * property of this editing session rather than of the file: nothing in markdown
+ * records it, and once the aligned text is saved the file itself carries the
+ * alignment. Setting it also makes the node differ from the one that was
+ * opened, which is what causes the block to be written again at all.
+ */
+function alignedTableNodes(options: Parameters<typeof tableNodes>[0]) {
+  const built = tableNodes(options);
+  return {
+    ...built,
+    table: { ...built.table, attrs: { ...built.table.attrs, pretty: { default: false } } },
+  };
+}
+
 const codeLikeBlock = (extra: Partial<NodeSpec> = {}): NodeSpec => ({
   group: 'block',
   content: 'text*',
@@ -184,7 +201,7 @@ const nodes: Record<string, NodeSpec> = {
     }, `[${node.attrs.label || node.attrs.identifier}]: ${node.attrs.url}`],
   },
 
-  ...tableNodes({
+  ...alignedTableNodes({
     tableGroup: 'block',
     cellContent: 'inline*',
     cellAttributes: {

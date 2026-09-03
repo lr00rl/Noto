@@ -97,14 +97,15 @@ function tildeOnlyInPairs(extension: ToMarkdownOptions): ToMarkdownOptions {
 /*
  * Runs the serializer must emit exactly as they are.
  *
- * `[[wiki links]]`, and the `[!NOTE]` marker that opens a GitHub alert. Both
- * begin with a `[`, which the serializer escapes because a bare `[` can open
- * a link reference and it cannot know whether a matching definition exists.
- * That is right in general and wrong for these two: escaping a wiki link
- * stops it being one, and escaping an alert's marker stops the quote being an
- * alert at all, so editing a callout would quietly turn it into a plain
- * quote. Both are recognised only in the shapes that cannot mean anything
- * else, and everything around them still goes through the escaping.
+ * `[[wiki links]]`, the `[!NOTE]` marker that opens a GitHub alert, a footnote
+ * reference and the `[TOC]` marker. All of them begin with a `[`, which the
+ * serializer escapes because a bare `[` can open a link reference and it cannot
+ * know whether a matching definition exists. That is right in general and wrong
+ * for these: escaping a wiki link stops it being one, escaping an alert's
+ * marker stops the quote being an alert at all, and escaping a footnote
+ * reference or a table of contents marker stops either from being what it says.
+ * Each is recognised only in the shape that cannot mean anything else, and
+ * everything around them still goes through the escaping.
  */
 /**
  * A word character for CommonMark's flanking rules: letters, digits, and the
@@ -132,6 +133,22 @@ const VERBATIM_RUN = new RegExp(
     // line can underline a setext heading, and `\\==text==` is no longer a
     // highlight. The run is only recognised whole, so it cannot mean that.
     '==[^=\\n]+==',
+    /*
+     * A footnote reference, `[^1]` or `[^longer-name]`.
+     *
+     * Blocks are parsed one at a time, and a footnote reference is only
+     * recognised as one when its definition is in the same parse, so a
+     * reference in a paragraph arrives here as ordinary text starting with a
+     * `[`. Escaping it turned every footnote in an edited paragraph into the
+     * literal characters `\[^1]`, which is not a footnote any more and not what
+     * the file said. The label cannot hold whitespace or a bracket, so the run
+     * is only recognised in the shape that can mean nothing else.
+     */
+    '\\[\\^[^\\]\\s]+\\]',
+    // `[TOC]`, the marker Typora reads as a table of contents. It is a bare
+    // link reference to a definition that does not exist, so the serializer
+    // escapes it and the marker stops working.
+    '\\[[Tt][Oo][Cc]\\]',
     `${WORD}+(?:_+${WORD}+)+`,
   ].join('|'),
   'g',

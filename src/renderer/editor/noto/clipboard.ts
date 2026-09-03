@@ -13,7 +13,7 @@
  * selection across two is a fragment of blocks.
  */
 
-import type { Slice } from 'prosemirror-model';
+import type { Node, Slice } from 'prosemirror-model';
 import { notoSchema } from '../../../shared/markdown/v3/pm/schema';
 import { blockToMarkdown } from '../../../shared/markdown/v3/pm/to-mdast';
 
@@ -40,4 +40,45 @@ export function sliceToMarkdown(slice: Slice): string {
       : blockToMarkdown(node));
   });
   return blocks.join('\n\n');
+}
+
+/**
+ * A table as HTML, for pasting somewhere that understands one.
+ *
+ * Markdown on the clipboard is right for another markdown editor and useless
+ * everywhere else: a spreadsheet given `| a | b |` puts the whole row in one
+ * cell. So a copied table carries both, and the receiving application takes
+ * whichever it understands. This is what Typora's Copy Table does too.
+ *
+ * The borders are written inline rather than as a stylesheet because a pasted
+ * fragment arrives without one, and a table with no rules is not a table on the
+ * page it lands on.
+ */
+export function tableToHtml(node: Node): string {
+  const cell = 'border: 1px solid #ccc; padding: 4px 8px;';
+  const rows: string[] = [];
+  node.forEach((row) => {
+    const cells: string[] = [];
+    row.forEach((child) => {
+      const header = child.type.name === 'table_header';
+      const align = child.attrs.align ? ` text-align: ${String(child.attrs.align)};` : '';
+      const tag = header ? 'th' : 'td';
+      cells.push(`<${tag} style="${cell}${align}">${escapeHtml(child.textContent)}</${tag}>`);
+    });
+    rows.push(`<tr>${cells.join('')}</tr>`);
+  });
+  return `<table style="border-collapse: collapse;">${rows.join('')}</table>`;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** The markdown for one block, which for a table is its source. */
+export function nodeToMarkdown(node: Node): string {
+  return blockToMarkdown(node);
 }
