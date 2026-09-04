@@ -984,9 +984,15 @@ export class WorkspaceSession {
       version: NOTO_WORKSPACE_VERSION, available, known, generatedAt, backlinks: [], links: [], related: [],
     });
     const root = this.folderRoot;
-    if (!root) return empty(false, false);
+    if (!root) {
+      this.logger.log('note_links', { outcome: 'no-folder' });
+      return empty(false, false);
+    }
     const graph = await this.graphCache.graphFor(root);
-    if (!graph) return empty(false, false);
+    if (!graph) {
+      this.logger.log('note_links', { outcome: 'no-graph' });
+      return empty(false, false);
+    }
     let realRoot: string;
     let real: string;
     try {
@@ -995,10 +1001,19 @@ export class WorkspaceSession {
     } catch {
       return empty(true, false, graph.generatedAt);
     }
-    if (!isInside(realRoot, real)) return empty(true, false, graph.generatedAt);
+    if (!isInside(realRoot, real)) {
+      this.logger.log('note_links', { outcome: 'outside' });
+      return empty(true, false, graph.generatedAt);
+    }
     const relative = path.relative(realRoot, real).split(path.sep).join('/');
     const found = linksFor(graph, relative);
-    if (!found) return empty(true, false, graph.generatedAt);
+    if (!found) {
+      this.logger.log('note_links', { outcome: 'unknown' });
+      return empty(true, false, graph.generatedAt);
+    }
+    this.logger.log('note_links', {
+      outcome: 'found', backlinks: found.backlinks.length, links: found.links.length, related: found.related.length,
+    });
     const absolute = (link: { relativePath: string; title: string }) => ({
       path: path.join(root, ...link.relativePath.split('/')),
       relativePath: link.relativePath,

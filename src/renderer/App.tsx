@@ -1208,7 +1208,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
 
   const noteLinks = useCallback(async (target: string) => {
     const result = await window.notoWorkspace.noteLinks({ version: 1, requestId: rid('note-links'), path: target });
-    return result.ok ? result.value : null;
+    return result.ok ? { reply: result.value } : { error: result.error.message };
   }, []);
 
   const searchContent = useCallback(async (query: string, flags: SearchFlags = PLAIN_FLAGS) => {
