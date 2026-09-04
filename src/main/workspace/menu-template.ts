@@ -36,6 +36,10 @@ export interface MenuActions {
   print: () => void;
   /** Paste the clipboard's text, read as markdown, with any richer form ignored. */
   pastePlain: () => void;
+  /** Use the stylesheet at this path, or none for the built-in look. */
+  chooseTheme: (themePath: string) => void;
+  /** Show the themes folder in the file manager, so one can be added. */
+  openThemeFolder: () => void;
   clearRecent: () => void;
 }
 
@@ -62,6 +66,9 @@ export interface MenuTemplateOptions {
     readonly finalNewline?: boolean;
     /** The order the file tree is in, which is a setting rather than a document's. */
     readonly treeSort?: TreeSortV1;
+    /** The stylesheets on offer, and the one in use, for the Themes menu. */
+    readonly themes?: readonly { readonly path: string; readonly label: string }[];
+    readonly themePath?: string;
   };
 }
 
@@ -88,6 +95,8 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
   const lineEnding = state.lineEnding ?? 'lf';
   const finalNewline = state.finalNewline ?? true;
   const treeSort = state.treeSort ?? 'name';
+  const themes = state.themes ?? [];
+  const themePath = state.themePath ?? '';
   const mac = platform === 'darwin';
 
   // Each command item carries its command as its id, so the menu can be driven
@@ -368,6 +377,29 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
         ],
       },
       command('Collapse All Folders', undefined, 'tree-collapse-all'),
+      { type: 'separator' },
+      {
+        // Typora's own: the stylesheets in a folder, one of them in use.
+        label: 'Themes',
+        submenu: [
+          {
+            id: 'theme-none',
+            label: 'Noto',
+            type: 'radio',
+            checked: themePath === '',
+            click: () => actions.chooseTheme(''),
+          },
+          ...(themes.length > 0 ? [{ type: 'separator' as const }] : []),
+          ...themes.map((theme) => ({
+            label: theme.label,
+            type: 'radio' as const,
+            checked: theme.path === themePath,
+            click: () => actions.chooseTheme(theme.path),
+          })),
+          { type: 'separator' },
+          { label: 'Open Themes Folder', click: () => actions.openThemeFolder() },
+        ],
+      },
       // Typora's chord shows the whole note as text; the block-only view
       // is this editor's own and moves to a chord of its own.
       command('Source Code Mode', 'CmdOrCtrl+/', 'source-code-mode'),
