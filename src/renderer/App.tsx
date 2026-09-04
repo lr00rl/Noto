@@ -7,6 +7,7 @@
  * controls it hosted.
  */
 
+import { PLAIN_FLAGS, type SearchFlags } from '../shared/search/pattern';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type {
   FileTruthOpenReplyV1,
@@ -1193,12 +1194,17 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     if (documentId === activeIdRef.current) setCount(next);
   };
 
-  const searchContent = useCallback(async (query: string) => {
+  const searchContent = useCallback(async (query: string, flags: SearchFlags = PLAIN_FLAGS) => {
     const result = await window.notoWorkspace.searchContent({
-      version: 1, requestId: rid('search-content'), query,
+      version: 1, requestId: rid('search-content'), query, ...flags,
     });
     return result.ok
-      ? { matches: result.value.matches, truncated: result.value.truncated, timedOut: result.value.timedOut }
+      ? {
+        matches: result.value.matches,
+        truncated: result.value.truncated,
+        timedOut: result.value.timedOut,
+        invalidPattern: result.value.invalidPattern,
+      }
       : null;
   }, []);
 
@@ -1434,9 +1440,11 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         setQuickOpen((current) => ({ open: !(current.open && current.mode === 'name'), mode: 'name' }));
         break;
       case 'search-content':
+        // Typora's chord opens the sidebar's search, which stays open while
+        // the notes it found are read one after another.
         setPrefs((current) => ({ ...current, open: false }));
-        void ensureFileIndex();
-        setQuickOpen((current) => ({ open: !(current.open && current.mode === 'content'), mode: 'content' }));
+        setQuickOpen((current) => ({ ...current, open: false }));
+        setRail({ open: true, view: 'search' });
         break;
       case 'command-palette':
         // Preferences is modal, so leaving it open would put its scrim over the
@@ -1717,10 +1725,11 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
           side two header rows where Typora has one. */}
       {rail.open && (
           <WorkspaceRail
-            onSearch={() => {
-              setPrefs((current) => ({ ...current, open: false }));
-              void ensureFileIndex();
-              setQuickOpen({ open: true, mode: 'name' });
+            search={{
+              onSearch: searchContent,
+              onOpenMatch: openMatch,
+              currentPath: active?.opened.path ?? null,
+              onClose: () => setRail({ open: true, view: 'files' }),
             }}
             view={rail.view}
             onView={(view) => setRail({ open: true, view })}

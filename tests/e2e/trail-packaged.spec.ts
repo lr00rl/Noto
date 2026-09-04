@@ -97,13 +97,12 @@ test.describe('the trail', () => {
     }
   });
 
-  test('opens quick open from the head of the rail', async () => {
+  test('opens the search from the head of the rail, in place of the files', async () => {
     const { app, page } = await launch('search');
     try {
       await page.getByTestId('rail-search').click();
-      await expect(page.getByTestId('quick-input')).toBeVisible();
-      await page.keyboard.type('three');
-      await expect(page.getByTestId('quick-result').first()).toContainText('three.md');
+      await expect(page.getByTestId('search-input')).toBeFocused();
+      await expect(page.getByTestId('file-tree')).toHaveCount(0);
     } finally {
       await app.close();
     }

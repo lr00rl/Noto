@@ -456,6 +456,8 @@ export interface WorkspaceContentLineV1 {
   readonly lineNumber: number;
   /** Where the query starts within `line`, for highlighting. */
   readonly column: number;
+  /** How many characters the match runs for, from `column`. */
+  readonly length: number;
 }
 
 /** One note containing the query, with a few of the lines that do. */
@@ -470,6 +472,10 @@ export interface WorkspaceContentMatchV1 {
 
 export interface WorkspaceContentRequestV1 extends WorkspaceRequestV1 {
   readonly query: string;
+  /** The find bar's three switches, meaning the same thing here. */
+  readonly caseSensitive: boolean;
+  readonly wholeWord: boolean;
+  readonly regex: boolean;
 }
 
 export interface WorkspaceContentReplyV1 {
@@ -481,6 +487,8 @@ export interface WorkspaceContentReplyV1 {
   readonly truncated: boolean;
   /** The scan hit its time budget and stopped early. */
   readonly timedOut: boolean;
+  /** True when the query was an expression that does not parse; nothing was searched. */
+  readonly invalidPattern: boolean;
 }
 
 /** The longest a query may be. Past this it is not a search, it is a paste. */

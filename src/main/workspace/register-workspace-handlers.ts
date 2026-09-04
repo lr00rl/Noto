@@ -115,7 +115,9 @@ export function registerWorkspaceHandlers(deps: {
     (request: WorkspaceTreeMenuRequestV1) => deps.session.treeMenu(request.path, request.kind));
 
   register(WORKSPACE_CHANNELS.searchContent, isWorkspaceContentRequestV1,
-    (request: WorkspaceContentRequestV1) => deps.session.searchContent(request.query));
+    (request: WorkspaceContentRequestV1) => deps.session.searchContent(request.query, {
+      caseSensitive: request.caseSensitive, wholeWord: request.wholeWord, regex: request.regex,
+    }));
 
   // Rename, duplicate, trash and new folder. Main re-resolves the target and
   // checks it against the open folder at the moment it acts, so a row that has

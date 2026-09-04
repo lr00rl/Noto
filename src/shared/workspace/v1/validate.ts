@@ -306,16 +306,19 @@ export const isWorkspaceRevealResultV1 = (
 ): value is WorkspaceResultV1<WorkspaceRevealReplyV1> => isResult(value, id, isWorkspaceRevealReplyV1);
 
 export function isWorkspaceContentRequestV1(value: unknown): value is WorkspaceContentRequestV1 {
-  return record(value) && exact(value, ['version', 'requestId', 'query'])
+  return record(value) && exact(value, ['version', 'requestId', 'query', 'caseSensitive', 'wholeWord', 'regex'])
     && value.version === 1
     && typeof value.requestId === 'string' && requestId.test(value.requestId)
-    && typeof value.query === 'string' && value.query.length <= MAX_CONTENT_QUERY;
+    && typeof value.query === 'string' && value.query.length <= MAX_CONTENT_QUERY
+    && typeof value.caseSensitive === 'boolean' && typeof value.wholeWord === 'boolean'
+    && typeof value.regex === 'boolean';
 }
 
 function isContentLineV1(value: unknown): value is WorkspaceContentLineV1 {
-  return record(value) && exact(value, ['line', 'lineNumber', 'column'])
+  return record(value) && exact(value, ['line', 'lineNumber', 'column', 'length'])
     && typeof value.line === 'string'
-    && Number.isSafeInteger(value.lineNumber) && Number.isSafeInteger(value.column);
+    && Number.isSafeInteger(value.lineNumber) && Number.isSafeInteger(value.column)
+    && typeof value.length === 'number' && Number.isSafeInteger(value.length) && value.length >= 0;
 }
 
 function isContentMatchV1(value: unknown): value is WorkspaceContentMatchV1 {
@@ -327,10 +330,11 @@ function isContentMatchV1(value: unknown): value is WorkspaceContentMatchV1 {
 }
 
 export function isWorkspaceContentReplyV1(value: unknown): value is WorkspaceContentReplyV1 {
-  return record(value) && exact(value, ['version', 'matches', 'scanned', 'truncated', 'timedOut'])
+  return record(value) && exact(value, ['version', 'matches', 'scanned', 'truncated', 'timedOut', 'invalidPattern'])
     && value.version === 1
     && Number.isSafeInteger(value.scanned)
     && typeof value.truncated === 'boolean' && typeof value.timedOut === 'boolean'
+    && typeof value.invalidPattern === 'boolean'
     && Array.isArray(value.matches) && value.matches.every(isContentMatchV1);
 }
 

@@ -10,13 +10,14 @@
  * their bodies.
  */
 
+import { RailSearch, type RailSearchProps } from './RailSearch';
 import { useCallback, useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import { FileTree, type FileTreeProps } from './FileTree';
 import { nestOutline, type OutlineEntry, type OutlineNode } from './outline';
 import { SETTING_RANGES } from '../shared/settings/v1/contracts';
 import { sizeTreeGuides } from './tree-guides';
 
-export type RailView = 'files' | 'outline';
+export type RailView = 'files' | 'outline' | 'search';
 
 const RAIL_MIN = SETTING_RANGES.railWidth.min;
 const RAIL_MAX = SETTING_RANGES.railWidth.max;
@@ -33,8 +34,8 @@ export interface WorkspaceRailProps {
   /** The heading the caret is under, so the outline can say where you are. */
   readonly currentHeading?: number;
   readonly tree: FileTreeProps;
-  /** Opens quick open. Search is a first-class way into a vault, not a fallback. */
-  readonly onSearch: () => void;
+  /** The search view's own wiring; the rail only shows it. */
+  readonly search: RailSearchProps;
 }
 
 function Tab({ id, current, onSelect, children, testId }: {
@@ -108,10 +109,12 @@ function OutlineLevel({ nodes, root, onGoToBlock, current }: {
 const INDICATOR: Record<RailView, { left: string; width: string }> = {
   files: { left: '0px', width: '30px' },
   outline: { left: '44px', width: '46px' },
+  // No rule under either label while the search has the rail.
+  search: { left: '0px', width: '0px' },
 };
 
 export function WorkspaceRail({
-  view, onView, width, onResize, outline, onGoToBlock, currentHeading, tree, onSearch,
+  view, onView, width, onResize, outline, onGoToBlock, currentHeading, tree, search,
 }: WorkspaceRailProps) {
   const railRef = useRef<HTMLElement>(null);
   const outlineRef = useRef<HTMLElement>(null);
@@ -188,8 +191,10 @@ export function WorkspaceRail({
       >
         <Tab id="files" current={view} onSelect={onView} testId="rail-files">Files</Tab>
         <Tab id="outline" current={view} onSelect={onView} testId="outline-toggle">Outline</Tab>
-        <button type="button" className="icon-button rail-search" data-testid="rail-search"
-          aria-label="Quick open" title="Quick open (⌘P)" onClick={onSearch}>
+        <button type="button" data-testid="rail-search"
+          className={view === 'search' ? 'icon-button rail-search is-on' : 'icon-button rail-search'}
+          aria-label="Search in notes" aria-pressed={view === 'search'} title="Search in notes (⇧⌘F)"
+          onClick={() => onView(view === 'search' ? 'files' : 'search')}>
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <circle cx="7" cy="7" r="4.25" />
             <path d="m10.25 10.25 3.5 3.5" />
@@ -197,13 +202,17 @@ export function WorkspaceRail({
         </button>
       </div>
 
-      {view === 'files'
-        ? (
-          <div className="rail-view" id="rail-view-files" role="tabpanel" aria-labelledby="rail-tab-files">
-            <FileTree {...tree} />
-          </div>
-        )
-        : (
+      {view === 'files' && (
+        <div className="rail-view" id="rail-view-files" role="tabpanel" aria-labelledby="rail-tab-files">
+          <FileTree {...tree} />
+        </div>
+      )}
+      {view === 'search' && (
+        <div className="rail-view" id="rail-view-search">
+          <RailSearch {...search} />
+        </div>
+      )}
+      {view === 'outline' && (
           <div className="rail-view" id="rail-view-outline" role="tabpanel" aria-labelledby="rail-tab-outline"
             data-testid="outline-panel">
             {outline.length === 0

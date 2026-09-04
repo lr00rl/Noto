@@ -293,9 +293,9 @@ export function QuickOpen({
                       <span className="quick-line-text">
                         {line.line.slice(0, line.column)}
                         <mark className="quick-hit">
-                          {line.line.slice(line.column, line.column + query.trim().length)}
+                          {line.line.slice(line.column, line.column + line.length)}
                         </mark>
-                        {line.line.slice(line.column + query.trim().length)}
+                        {line.line.slice(line.column + line.length)}
                       </span>
                     </span>
                   ))}
