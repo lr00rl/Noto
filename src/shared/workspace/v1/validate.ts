@@ -375,14 +375,16 @@ export const isWorkspaceContentResultV1 = (
 export { isEntryName };
 
 export function isWorkspaceEntryRequestV1(value: unknown): value is WorkspaceEntryRequestV1 {
-  return record(value) && exact(value, ['version', 'requestId', 'action', 'target', 'name'])
+  return record(value) && exact(value, ['version', 'requestId', 'action', 'target', 'name', 'destination'])
     && value.version === NOTO_WORKSPACE_VERSION
     && typeof value.requestId === 'string' && requestId.test(value.requestId)
     && ENTRY_ACTIONS.includes(value.action as WorkspaceEntryActionV1)
     && typeof value.target === 'string' && value.target.length > 0 && value.target.length <= 4096
     // A name is one segment or nothing at all. The action that needs one and
     // did not get one is refused in main, where the kind of entry is known.
-    && (value.name === null || isEntryName(value.name));
+    && (value.name === null || isEntryName(value.name))
+    && (value.destination === null
+      || (typeof value.destination === 'string' && value.destination.length > 0 && value.destination.length <= 4096));
 }
 
 export function isWorkspaceEntryReplyV1(value: unknown): value is WorkspaceEntryReplyV1 {

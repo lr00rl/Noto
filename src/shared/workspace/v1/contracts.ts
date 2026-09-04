@@ -366,7 +366,7 @@ export interface WorkspaceTreeMenuReplyV1 {
  * different shape of message. The action is checked against this list on both
  * sides, so an unknown one is refused rather than falling through to a default.
  */
-export const ENTRY_ACTIONS = ['rename', 'duplicate', 'trash', 'new-folder', 'move'] as const;
+export const ENTRY_ACTIONS = ['rename', 'duplicate', 'trash', 'new-folder', 'move', 'move-into'] as const;
 
 export type WorkspaceEntryActionV1 = (typeof ENTRY_ACTIONS)[number];
 
@@ -382,6 +382,15 @@ export interface WorkspaceEntryRequestV1 extends WorkspaceRequestV1 {
    * destination even by accident.
    */
   readonly name: string | null;
+  /**
+   * The folder something is dropped into, for `move-into`, and null for
+   * every other action.
+   *
+   * The renderer names it because the tree is what was dragged onto, and
+   * main resolves it against the open folder exactly as it resolves the
+   * target: a path from the renderer is a request, never an authority.
+   */
+  readonly destination: string | null;
 }
 
 /** Why an action did nothing. Each one is a sentence the reader can act on. */

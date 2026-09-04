@@ -31,20 +31,22 @@ async function launch(name: string): Promise<{
 /** Ask main to act on a row, the way the tree does after a menu choice. */
 async function act(
   page: Page,
-  action: 'rename' | 'duplicate' | 'trash' | 'new-folder' | 'move',
+  action: 'rename' | 'duplicate' | 'trash' | 'new-folder' | 'move' | 'move-into',
   target: string,
   name: string | null = null,
+  destination: string | null = null,
 ): Promise<unknown> {
-  return page.evaluate(async ([a, t, n]) => {
+  return page.evaluate(async ([a, t, n, d]) => {
     const result = await window.notoWorkspace.manageEntry({
       version: 1,
       requestId: `entry:${Math.random().toString(36).slice(2)}`,
       action: a as 'rename',
       target: t as string,
       name: n as string | null,
+      destination: d as string | null,
     });
     return result.ok ? result.value : { transport: result.error.message };
-  }, [action, target, name]);
+  }, [action, target, name, destination]);
 }
 
 const names = async (directory: string) => (await readdir(directory)).sort();

@@ -21,6 +21,7 @@ import {
   type NotoSettingsV1,
   type NotoTheme,
   type WidthModeV1,
+  type ProseFaceV1,
 } from '../shared/settings/v1/contracts';
 
 export type PreferencesSection = 'appearance' | 'editor' | 'markdown' | 'images' | 'plugins';
@@ -81,6 +82,12 @@ const THEMES: readonly { value: NotoTheme; label: string }[] = [
 
 /* The numbers are in the hints rather than the labels: the labels are what
    the reader chooses between, the numbers are how the choice is kept honest. */
+const FACES: readonly { value: ProseFaceV1; label: string; hint: string }[] = [
+  { value: 'serif', label: 'Serif', hint: 'Songti SC, as Typora sets Chinese prose.' },
+  { value: 'sans', label: 'Sans', hint: 'PingFang SC, for reading on a screen.' },
+  { value: 'mono', label: 'Mono', hint: 'Menlo, for a note that is mostly code.' },
+];
+
 const WIDTHS: readonly { value: WidthModeV1; label: string; hint: string }[] = [
   { value: 'default', label: 'Default', hint: 'A reading column, up to 860px.' },
   { value: 'wide', label: 'Wide', hint: '78% of the canvas, between 1000 and 1180px.' },
@@ -471,6 +478,9 @@ export function Preferences({
                 <Slider label="Line height" setting="lineHeight" value={settings.lineHeight}
                   format={(value) => value.toFixed(2)} testId="setting-line-height"
                   onChange={(value) => onChange({ lineHeight: Number(value.toFixed(2)) })} />
+                <Choices label="Document font" hint="What the note itself is set in."
+                  options={FACES} value={settings.proseFace}
+                  onPick={(value) => onChange({ proseFace: value })} testPrefix="face" />
                 <Choices label="Page width" hint="Also on the View menu."
                   options={WIDTHS} value={settings.widthMode}
                   onPick={(value) => onChange({ widthMode: value })} testPrefix="width" />

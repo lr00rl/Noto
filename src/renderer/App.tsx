@@ -495,11 +495,12 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     root.style.setProperty('--doc-font-size', `${settings.fontSize}px`);
     root.style.setProperty('--doc-line-height', `${settings.lineHeight}`);
     root.dataset.widthMode = settings.widthMode;
+    root.dataset.proseFace = settings.proseFace;
     root.dataset.codeLineNumbers = settings.codeLineNumbers ? 'on' : 'off';
     root.dataset.codeIndentGuides = settings.codeIndentGuides ? 'on' : 'off';
     root.dataset.focusMode = settings.focusMode ? 'on' : 'off';
-  }, [settings.fontSize, settings.lineHeight, settings.widthMode, settings.codeLineNumbers, settings.codeIndentGuides,
-    settings.focusMode]);
+  }, [settings.fontSize, settings.lineHeight, settings.widthMode, settings.proseFace, settings.codeLineNumbers,
+    settings.codeIndentGuides, settings.focusMode]);
 
   /**
    * The user's own stylesheet, layered over the theme.
@@ -1392,6 +1393,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       action: editing.intent === 'new-folder' ? 'new-folder' : 'rename',
       target: editing.path,
       name,
+      destination: null,
     }).then((result) => {
       if (!result.ok) {
         setLocalMessage(actionableFileTruthMessage(result.error.message, 'That did not work.'));
@@ -1400,6 +1402,24 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       if (!result.value.done) setLocalMessage(entryRefusalMessage(result.value.reason));
     });
   }, [treeEditing]);
+
+  /** A row dragged onto a folder: main moves it and the tree hears about it. */
+  const moveEntryInto = useCallback((source: string, destination: string) => {
+    void window.notoWorkspace.manageEntry({
+      version: 1,
+      requestId: rid('entry'),
+      action: 'move-into',
+      target: source,
+      name: null,
+      destination,
+    }).then((result) => {
+      if (!result.ok) {
+        setLocalMessage(actionableFileTruthMessage(result.error.message, 'That could not be moved.'));
+        return;
+      }
+      if (!result.value.done) setLocalMessage(entryRefusalMessage(result.value.reason));
+    });
+  }, []);
 
   const onDocumentDirtyChange = useCallback((documentId: string, dirty: boolean) => {
     setDocs((current) => {
@@ -1804,6 +1824,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
               onOpenFile: openFromTree,
               onRowMenu: showTreeMenu,
               onChooseFolder: chooseFolder,
+              onMoveEntry: moveEntryInto,
               editing: treeEditing,
               onEditingDone: finishTreeEdit,
               reloadToken: treeVersion,
