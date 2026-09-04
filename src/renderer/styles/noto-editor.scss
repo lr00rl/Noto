@@ -880,6 +880,16 @@
 #rail-view-outline { --tree-row: 22px; }
 
 .outline-entry:hover { color: var(--ink); }
+
+/* The twisty on a heading with headings under it is there to be found, not
+   looked at: it shows when the row is hovered, or while the branch is shut
+   so a closed heading reads as one. A closed row keeps its ink, because it
+   now stands for everything under it. */
+.outline-twisty { opacity: 0; transition: opacity var(--motion-default) var(--ease-out), rotate var(--motion-default) var(--ease-out); }
+.outline-entry:hover .outline-twisty,
+.outline-entry:focus-visible .outline-twisty,
+.outline-entry.is-closed .outline-twisty { opacity: 1; }
+.outline-entry.is-closed { color: var(--ink); }
 .tree-level.is-root > .tree-node > .outline-entry { color: var(--ink); font-weight: 600; }
 
 .palette-empty {
