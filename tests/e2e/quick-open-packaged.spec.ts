@@ -150,8 +150,11 @@ test.describe('searching inside notes', () => {
   test('finds a note by its contents and opens it at the match', async () => {
     const { app, page } = await launch('content');
     try {
-      await invokeMenu(app, 'search-content');
+      // The chord for searching notes opens the rail's search now, as Typora's
+      // does; quick open still searches inside notes one Tab away.
+      await invokeMenu(app, 'quick-open');
       await expect(page.getByTestId('quick-open')).toBeVisible();
+      await page.getByTestId('quick-input').press('Tab');
       await expect(page.getByTestId('quick-mode')).toHaveText('In notes');
 
       // A word that appears in one note's body and in no note's name.
@@ -194,7 +197,8 @@ test.describe('searching inside notes', () => {
   test('says so when nothing contains the query', async () => {
     const { app, page } = await launch('content-empty');
     try {
-      await invokeMenu(app, 'search-content');
+      await invokeMenu(app, 'quick-open');
+      await page.getByTestId('quick-input').press('Tab');
       await page.getByTestId('quick-input').fill('zzzznothinghere');
       await expect(page.getByTestId('quick-open')).toContainText('No note contains that.');
     } finally {

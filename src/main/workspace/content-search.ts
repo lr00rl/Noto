@@ -18,6 +18,7 @@
  * because the cost here is waiting for the disk rather than doing arithmetic.
  */
 
+import { PLAIN_FLAGS, patternFor, type SearchFlags } from '../../shared/search/pattern';
 import { readFile } from 'node:fs/promises';
 import type {
   WorkspaceContentMatchV1,
@@ -48,39 +49,62 @@ export interface ContentSearchOptions {
 }
 
 /**
- * Where the query appears in one file's text.
+ * Where the pattern appears in one file's text.
  *
- * Case-insensitive and literal, never a regular expression. Someone searching
- * for `A400_Data (旧)` is searching for that text, and turning their parentheses
- * into a group is a surprise that produces either the wrong answer or none.
+ * The pattern is the find bar's, built the same way from the same switches,
+ * so what the sidebar finds is what the bar would find on opening the note.
+ * A match of no characters, which an expression like `a*` can make, is
+ * stepped over rather than reported: a hit with nothing in it is not one.
  */
 export function matchesIn(
   text: string,
-  needle: string,
+  pattern: RegExp,
   limit = MAX_PER_FILE,
-): { line: string; lineNumber: number; column: number }[] {
-  const found: { line: string; lineNumber: number; column: number }[] = [];
-  if (needle.length === 0) return found;
-  const lowerNeedle = needle.toLowerCase();
-
+): { line: string; lineNumber: number; column: number; length: number }[] {
+  const found: { line: string; lineNumber: number; column: number; length: number }[] = [];
   const lines = text.split('\n');
   for (let index = 0; index < lines.length && found.length < limit; index += 1) {
     const line = lines[index];
-    const at = line.toLowerCase().indexOf(lowerNeedle);
-    if (at < 0) continue;
-
+    const hit = firstHit(line, pattern);
+    if (hit === null) continue;
     // A very long line is shown around its match rather than from its start,
     // because the point of the line is to show the query in context.
     let shown = line;
-    let column = at;
+    let column = hit.at;
     if (line.length > MAX_LINE) {
-      const from = Math.max(0, at - Math.floor(MAX_LINE / 3));
+      const from = Math.max(0, hit.at - 40);
       shown = `${from > 0 ? '…' : ''}${line.slice(from, from + MAX_LINE)}`;
-      column = at - from + (from > 0 ? 1 : 0);
+      column = hit.at - from + (from > 0 ? 1 : 0);
     }
-    found.push({ line: shown.trim(), lineNumber: index + 1, column });
+    const leading = shown.length - shown.trimStart().length;
+    found.push({ line: shown.trim(), lineNumber: index + 1, column: column - leading, length: hit.length });
   }
   return found;
+}
+
+/** The first non-empty match in a line, or null. */
+function firstHit(line: string, pattern: RegExp): { at: number; length: number } | null {
+  pattern.lastIndex = 0;
+  for (;;) {
+    const match = pattern.exec(line);
+    if (match === null) return null;
+    if (match[0].length > 0) return { at: match.index, length: match[0].length };
+    pattern.lastIndex = match.index + 1;
+    if (pattern.lastIndex > line.length) return null;
+  }
+}
+
+/** Every non-empty match in a file, which is what a note is ranked by. */
+function countOccurrences(text: string, pattern: RegExp): number {
+  let count = 0;
+  pattern.lastIndex = 0;
+  for (;;) {
+    const match = pattern.exec(text);
+    if (match === null) return count;
+    if (match[0].length > 0) count += 1;
+    else pattern.lastIndex = match.index + 1;
+    if (pattern.lastIndex > text.length) return count;
+  }
 }
 
 /**
@@ -115,11 +139,16 @@ async function pool<T>(items: readonly T[], limit: number, work: (item: T) => Pr
 export async function searchContent(
   entries: readonly WorkspaceIndexEntryV1[],
   query: string,
+  flags: SearchFlags = PLAIN_FLAGS,
   options: ContentSearchOptions = {},
 ): Promise<WorkspaceContentReplyV1> {
   const needle = query.trim();
   if (needle.length === 0) {
-    return { version: 1, matches: [], scanned: 0, truncated: false, timedOut: false };
+    return { version: 1, matches: [], scanned: 0, truncated: false, timedOut: false, invalidPattern: false };
+  }
+  const pattern = patternFor(needle, flags);
+  if (pattern === null) {
+    return { version: 1, matches: [], scanned: 0, truncated: false, timedOut: false, invalidPattern: true };
   }
 
   const budget = options.budgetMs ?? SEARCH_BUDGET_MS;
@@ -146,11 +175,11 @@ export async function searchContent(
     }
     scanned += 1;
 
-    const hits = matchesIn(text, needle);
+    const hits = matchesIn(text, pattern);
     if (hits.length === 0) return;
     // Counted across the whole file, not just the lines kept, so a note that
     // mentions the query thirty times outranks one that mentions it once.
-    const total = countOccurrences(text, needle);
+    const total = countOccurrences(text, pattern);
     found.push({ entry, hits, total });
   });
 
@@ -171,18 +200,7 @@ export async function searchContent(
     scanned,
     truncated: found.length > maxFiles,
     timedOut,
+    invalidPattern: false,
   };
 }
 
-/** How many times the needle appears, counted without allocating per match. */
-function countOccurrences(text: string, needle: string): number {
-  const haystack = text.toLowerCase();
-  const lowerNeedle = needle.toLowerCase();
-  let count = 0;
-  let at = haystack.indexOf(lowerNeedle);
-  while (at >= 0) {
-    count += 1;
-    at = haystack.indexOf(lowerNeedle, at + lowerNeedle.length);
-  }
-  return count;
-}

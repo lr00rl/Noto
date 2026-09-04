@@ -12,6 +12,7 @@
  * document positions, and matching happens on that.
  */
 
+import { patternFor as sharedPattern } from '../../../shared/search/pattern';
 import type { Node as ProseNode } from 'prosemirror-model';
 
 export interface SearchOptions {
@@ -87,7 +88,6 @@ function positionAt(flat: FlatDocument, offset: number): number {
   return best.position + Math.max(0, within);
 }
 
-const REGEX_SPECIAL = /[.*+?^${}()|[\]\\]/g;
 
 /**
  * The pattern to run against the flattened text.
@@ -96,18 +96,7 @@ const REGEX_SPECIAL = /[.*+?^${}()|[\]\\]/g;
  * expression shows no matches instead of throwing while the user is typing.
  */
 export function patternFor(options: SearchOptions): RegExp | null {
-  if (options.query.length === 0) return null;
-  const body = options.regex
-    ? options.query
-    : options.query.replace(REGEX_SPECIAL, '\\$&');
-  // Word boundaries are applied outside the group so alternation inside a
-  // regular expression query still binds correctly.
-  const source = options.wholeWord ? `\\b(?:${body})\\b` : body;
-  try {
-    return new RegExp(source, options.caseSensitive ? 'gu' : 'giu');
-  } catch {
-    return null;
-  }
+  return sharedPattern(options.query, options);
 }
 
 /** Every match in the document, in document order. */

@@ -11,6 +11,7 @@
  * request came from the menu, the renderer, the dock, or a file association.
  */
 
+import type { SearchFlags } from '../../shared/search/pattern';
 import path from 'node:path';
 import { cp, mkdir, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -931,9 +932,9 @@ export class WorkspaceSession {
    * Scans the same index quick open ranks, so the two agree about which files
    * exist and neither can find something the other cannot.
    */
-  async searchContent(query: string): Promise<WorkspaceContentReplyV1> {
+  async searchContent(query: string, flags: SearchFlags): Promise<WorkspaceContentReplyV1> {
     const index = await this.fileIndex();
-    return searchContent(index.entries, query);
+    return searchContent(index.entries, query, flags);
   }
 
   /** Entries inside a directory of the chosen folder. */
