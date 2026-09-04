@@ -11,7 +11,7 @@
  */
 
 import { RailSearch, type RailSearchProps } from './RailSearch';
-import { useCallback, useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { FileTree, type FileTreeProps } from './FileTree';
 import { nestOutline, type OutlineEntry, type OutlineNode } from './outline';
 import { SETTING_RANGES } from '../shared/settings/v1/contracts';
@@ -62,6 +62,13 @@ function Tab({ id, current, onSelect, children, testId }: {
   );
 }
 
+/** Whether the heading in front sits under this node, folded or not. */
+function holdsCurrent(node: OutlineNode, current: number | undefined): boolean {
+  if (current === undefined) return false;
+  if (node.blockIndex === current) return true;
+  return node.children.some((child) => holdsCurrent(child, current));
+}
+
 /**
  * One level of the outline.
  *
@@ -69,31 +76,64 @@ function Tab({ id, current, onSelect, children, testId }: {
  * drawn from the nesting, and `:last-child` is what turns a tee into a rounded
  * corner. Sharing the `tree-level` and `tree-node` classes is deliberate, so the
  * two trees in the rail cannot drift into looking like different products.
+ *
+ * A heading with headings under it folds, as Typora's outline folds: the
+ * twisty at its left, shown when the row is hovered or the branch is closed,
+ * takes the children away and the row stands for all of them. While the
+ * heading in front is inside a closed branch, the closed row is the current
+ * one, so the eye still finds where the caret is.
  */
-function OutlineLevel({ nodes, root, onGoToBlock, current }: {
+function OutlineLevel({ nodes, root, onGoToBlock, current, folded, onFold }: {
   nodes: readonly OutlineNode[];
   root?: boolean;
   onGoToBlock: (blockIndex: number) => void;
   current?: number;
+  folded: ReadonlySet<number>;
+  onFold: (blockIndex: number, closed: boolean) => void;
 }) {
   return (
     <div className={root ? 'tree-level is-root' : 'tree-level'}>
-      {nodes.map((node) => (
-        <div className="tree-node" key={node.blockIndex}>
-          <button
-            type="button"
-            className={`tree-row outline-entry depth-${node.depth}${node.blockIndex === current ? ' is-current' : ''}`}
-            aria-current={node.blockIndex === current ? 'true' : undefined}
-            title={node.text}
-            onClick={() => onGoToBlock(node.blockIndex)}
-          >
-            <span className="tree-name">{node.text}</span>
-          </button>
-          {node.children.length > 0 && (
-            <OutlineLevel nodes={node.children} onGoToBlock={onGoToBlock} current={current} />
-          )}
-        </div>
-      ))}
+      {nodes.map((node) => {
+        const branch = node.children.length > 0;
+        const closed = branch && folded.has(node.blockIndex);
+        const isCurrent = node.blockIndex === current || (closed && holdsCurrent(node, current));
+        return (
+          <div className="tree-node" key={node.blockIndex}>
+            <button
+              type="button"
+              className={`tree-row outline-entry depth-${node.depth}${isCurrent ? ' is-current' : ''}${closed ? ' is-closed' : ''}`}
+              aria-current={isCurrent ? 'true' : undefined}
+              aria-expanded={branch ? !closed : undefined}
+              data-testid="outline-entry"
+              title={node.text}
+              onClick={() => onGoToBlock(node.blockIndex)}
+              onKeyDown={(event) => {
+                if (!branch) return;
+                if (event.key === 'ArrowLeft' && !closed) { event.preventDefault(); onFold(node.blockIndex, true); }
+                if (event.key === 'ArrowRight' && closed) { event.preventDefault(); onFold(node.blockIndex, false); }
+              }}
+            >
+              {branch
+                ? (
+                  // A span inside the row rather than a second button, since a
+                  // button cannot hold one; the click is stopped so folding a
+                  // heading does not also go to it.
+                  <span
+                    className={closed ? 'tree-twisty outline-twisty' : 'tree-twisty tree-twisty-open outline-twisty'}
+                    data-testid="outline-twisty"
+                    role="presentation"
+                    onClick={(event) => { event.stopPropagation(); onFold(node.blockIndex, !closed); }}
+                  />
+                )
+                : <span className="tree-twisty tree-twisty-blank" aria-hidden="true" />}
+              <span className="tree-name">{node.text}</span>
+            </button>
+            {branch && !closed && (
+              <OutlineLevel nodes={node.children} onGoToBlock={onGoToBlock} current={current} folded={folded} onFold={onFold} />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -118,6 +158,16 @@ export function WorkspaceRail({
 }: WorkspaceRailProps) {
   const railRef = useRef<HTMLElement>(null);
   const outlineRef = useRef<HTMLElement>(null);
+  /** The headings folded shut, by block. Kept while the rail lives, as Typora keeps its folds. */
+  const [folded, setFolded] = useState<ReadonlySet<number>>(() => new Set());
+  const fold = useCallback((blockIndex: number, closed: boolean) => {
+    setFolded((current) => {
+      if (current.has(blockIndex) === closed) return current;
+      const next = new Set(current);
+      if (closed) next.add(blockIndex); else next.delete(blockIndex);
+      return next;
+    });
+  }, []);
 
   /*
    * The outline draws the same tree as the file list and needs the same
@@ -132,7 +182,7 @@ export function WorkspaceRail({
   useEffect(() => {
     const body = outlineRef.current;
     if (body) sizeTreeGuides(body);
-  }, [outline, currentHeading, view]);
+  }, [outline, currentHeading, view, folded]);
 
   /**
    * Drag the rail wider.
@@ -219,7 +269,8 @@ export function WorkspaceRail({
               ? <p className="rail-empty">This document has no headings.</p>
               : (
                 <nav className="outline-body" ref={outlineRef}>
-                  <OutlineLevel nodes={nestOutline(outline)} root onGoToBlock={onGoToBlock} current={currentHeading} />
+                  <OutlineLevel nodes={nestOutline(outline)} root onGoToBlock={onGoToBlock} current={currentHeading}
+                    folded={folded} onFold={fold} />
                 </nav>
               )}
           </div>
