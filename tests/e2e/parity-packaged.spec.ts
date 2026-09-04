@@ -170,7 +170,7 @@ test.describe('parity with Typora', () => {
     }
   });
 
-  test('stacks the path flush against the top, and draws every connector alike', async () => {
+  test('stacks the path flush against the top and lights the branch', async () => {
     const { app, page } = await launch('stack');
     try {
       // The note opened from the shell is deep in the tree. Nothing is clicked:
@@ -184,21 +184,19 @@ test.describe('parity with Typora', () => {
       const drawn = await page.evaluate(() => {
         const levels = [...document.querySelectorAll<HTMLElement>('.tree-level')];
         const stops = levels.map((level) => level.style.getPropertyValue('--path-stop')).filter(Boolean);
-        const gradients = levels.map((level) =>
-          (getComputedStyle(level).backgroundImage.match(/linear-gradient/g) ?? []).length);
         const arms = [...document.querySelectorAll<HTMLElement>('.tree-level:not(.is-root) > .tree-node')]
-          .map((node) => getComputedStyle(node, '::before').borderBottomColor);
-        const activeArm = getComputedStyle(document.querySelector('.tree-node-active')!, '::before').borderBottomColor;
-        return { stops, gradients, arms: [...new Set(arms)], activeArm };
+          .map((node) => ({ node, colour: getComputedStyle(node, '::before').borderBottomColor }));
+        const active = arms.find(({ node }) => node.classList.contains('tree-node-active'))?.colour ?? null;
+        const plain = arms.find(({ node }) => !node.classList.contains('tree-node-active')
+          && !node.querySelector(':scope > .tree-on-path'))?.colour ?? null;
+        return { stops, active, plain };
       });
-      // The theme this imitates has never lit a branch. Every level draws one
-      // stem, every arm is the same colour, and the arm to the file in front is
-      // no different from its neighbours: the accent is the row's own bar and
-      // nothing else.
-      expect(drawn.stops).toEqual([]);
-      expect(new Set(drawn.gradients)).toEqual(new Set([1]));
-      expect(drawn.arms).toHaveLength(1);
-      expect(drawn.activeArm).toBe(drawn.arms[0]);
+      // Three levels on the way down, each lit to the child that leads on, and
+      // the arm to the file itself lit too: the author's V2 scheme, in the
+      // muted colour the tree-guides plugin uses rather than the raw accent.
+      expect(drawn.stops.length).toBe(3);
+      expect(drawn.active).not.toBeNull();
+      expect(drawn.active).not.toBe(drawn.plain);
 
       // Scroll into the logs: the stack sits flush at the top of the scrollport.
       await page.getByTestId('tree-file').filter({ hasText: 'log-50' }).scrollIntoViewIfNeeded();

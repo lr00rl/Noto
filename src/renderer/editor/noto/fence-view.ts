@@ -84,6 +84,8 @@ export class FenceView implements NodeView {
 
     this.contentDOM = document.createElement('code');
     this.contentDOM.className = 'noto-fence-code';
+    // Code is not prose, and every identifier in it would otherwise be a red squiggle.
+    this.contentDOM.setAttribute('spellcheck', 'false');
 
     this.tools = document.createElement('div');
     this.tools.className = 'noto-fence-tools';

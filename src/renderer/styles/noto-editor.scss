@@ -985,22 +985,33 @@
      own SVG draws it. */
   --tree-indent: 20px;
   --tree-arm: 14px;
-  /* Where the stem stops. The tree sets it to the last child's top, and that
-     child's own corner takes the line the rest of the way. Declared here so a
-     level never inherits its parent's length. */
+  /* Where the quiet stem stops, and how far the lit one reaches. The tree sets
+     both: the stem to the last child's top, the lit length to the arm of the
+     child on the way to the file in front, or nothing. Declared here so a level
+     never inherits its parent's lengths. */
   --stem-stop: 100%;
+  --path-stop: 0px;
+  /*
+   * The colour of the lit branch, from the author's tree-guides plugin for
+   * Typora and not from the theme, which has no lit branch at all: the accent
+   * pulled 55% toward the muted ink, then faded to 42%. Enough to find the
+   * branch at a glance, not enough to be the first thing the rail says. Drawn
+   * in the raw accent it read as pointing at something, and the corner at the
+   * active file came out as an orange hook.
+   */
+  --tree-lit: color-mix(in srgb, color-mix(in srgb, var(--accent) 55%, var(--muted)) 42%, transparent);
   padding-left: var(--tree-indent);
   margin-left: 10px;
-  /* One stem, one colour. The branch to the file in front used to be drawn a
-     second time in the accent, which the theme this imitates has never done:
-     every connector in it is the same quiet line, and the accent has exactly
-     one job, the bar on the active row. Two colours of line made the tree
-     read as pointing at something, and the corner at the active file came out
-     as an orange hook. */
-  background-image: linear-gradient(var(--tree-line), var(--tree-line));
-  background-size: 1px var(--stem-stop);
+  /* Two stems on top of each other: the branch to the file in front in the
+     lit colour, down to that child's arm, over the quiet stem the whole way.
+     This is V2 of the author's four guide-line schemes, "one stroke with the
+     current branch lit". */
+  background-image:
+    linear-gradient(var(--tree-lit), var(--tree-lit)),
+    linear-gradient(var(--tree-line), var(--tree-line));
+  background-size: 1px var(--path-stop), 1px var(--stem-stop);
   background-repeat: no-repeat;
-  background-position: left top;
+  background-position: left top, left top;
 }
 
 /* The outermost level has nothing to its left to connect to. */
@@ -1038,6 +1049,16 @@
 .tree-level:not(.is-root) > .tree-node:last-child::before {
   border-left: 1px solid var(--tree-line);
   border-bottom-left-radius: 7px;
+}
+
+/* The arm to a node on the path, and to the file itself, in the lit colour.
+   When that node is the last of its level its corner is lit too, which is what
+   the plugin draws: the lit stroke is the same stroke as the quiet one, only
+   coloured, so it turns the same corner. A class heavier than the plain arm and
+   the corner, so it wins on weight rather than on its place in the file. */
+.tree-level:not(.is-root) > .tree-node.tree-node:has(> .tree-on-path)::before,
+.tree-level:not(.is-root) > .tree-node.tree-node-active::before {
+  border-color: var(--tree-lit);
 }
 
 /* The folder's own row, at the head of the tree. Not a button: there is
@@ -1114,19 +1135,22 @@
 .tree-node-active[data-stuck]::before { background: var(--surface-active); }
 
 /* The row's own corner of the branch, drawn on the row so it holds while
-   the row does; the arm on the node scrolled away with the node. */
+   the row does; the arm on the node scrolled away with the node. Lit, since a
+   stuck row is by definition on the path to the file in front. The geometry is
+   the node's own corner to the pixel: it used to sit a pixel up and left with
+   a smaller radius, and where the two overlapped they drew as one thick hook. */
 .tree-directory[data-stuck]::after,
 .tree-node-active[data-stuck]::after {
   content: '';
   position: absolute;
-  left: calc(var(--tree-indent) * -1 - 1px);
-  top: -1px;
+  left: calc(var(--tree-indent) * -1);
+  top: 0;
   bottom: auto;
   width: var(--tree-indent);
-  height: 14px;
+  height: var(--tree-arm);
   background: none;
-  border-left: 1px solid var(--tree-line);
-  border-bottom: 1px solid var(--tree-line);
+  border-left: 1px solid var(--tree-lit);
+  border-bottom: 1px solid var(--tree-lit);
   border-bottom-left-radius: 7px;
   pointer-events: none;
 }

@@ -100,19 +100,19 @@ const nodes: Record<string, NodeSpec> = {
   /** Display math, `$$ ... $$`. Held as text so the source stays editable. */
   math_block: codeLikeBlock({
     parseDOM: [{ tag: 'div.noto-math-block', preserveWhitespace: 'full' }],
-    toDOM: () => ['div', { class: 'noto-math-block' }, 0],
+    toDOM: () => ['div', { class: 'noto-math-block', spellcheck: 'false' }, 0],
   }),
 
   /** YAML frontmatter. One per document, always first. */
   frontmatter: codeLikeBlock({
     parseDOM: [{ tag: 'div.noto-frontmatter', preserveWhitespace: 'full' }],
-    toDOM: () => ['div', { class: 'noto-frontmatter' }, 0],
+    toDOM: () => ['div', { class: 'noto-frontmatter', spellcheck: 'false' }, 0],
   }),
 
   /** Raw HTML kept as source. Never rendered live, which would execute it. */
   html_block: codeLikeBlock({
     parseDOM: [{ tag: 'div.noto-html-block', preserveWhitespace: 'full' }],
-    toDOM: () => ['div', { class: 'noto-html-block' }, 0],
+    toDOM: () => ['div', { class: 'noto-html-block', spellcheck: 'false' }, 0],
   }),
 
   /**
@@ -299,7 +299,8 @@ const marks: Record<string, MarkSpec> = {
     excludes: '_',
     code: true,
     parseDOM: [{ tag: 'code' }],
-    toDOM: () => ['code', 0],
+    // Not spell-checked: an identifier is not a misspelling.
+    toDOM: () => ['code', { spellcheck: 'false' }, 0],
   },
   link: {
     inclusive: false,
