@@ -32,6 +32,7 @@ export const WORKSPACE_CHANNELS = {
    *  a folder named on the command line opens before the page can listen. */
   folder: 'noto:v1:workspace:folder',
   menuCommand: 'noto:v1:workspace:menu-command',
+  pasteText: 'noto:v1:workspace:paste-text',
   /** The whole openable file list for the current folder, sent once per
    *  folder so ranking can happen in the renderer without a round trip. */
   fileIndex: 'noto:v1:workspace:file-index',
@@ -520,6 +521,21 @@ export interface WorkspaceMenuEventV1 {
   readonly command: WorkspaceMenuCommandV1;
 }
 
+/**
+ * The clipboard's text, sent by main when Paste as Plain Text is chosen.
+ *
+ * Main reads the clipboard and sends the text, rather than the renderer
+ * asking for it, so the renderer can never read the clipboard on its own:
+ * the text arrives only because the reader chose the command.
+ */
+export interface WorkspacePasteEventV1 {
+  readonly version: typeof NOTO_WORKSPACE_VERSION;
+  readonly text: string;
+}
+
+/** The most text a paste carries; past this it is a file, not a paste. */
+export const MAX_PASTE_TEXT = 8 * 1024 * 1024;
+
 export interface WorkspaceDocumentEventV1 {
   readonly version: typeof NOTO_WORKSPACE_VERSION;
   readonly opened: FileTruthOpenReplyV1;
@@ -547,6 +563,7 @@ export interface NotoWorkspaceApiV1 {
   onDocumentClosed(listener: (event: WorkspaceClosedEventV1) => void): () => void;
   onTabsChanged(listener: (event: WorkspaceTabsEventV1) => void): () => void;
   onMenuCommand(listener: (event: WorkspaceMenuEventV1) => void): () => void;
+  onPasteText(listener: (event: WorkspacePasteEventV1) => void): () => void;
   fileIndex(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceIndexReplyV1>>;
   recentFolders(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceRecentReplyV1>>;
   openRecentFolder(request: WorkspaceOpenPathRequestV1): Promise<WorkspaceResultV1<WorkspaceFolderEventV1>>;

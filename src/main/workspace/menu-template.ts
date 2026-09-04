@@ -31,6 +31,8 @@ export interface MenuActions {
   importDocument: () => void;
   /** The system print dialog for the window, which prints the note alone. */
   print: () => void;
+  /** Paste the clipboard's text, read as markdown, with any richer form ignored. */
+  pastePlain: () => void;
   clearRecent: () => void;
 }
 
@@ -162,7 +164,9 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       { role: 'cut' },
       { role: 'copy' },
       { role: 'paste' },
-      { role: 'pasteAndMatchStyle' },
+      // Typora's, on its chord: the text on the clipboard read as markdown,
+      // with the rich form ignored. Main reads the clipboard for it.
+      { id: 'paste-plain', label: 'Paste as Plain Text', accelerator: 'Shift+CmdOrCtrl+V', click: () => actions.pastePlain() },
       { role: 'selectAll' },
       { type: 'separator' },
       // Plain copy already puts markdown on the clipboard, which is what a

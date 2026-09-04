@@ -20,6 +20,8 @@ import {
   type WorkspaceExportRequestV1,
   EXPORT_KINDS,
   type WorkspaceExportKindV1,
+  WorkspacePasteEventV1,
+  MAX_PASTE_TEXT,
 } from './contracts';
 import type {
   RecentFileV1,
@@ -185,6 +187,11 @@ export function isWorkspaceDocumentEventV1(value: unknown): value is WorkspaceDo
 export function isWorkspaceMenuEventV1(value: unknown): value is WorkspaceMenuEventV1 {
   return record(value) && exact(value, ['version', 'command']) && value.version === 1
     && menuCommands.includes(value.command as WorkspaceMenuCommandV1);
+}
+
+export function isWorkspacePasteEventV1(value: unknown): value is WorkspacePasteEventV1 {
+  return record(value) && exact(value, ['version', 'text']) && value.version === 1
+    && typeof value.text === 'string' && value.text.length <= MAX_PASTE_TEXT;
 }
 
 function isIndexEntryV1(value: unknown): value is WorkspaceIndexEntryV1 {

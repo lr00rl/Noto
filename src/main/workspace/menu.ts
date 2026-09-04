@@ -10,7 +10,7 @@
  * than executed here, because main does not know what the user has typed.
  */
 
-import { app, Menu, shell, type BrowserWindow } from 'electron';
+import { clipboard, app, Menu, shell, type BrowserWindow } from 'electron';
 import {
   NOTO_WORKSPACE_VERSION,
   WORKSPACE_CHANNELS,
@@ -20,6 +20,20 @@ import {
 import { buildMenuTemplate, type MenuActions } from './menu-template';
 
 export type { MenuActions };
+
+/** Paste as Plain Text: main reads the clipboard and hands the text over. */
+export function sendPasteText(window: BrowserWindow | null): void {
+  if (!window || window.isDestroyed() || window.webContents.isDestroyed()) return;
+  // The clipboard is read asynchronously in this Electron, and the window is
+  // checked again once the text is here, since it may have gone meanwhile.
+  void clipboard.readText().then((text) => {
+    if (window.isDestroyed() || window.webContents.isDestroyed()) return;
+    window.webContents.send(WORKSPACE_CHANNELS.pasteText, {
+      version: NOTO_WORKSPACE_VERSION,
+      text,
+    });
+  }).catch(() => {});
+}
 
 function sendCommand(window: BrowserWindow | null, command: WorkspaceMenuCommandV1): void {
   if (!window || window.isDestroyed() || window.webContents.isDestroyed()) return;
