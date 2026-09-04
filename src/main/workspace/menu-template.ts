@@ -322,7 +322,10 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
     submenu: [
       command('Toggle Sidebar', 'CmdOrCtrl+Shift+L', 'toggle-sidebar'),
       command('Toggle Outline', 'CmdOrCtrl+Shift+O', 'toggle-outline'),
-      command('Toggle Source Mode', 'CmdOrCtrl+/', 'toggle-source'),
+      // Typora's chord shows the whole note as text; the block-only view
+      // is this editor's own and moves to a chord of its own.
+      command('Source Code Mode', 'CmdOrCtrl+/', 'source-code-mode'),
+      command('Toggle Block Source', 'CmdOrCtrl+Alt+/', 'toggle-source'),
       {
         id: 'toggle-read-only',
         label: 'Read-Only Mode',

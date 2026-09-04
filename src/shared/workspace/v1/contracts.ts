@@ -175,6 +175,7 @@ export const WORKSPACE_MENU_COMMANDS = [
   'find-next',
   'find-previous',
   'toggle-source',
+  'source-code-mode',
   'block-paragraph',
   'block-heading-1',
   'block-heading-2',
