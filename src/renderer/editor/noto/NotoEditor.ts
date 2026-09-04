@@ -459,7 +459,10 @@ export class NotoEditor implements NotoEditorPort {
   private reportCount(): void {
     const view = this.view;
     if (!view || !this.options.onCountChanged) return;
-    this.options.onCountChanged(countWords(view.state.doc.textBetween(0, view.state.doc.content.size, '\n', '\n')));
+    this.options.onCountChanged(countWords(
+      view.state.doc.textBetween(0, view.state.doc.content.size, '\n', '\n'),
+      view.state.doc.childCount,
+    ));
   }
 
   /** Told only when it changes: this runs on every transaction, typing included. */

@@ -45,3 +45,14 @@ describe('counting the words in a note', () => {
     expect(countWords('a🙂b').characters).toBe(3);
   });
 });
+
+describe('the rest of the numbers', () => {
+  it('counts characters without spaces, lines and blocks', () => {
+    const count = countWords('第一行 one\n\n第二行\n第三行 two', 2);
+    expect(count.characters).toBe(20);
+    expect(count.charactersNoSpaces).toBe(15);
+    expect(count.lines).toBe(3);
+    expect(count.blocks).toBe(2);
+    expect(countWords('').lines).toBe(0);
+  });
+});

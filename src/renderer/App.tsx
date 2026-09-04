@@ -2105,10 +2105,22 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
               settles a moment behind the words rather than flickering under
               them. */}
           {count !== null && (
-            <span className="status-count" data-testid="status-count"
-              title={`${count.characters.toLocaleString()} characters`}>
-              {count.words.toLocaleString()} {count.words === 1 ? 'word' : 'words'}
-            </span>
+            // Typora's word count opens on a click to the rest of the numbers.
+            // A disclosure rather than a dialog: it is a glance, and the
+            // browser opens and closes it without a line of script.
+            <details className="count-disclosure">
+              <summary className="status-count" data-testid="status-count"
+                title="Words, characters and lines">
+                {count.words.toLocaleString()} {count.words === 1 ? 'word' : 'words'}
+              </summary>
+              <dl className="count-popover" data-testid="count-popover">
+                <dt>Words</dt><dd>{count.words.toLocaleString()}</dd>
+                <dt>Characters</dt><dd>{count.characters.toLocaleString()}</dd>
+                <dt>Without spaces</dt><dd>{count.charactersNoSpaces.toLocaleString()}</dd>
+                <dt>Lines</dt><dd>{count.lines.toLocaleString()}</dd>
+                <dt>Paragraphs</dt><dd>{count.blocks.toLocaleString()}</dd>
+              </dl>
+            </details>
           )}
         </footer>
       )}

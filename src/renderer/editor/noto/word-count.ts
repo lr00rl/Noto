@@ -36,9 +36,15 @@ export interface DocumentCount {
   readonly words: number;
   /** Every character the document draws, spaces included. */
   readonly characters: number;
+  /** The same without spaces and line breaks, which is how a Chinese word count is usually asked for. */
+  readonly charactersNoSpaces: number;
+  /** Lines of text, as the document draws them; a blank line between blocks is not one. */
+  readonly lines: number;
+  /** Top-level blocks: paragraphs, headings, lists and the rest, each once. */
+  readonly blocks: number;
 }
 
-export function countWords(text: string): DocumentCount {
+export function countWords(text: string, blocks = 0): DocumentCount {
   let words = 0;
   WORD_RUN.lastIndex = 0;
   for (const match of text.matchAll(WORD_RUN)) {
@@ -53,5 +59,15 @@ export function countWords(text: string): DocumentCount {
     }
     words += perCharacter + (latin ? 1 : 0);
   }
-  return { words, characters: [...text].length };
+  const characters = [...text].length;
+  let spaces = 0;
+  let lines = 0;
+  let onLine = false;
+  for (const character of text) {
+    if (character === '\n') { if (onLine) lines += 1; onLine = false; spaces += 1; continue; }
+    if (/\s/u.test(character)) spaces += 1;
+    else onLine = true;
+  }
+  if (onLine) lines += 1;
+  return { words, characters, charactersNoSpaces: characters - spaces, lines, blocks };
 }
