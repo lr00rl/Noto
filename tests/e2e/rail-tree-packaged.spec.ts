@@ -181,8 +181,8 @@ test.describe('the rail tree', () => {
     }
   });
 
-  test('draws every connector in one colour, and keeps the accent for the active row', async () => {
-    const { app, page } = await launch('one-colour');
+  test('lights the branch to the note in front, muted, and keeps the raw accent for its row', async () => {
+    const { app, page } = await launch('lit-branch');
     try {
       await page.getByTestId('tree-file').first().click();
       await page.waitForSelector('[data-testid="noto-editor"]', { state: 'visible' });
@@ -190,31 +190,36 @@ test.describe('the rail tree', () => {
       await expect(page.getByTestId('tree-directory')).not.toHaveCount(1);
 
       const drawn = await page.evaluate(() => {
-        const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
-        const levels = [...document.querySelectorAll<HTMLElement>('.tree-body .tree-level')]
-          .map((level) => getComputedStyle(level).backgroundImage);
-        // Only the nodes that draw an arm. A node at the root level draws none,
-        // and asking an absent border for its colour answers with the text's.
-        const arms = [...document.querySelectorAll<HTMLElement>('.tree-body .tree-node')]
-          .map((node) => getComputedStyle(node, '::before'))
-          .filter((style) => parseFloat(style.borderBottomWidth) > 0)
-          .map((style) => style.borderBottomColor);
-        const active = document.querySelector<HTMLElement>('.tree-file-active');
+        const levels = [...document.querySelectorAll<HTMLElement>('.tree-body .tree-level')].map((level) => ({
+          lit: level.style.getPropertyValue('--path-stop'),
+          onPath: Boolean(level.querySelector(':scope > .tree-node-active, :scope > .tree-node:has(> .tree-on-path)')),
+        }));
+        const arms = [...document.querySelectorAll<HTMLElement>('.tree-level:not(.is-root) > .tree-node')]
+          .map((node) => ({ node, style: getComputedStyle(node, '::before') }))
+          .filter(({ style }) => parseFloat(style.borderBottomWidth) > 0);
+        const active = arms.find(({ node }) => node.classList.contains('tree-node-active'));
+        const plain = arms.find(({ node }) => !node.classList.contains('tree-node-active')
+          && !node.querySelector(':scope > .tree-on-path'));
+        const row = document.querySelector<HTMLElement>('.tree-file-active');
         return {
-          accent,
-          // One gradient per level, never two stacked.
-          gradientsPerLevel: levels.map((image) => (image.match(/linear-gradient/g) ?? []).length),
-          distinctArmColours: [...new Set(arms)],
-          activeBar: active ? getComputedStyle(active).boxShadow : null,
+          levels,
+          activeArm: active?.style.borderBottomColor ?? null,
+          plainArm: plain?.style.borderBottomColor ?? null,
+          activeBar: row ? getComputedStyle(row).boxShadow : null,
         };
       });
 
-      // The theme this imitates has never coloured a connector. Two colours of
-      // line made the tree read as pointing at something, and the corner at the
-      // active file came out as an orange hook.
-      expect(new Set(drawn.gradientsPerLevel)).toEqual(new Set([1]));
-      expect(drawn.distinctArmColours).toHaveLength(1);
-      // The accent has exactly one job here: the 2px bar inset on the active row.
+      // V2 of the author's guide-line schemes: the levels on the way to the
+      // file are lit down to the child that leads on, and no other level is.
+      for (const level of drawn.levels) {
+        if (level.onPath) expect(level.lit).not.toBe('');
+        else expect(level.lit).toBe('');
+      }
+      expect(drawn.levels.some((level) => level.onPath)).toBe(true);
+      // The lit arm is a different colour from a plain one, and it is not the
+      // raw accent: that is kept for the 2px bar inset on the active row.
+      expect(drawn.activeArm).not.toBeNull();
+      expect(drawn.activeArm).not.toBe(drawn.plainArm);
       expect(drawn.activeBar).toContain('inset');
       expect(drawn.activeBar).toMatch(/2px 0px 0px/);
     } finally {

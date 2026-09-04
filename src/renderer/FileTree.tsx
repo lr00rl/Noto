@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { WorkspaceEntryV1 } from '../shared/workspace/v1/contracts';
-import { sizeTreeGuides } from './tree-guides';
+import { branchToCurrentFile, sizeTreeGuides } from './tree-guides';
 
 export interface FileTreeProps {
   readonly root: string | null;
@@ -243,9 +243,10 @@ export function FileTree({
         }
       }
     }
-    // Stop each stem at the corner that finishes it. Read once per change of
-    // the tree, not per scroll: the stems do not move when the rail does.
-    sizeTreeGuides(body);
+    // Light the branch, and stop each quiet stem at the corner that finishes
+    // it. Read once per change of the tree, not per scroll: the stems do not
+    // move when the rail does.
+    sizeTreeGuides(body, { litChild: branchToCurrentFile });
     return () => {
       scroller.removeEventListener('scroll', onScroll);
       if (frame !== 0) cancelAnimationFrame(frame);
