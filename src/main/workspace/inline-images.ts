@@ -18,6 +18,7 @@
 
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
+import { ASSET_ORIGIN, fromAssetUrl } from '../../shared/assets/v1/contracts';
 
 /** Past this, a picture is left as it is rather than bloating the file. */
 export const MAX_INLINE_BYTES = 8 * 1024 * 1024;
@@ -51,7 +52,36 @@ export function mediaTypeFor(filePath: string): string | null {
 export function isLocalReference(source: string): boolean {
   const trimmed = source.trim();
   if (trimmed.length === 0) return false;
+  if (trimmed.startsWith(`${ASSET_ORIGIN}/`)) return true;
   return !/^[a-z][a-z0-9+.-]*:/i.test(trimmed);
+}
+
+/**
+ * The file an address names, absolute, or null when it names somewhere else.
+ *
+ * The drawn document holds `noto://asset/<encoded absolute path>`, because that
+ * is how the renderer asks main for a picture it is not allowed to read. Export
+ * takes the same addresses and does the reading itself, so the path has to come
+ * back out of the URL.
+ *
+ * This does its own decoding, and that is the point of it. The whole path is
+ * one encoded segment inside an asset URL, so percent-decoding the address
+ * before parsing it turns the slashes back into separators and the URL stops
+ * naming anything. A relative path in markdown is the opposite case and has to
+ * be decoded, because `%20` there means a space in a filename.
+ */
+export function fileFor(source: string, noteDirectory: string): string | null {
+  const trimmed = source.trim();
+  if (trimmed.startsWith(`${ASSET_ORIGIN}/`)) {
+    try {
+      return fromAssetUrl(new URL(trimmed));
+    } catch {
+      return null;
+    }
+  }
+  if (!isLocalReference(trimmed)) return null;
+  const decoded = decodeSource(trimmed);
+  return path.isAbsolute(decoded) ? decoded : path.resolve(noteDirectory, decoded);
 }
 
 export interface InlineDeps {
@@ -85,18 +115,17 @@ const decodeEntities = (value: string): string => value
 export async function inlineImages(html: string, deps: InlineDeps): Promise<string> {
   const wanted = new Set<string>();
   for (const match of html.matchAll(IMG_SRC)) {
-    const source = decodeSource(decodeEntities(match[2]));
-    if (isLocalReference(source)) wanted.add(match[2]);
+    if (isLocalReference(decodeEntities(match[2]))) wanted.add(match[2]);
   }
   if (wanted.size === 0) return html;
 
   const inlined = new Map<string, string>();
   let total = 0;
   for (const raw of wanted) {
-    const source = decodeSource(decodeEntities(raw));
-    const media = mediaTypeFor(source);
+    const absolute = fileFor(decodeEntities(raw), deps.noteDirectory);
+    if (absolute === null) continue;
+    const media = mediaTypeFor(absolute);
     if (media === null) continue;
-    const absolute = path.isAbsolute(source) ? source : path.resolve(deps.noteDirectory, source);
     let bytes: Uint8Array;
     try {
       bytes = await deps.read(absolute);

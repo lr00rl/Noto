@@ -46,7 +46,12 @@ describe('isLocalReference', () => {
     expect(isLocalReference('https://example.com/a.png')).toBe(false);
     expect(isLocalReference('http://example.com/a.png')).toBe(false);
     expect(isLocalReference('data:image/png;base64,AAAA')).toBe(false);
-    expect(isLocalReference('noto://asset/x')).toBe(false);
+  });
+
+  it('counts the app\'s own asset scheme as a file, because that is what it is', () => {
+    // The drawn page holds these: it is how the renderer asks main for a
+    // picture it may not read itself. Export reads the file behind it.
+    expect(isLocalReference('noto://asset/x')).toBe(true);
   });
 });
 
