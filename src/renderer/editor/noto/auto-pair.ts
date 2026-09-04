@@ -38,6 +38,15 @@ const SYMMETRIC = new Set([...PAIRS].filter(([open, close]) => open === close).m
 /** Letters, digits and anything a language writes words with. */
 const WORD = /[\p{L}\p{N}]/u;
 
+/**
+ * The pairs whose opener is also punctuation inside a word.
+ *
+ * An apostrophe is the reason this distinction exists at all: `don` then `'`
+ * must not become `don''`. A bracket has no such life inside a word, so
+ * `foo(` is a call and wants its partner.
+ */
+const QUOTES = new Set(["'", '"', '`', '\u2018', '\u201c']);
+
 export type PairAction =
   | { readonly kind: 'none' }
   | { readonly kind: 'wrap'; readonly open: string; readonly close: string }
@@ -69,9 +78,19 @@ export function pairActionFor(
   if (SYMMETRIC.has(typed) && after === typed) return { kind: 'step-over' };
 
   if (close === undefined) return { kind: 'none' };
-  // Not in the middle of a word: `don't` must stay `don't`, and typing a
-  // bracket before an existing word is nearly always meant as one character.
-  if (WORD.test(before)) return { kind: 'none' };
+  /*
+   * A bracket typed after a word is the commonest bracket there is.
+   *
+   * The rule used to refuse whenever a word character sat before the caret,
+   * which is right for a quote and wrong for everything else: `don't` must
+   * stay `don't`, but `foo(` is a function call and wants its partner, and so
+   * does `数组[`. In the author's vault that position holds about 105,000
+   * brackets against 60,000 in the positions that did pair, so the rule was
+   * refusing in the majority of cases it saw.
+   */
+  if (QUOTES.has(typed) && WORD.test(before)) return { kind: 'none' };
+  // Typing an opener directly before an existing word is nearly always meant
+  // as the one character, whatever kind of pair it opens.
   if (WORD.test(after)) return { kind: 'none' };
   return { kind: 'pair', open: typed, close };
 }

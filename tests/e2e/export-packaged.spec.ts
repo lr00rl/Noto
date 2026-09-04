@@ -31,7 +31,13 @@ async function launch(name: string): Promise<{
   await mkdir(path.join(workspace, 'user-data'), { recursive: true });
   const vault = path.join(workspace, 'vault');
   await mkdir(vault, { recursive: true });
-  await writeFile(path.join(vault, 'note.md'), NOTE, 'utf8');
+  // A real picture, referenced the way the editor writes one: relative to the
+  // note, in a folder beside it.
+  await mkdir(path.join(vault, 'assets'), { recursive: true });
+  await writeFile(path.join(vault, 'assets', 'dot.png'), Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64'));
+  await writeFile(path.join(vault, 'note.md'), `${NOTE}\n![a dot](./assets/dot.png)\n`, 'utf8');
   const app = await electron.launch({
     executablePath: packagedExecutable(),
     args: [`--user-data-dir=${path.join(workspace, 'user-data')}`, vault],
@@ -46,37 +52,44 @@ async function launch(name: string): Promise<{
 }
 
 /**
- * Answer the save dialog without opening one.
+ * Answer the save dialog without opening one, then use the real menu item.
  *
- * A native dialog holds the input loop and no automated pointer can reach it,
- * so the dialog is replaced for the length of the call. Everything after it,
- * which is all of the export, is the code under test.
+ * A native dialog holds the input loop and no automated pointer can reach one,
+ * so it is replaced for the length of the call. Everything after it is the code
+ * under test, reached the way a person reaches it: through the menu, so the
+ * renderer serializes the document exactly as it does in the app rather than
+ * the test doing it a second and slightly different way.
  */
 async function exportTo(
   app: ElectronApplication,
-  page: Page,
   target: string,
   destination: string,
-): Promise<unknown> {
+): Promise<void> {
   await app.evaluate(({ dialog }, filePath) => {
     (dialog as unknown as { showSaveDialog: unknown }).showSaveDialog =
       async () => ({ canceled: false, filePath });
   }, destination);
-  return page.evaluate(async ([kind, title]) => {
-    const editor = document.querySelector('.ProseMirror');
-    const result = await window.notoWorkspace.exportRendered({
-      version: 1,
-      requestId: `export:${Math.random().toString(36).slice(2)}`,
-      target: kind as 'pdf',
-      html: kind === 'pdf' || kind === 'html' || kind === 'html-plain'
-        ? (editor ? editor.innerHTML : '')
-        : null,
-      title: title as string,
-      dirty: false,
-    });
-    return result.ok ? result.value : { transport: result.error.message };
-  }, [target, 'note']);
+  await app.evaluate(({ Menu }, itemId) => {
+    const find = (items: Electron.MenuItem[]): Electron.MenuItem | null => {
+      for (const item of items) {
+        if (item.id === itemId) return item;
+        const nested = item.submenu ? find(item.submenu.items) : null;
+        if (nested) return nested;
+      }
+      return null;
+    };
+    const menu = Menu.getApplicationMenu();
+    const found = menu ? find(menu.items) : null;
+    if (!found) throw new Error(`No menu item with id ${itemId}`);
+    found.click();
+  }, `export-${target}`);
 }
+
+/** The exported file, once it appears. */
+const written = (file: string) => expect.poll(
+  async () => readFile(file, 'utf8').catch(() => null),
+  { timeout: 20_000 },
+);
 
 test.describe('export', () => {
   test('writes a standalone HTML page with the styles in it', async () => {
@@ -84,17 +97,24 @@ test.describe('export', () => {
     try {
       await mkdir(out, { recursive: true });
       const destination = path.join(out, 'note.html');
-      expect(await exportTo(app, page, 'html', destination)).toMatchObject({ exported: true });
+      await exportTo(app, 'html', destination);
+      await written(destination).not.toBeNull();
 
-      const written = await readFile(destination, 'utf8');
-      expect(written).toMatch(/^<!doctype html>/);
-      expect(written).toContain('<title>note</title>');
+      const page = await readFile(destination, 'utf8');
+      expect(page).toMatch(/^<!doctype html>/);
+      expect(page).toContain('<title>note</title>');
       // Standalone: the styles travel with it.
-      expect(written).toContain('<style>');
+      expect(page).toContain('<style>');
       // And the document itself came through, table and all.
-      expect(written).toContain('平台增长复盘');
-      expect(written).toContain('<table');
-      expect(written).toContain('日活跃');
+      expect(page).toContain('平台增长复盘');
+      expect(page).toContain('<table');
+      expect(page).toContain('日活跃');
+      // The picture travels inside the file too. Its address in the note is
+      // relative, which is right in the note and wrong in a file saved
+      // anywhere else, so an exported page that only worked next to its own
+      // note would not be one you could send to anybody.
+      expect(page).toContain('src="data:image/png;base64,');
+      expect(page).not.toContain('./assets/dot.png');
     } finally {
       await app.close();
     }
@@ -105,10 +125,11 @@ test.describe('export', () => {
     try {
       await mkdir(out, { recursive: true });
       const destination = path.join(out, 'plain.html');
-      expect(await exportTo(app, page, 'html-plain', destination)).toMatchObject({ exported: true });
-      const written = await readFile(destination, 'utf8');
-      expect(written).not.toContain('<style>');
-      expect(written).toContain('平台增长复盘');
+      await exportTo(app, 'html-plain', destination);
+      await written(destination).not.toBeNull();
+      const page = await readFile(destination, 'utf8');
+      expect(page).not.toContain('<style>');
+      expect(page).toContain('平台增长复盘');
     } finally {
       await app.close();
     }
@@ -119,13 +140,14 @@ test.describe('export', () => {
     try {
       await mkdir(out, { recursive: true });
       const destination = path.join(out, 'note.pdf');
-      expect(await exportTo(app, page, 'pdf', destination)).toMatchObject({ exported: true });
+      await exportTo(app, 'pdf', destination);
+      await expect.poll(async () => stat(destination).then((s) => s.size).catch(() => 0),
+        { timeout: 20_000 }).toBeGreaterThan(2_000);
 
       const bytes = await readFile(destination);
       // A PDF says so in its first five bytes, and a page of this note is not
       // an empty one.
       expect(bytes.subarray(0, 5).toString('latin1')).toBe('%PDF-');
-      expect((await stat(destination)).size).toBeGreaterThan(2_000);
     } finally {
       await app.close();
     }
@@ -158,9 +180,12 @@ test.describe('export', () => {
     const { app, page, out } = await launch('no-pandoc');
     try {
       await mkdir(out, { recursive: true });
-      // Pandoc is not installed on this machine.
-      expect(await exportTo(app, page, 'docx', path.join(out, 'note.docx')))
-        .toMatchObject({ exported: false, reason: 'no-pandoc' });
+      // Pandoc is not installed on this machine, which is what happens to
+      // anybody who has not installed it either.
+      await exportTo(app, 'docx', path.join(out, 'note.docx'));
+      await expect(page.getByTestId('file-truth-alert')).toContainText('Pandoc', { timeout: 20_000 });
+      await expect.poll(async () => readFile(path.join(out, 'note.docx')).catch(() => null))
+        .toBeNull();
     } finally {
       await app.close();
     }
