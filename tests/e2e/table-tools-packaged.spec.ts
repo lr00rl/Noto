@@ -56,6 +56,12 @@ test('the table toolbar aligns a column, adds to the table, and takes it away', 
     await expect(editor.locator('th').nth(0)).not.toHaveCSS('text-align', 'center');
     await expect(tools).toHaveCSS('opacity', '1');
 
+    // The same command from the Table menu, on the other column.
+    await editor.locator('th').filter({ hasText: 'a' }).click();
+    await expect(page.locator('.canvas-slot:not([hidden]) [data-testid="noto-editor"]')).toHaveAttribute('data-caret', /\d+/);
+    await invokeMenu(app, 'table-align-right');
+    await expect(editor.locator('th').nth(0)).toHaveCSS('text-align', 'right');
+
     // A row and a column.
     await tools.locator('[data-tool="row"]').click();
     await expect(editor.locator('tr')).toHaveCount(3);
