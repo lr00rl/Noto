@@ -21,6 +21,7 @@
  * opened after the note, or web images switched.
  */
 
+import { tagForImage } from './image-tag';
 import type { Node as ProseNode } from 'prosemirror-model';
 import type { EditorView, NodeView } from 'prosemirror-view';
 import { imageName, resolveImageSource, type ImageContext } from './image-source';
@@ -67,12 +68,24 @@ interface Shown {
   readonly title: string | null;
 }
 
+/** How a frame's picture is resized: whether it may be, and what to do with the new zoom. */
+export interface Resizer {
+  readonly editable: () => boolean;
+  readonly commit: (zoom: number) => void;
+}
+
+/** The smallest a picture may be dragged to; past this the drag is a slip. */
+const MIN_ZOOM = 0.05;
+const MAX_ZOOM = 8;
+
 export class ImageFrame implements Refreshable {
   readonly dom: HTMLElement;
   private picture: Picture | null = null;
   private shown: Shown | null = null;
   /** The last request for this picture was refused or failed. */
   private failed = false;
+  /** Set by a node view that can write the zoom back; a frame without one does not resize. */
+  resizer: Resizer | null = null;
 
   constructor(
     private readonly context: () => ImageContext,
@@ -136,6 +149,56 @@ export class ImageFrame implements Refreshable {
     }, { once: true });
     img.src = source.url;
     this.dom.append(img);
+    if (this.resizer) this.dom.append(this.handleFor(img, picture?.zoom ?? 1));
+  }
+
+  /**
+   * Typora's corner: drag it and the picture follows, and on release the
+   * zoom is written into the note. The picture is previewed at the new zoom
+   * while the pointer moves, so what is seen is what will be written; Escape
+   * puts it back and writes nothing.
+   */
+  private handleFor(img: HTMLImageElement, startZoom: number): HTMLElement {
+    const handle = document.createElement('span');
+    handle.className = 'noto-image-handle';
+    handle.setAttribute('contenteditable', 'false');
+    handle.title = 'Drag to resize';
+    handle.addEventListener('pointerdown', (event) => {
+      const resizer = this.resizer;
+      if (!resizer || !resizer.editable() || event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const startX = event.clientX;
+      const startWidth = img.getBoundingClientRect().width;
+      if (startWidth <= 0) return;
+      let zoom = startZoom;
+      handle.setPointerCapture(event.pointerId);
+      this.dom.dataset.resizing = 'true';
+      const move = (moveEvent: PointerEvent) => {
+        const factor = (startWidth + (moveEvent.clientX - startX)) / startWidth;
+        zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, startZoom * factor));
+        img.style.zoom = String(zoom);
+      };
+      const finish = (commit: boolean) => {
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', up);
+        handle.removeEventListener('pointercancel', cancel);
+        window.removeEventListener('keydown', onKey, true);
+        delete this.dom.dataset.resizing;
+        if (commit && Math.round(zoom * 100) !== Math.round(startZoom * 100)) resizer.commit(zoom);
+        else img.style.zoom = startZoom === 1 ? '' : String(startZoom);
+      };
+      const up = () => finish(true);
+      const cancel = () => finish(false);
+      const onKey = (keyEvent: KeyboardEvent) => {
+        if (keyEvent.key === 'Escape') { keyEvent.preventDefault(); finish(false); }
+      };
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', up);
+      handle.addEventListener('pointercancel', cancel);
+      window.addEventListener('keydown', onKey, true);
+    });
+    return handle;
   }
 
   /**
@@ -162,10 +225,25 @@ export class ImageView implements NodeView {
   constructor(
     private node: ProseNode,
     private readonly view: EditorView,
+    private readonly getPos: () => number | undefined,
     context: () => ImageContext,
     registry: Set<Refreshable>,
   ) {
     this.frame = new ImageFrame(context, registry);
+    this.frame.resizer = {
+      editable: () => this.view.editable,
+      // A markdown image has nowhere to put a size, so a resized one becomes
+      // the tag, which is what Typora writes when a picture is dragged.
+      commit: (zoom) => {
+        const pos = this.getPos();
+        if (pos === undefined) return;
+        const { alt, title } = this.node.attrs as { alt: string; title: string | null };
+        const src = this.sourceOf();
+        if (src === null) return;
+        const tag = this.view.state.schema.nodes.inline_html.create({ value: tagForImage(src, alt, title, zoom) });
+        this.view.dispatch(this.view.state.tr.replaceWith(pos, pos + this.node.nodeSize, tag));
+      },
+    };
     this.dom = this.frame.dom;
     this.render();
   }
@@ -241,6 +319,7 @@ function placeholder(src: string, alt: string, reason: Reason): HTMLElement {
 
 export function imageNodeViews(registry: Set<Refreshable>, context: () => ImageContext) {
   return {
-    image: (node: ProseNode, view: EditorView) => new ImageView(node, view, context, registry),
+    image: (node: ProseNode, view: EditorView, getPos: () => number | undefined) =>
+      new ImageView(node, view, getPos, context, registry),
   };
 }
