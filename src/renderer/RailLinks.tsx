@@ -12,9 +12,12 @@
 import { useEffect, useState } from 'react';
 import type { WorkspaceLinkV1, WorkspaceLinksReplyV1 } from '../shared/workspace/v1/contracts';
 
+/** The reply, or the reason there is none, which the view says rather than guessing. */
+export type LinksOutcome = { readonly reply: WorkspaceLinksReplyV1 } | { readonly error: string };
+
 export interface RailLinksProps {
   readonly currentPath: string | null;
-  readonly onLinks: (path: string) => Promise<WorkspaceLinksReplyV1 | null>;
+  readonly onLinks: (path: string) => Promise<LinksOutcome>;
   readonly onOpen: (path: string) => void;
 }
 
@@ -44,22 +47,30 @@ function Section({ title, items, onOpen, testId }: {
 
 export function RailLinks({ currentPath, onLinks, onOpen }: RailLinksProps) {
   const [reply, setReply] = useState<WorkspaceLinksReplyV1 | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (currentPath === null) { setReply(null); return; }
+    if (currentPath === null) { setReply(null); setError(null); return; }
     let live = true;
     setLoading(true);
     void onLinks(currentPath).then((found) => {
       if (!live) return;
-      setReply(found);
+      if ('reply' in found) { setReply(found.reply); setError(null); } else { setReply(null); setError(found.error); }
       setLoading(false);
     });
     return () => { live = false; };
   }, [currentPath, onLinks]);
 
   if (currentPath === null) return <p className="rail-empty">Open a note to see what it is linked to.</p>;
-  if (loading && reply === null) return <p className="rail-empty">Reading the graph…</p>;
+  // Nothing known yet is the reading state, whether or not the effect that
+  // asks has run: the first frame after a note opens comes before it has,
+  // and saying "no graph" for that frame was a lie the eye caught.
+  if (reply === null && error === null) return <p className="rail-empty">Reading the graph…</p>;
+  void loading;
+  if (error !== null) {
+    return <p className="rail-empty" data-testid="links-status">The graph could not be read: {error}</p>;
+  }
   if (reply === null || !reply.available) {
     return (
       <p className="rail-empty" data-testid="links-status">
