@@ -164,6 +164,34 @@ export const toggleTaskList: Command = (state, dispatch) => {
 };
 
 /**
+ * Tick or untick the task the caret is in.
+ *
+ * Different from making a task list, which is what `toggleTaskList` does: that
+ * one turns the state on and off, so an item that was ticked came back as no
+ * task at all. This flips ticked and unticked and never leaves the list.
+ *
+ * Without it a box could only be ticked by putting the caret at the head of the
+ * item and retyping `[x] ` so the input rule fires, which is not something
+ * anybody would guess.
+ */
+export const toggleTaskStatus = (to?: boolean): Command => (state, dispatch) => {
+  const { $from } = state.selection;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const node = $from.node(depth);
+    if (node.type !== nodes.list_item) continue;
+    // Only an item that is already a task has a state to flip.
+    if (node.attrs.checked === null) return false;
+    const checked = to ?? !node.attrs.checked;
+    if (checked === node.attrs.checked) return true;
+    if (dispatch) {
+      dispatch(state.tr.setNodeMarkup($from.before(depth), undefined, { ...node.attrs, checked }));
+    }
+    return true;
+  }
+  return false;
+};
+
+/**
  * Tab out of the last cell makes a row, which is what every table editor does
  * and the only way a table grows without leaving the keyboard. Tried after
  * moving between cells, so it only fires where there is nowhere left to go.
@@ -353,6 +381,9 @@ export const EDITOR_COMMANDS: Readonly<Record<string, Command>> = {
   'block-ordered-list': wrapInList(nodes.ordered_list),
   'block-bullet-list': wrapInList(nodes.bullet_list),
   'block-task-list': toggleTaskList,
+  'task-toggle': toggleTaskStatus(),
+  'task-complete': toggleTaskStatus(true),
+  'task-incomplete': toggleTaskStatus(false),
   'block-rule': insertRule,
   'insert-footnote': insertFootnote,
   'insert-toc': insertTableOfContents,
@@ -480,6 +511,8 @@ export function notoBindings({ mac, onWidthStep }: KeymapOptions): Record<string
     [`${mod}-Ctrl-ArrowLeft`]: moveColumn(true),
     [`${mod}-Ctrl-ArrowRight`]: moveColumn(false),
 
+    // Typora's own chord for it.
+    'Ctrl-x': toggleTaskStatus(),
     [`${mod}-]`]: chainCommands(sinkListItem(nodes.list_item), stepWidth(1)),
     [`${mod}-[`]: chainCommands(liftListItem(nodes.list_item), stepWidth(-1)),
   };

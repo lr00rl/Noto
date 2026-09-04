@@ -184,6 +184,46 @@ test.describe('find and replace', () => {
     }
   });
 
+  test('steps through matches with the bar closed, which is where Cmd+G earns its keep', async () => {
+    const { app, page } = await launch('stepping');
+    try {
+      await invokeMenu(app, 'find');
+      await page.getByTestId('find-input').fill('needle');
+      await expect(page.getByTestId('find-status')).toContainText('1 of');
+      await page.keyboard.press('Escape');
+      await expect(page.getByTestId('find-bar')).toBeHidden();
+      await expect(page.locator('.noto-match')).toHaveCount(0);
+
+      // The whole point: the query survives the bar closing, so stepping is one
+      // key rather than reopening the bar and pressing Enter.
+      await invokeMenu(app, 'find-next');
+      await expect(page.locator('.noto-match-active')).toHaveCount(1);
+      const second = await page.locator('.noto-match-active').boundingBox();
+
+      await invokeMenu(app, 'find-next');
+      const third = await page.locator('.noto-match-active').boundingBox();
+      expect(`${third?.x},${third?.y}`).not.toBe(`${second?.x},${second?.y}`);
+
+      // And back the other way lands where it was.
+      await invokeMenu(app, 'find-previous');
+      const back = await page.locator('.noto-match-active').boundingBox();
+      expect(`${back?.x},${back?.y}`).toBe(`${second?.x},${second?.y}`);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('opens the bar when there is no query to step through yet', async () => {
+    const { app, page } = await launch('no-query');
+    try {
+      await expect(page.getByTestId('find-bar')).toBeHidden();
+      await invokeMenu(app, 'find-next');
+      await expect(page.getByTestId('find-bar')).toBeVisible();
+    } finally {
+      await app.close();
+    }
+  });
+
   test('closes on escape and clears the highlight', async () => {
     const { app, page } = await launch('escape');
     try {
