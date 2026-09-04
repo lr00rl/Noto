@@ -14,6 +14,11 @@
 
 import type { BrowserWindow, MenuItemConstructorOptions } from 'electron';
 import type { RecentFileV1, WorkspaceMenuCommandV1 } from '../../shared/workspace/v1/contracts';
+import { EXPORT_TARGETS, exportShape, needsPandoc } from './export-document';
+
+/** The two Noto draws itself, and the formats Pandoc writes, in menu order. */
+const RENDERED_EXPORTS = EXPORT_TARGETS.filter((target) => !needsPandoc(target));
+const PANDOC_EXPORTS = EXPORT_TARGETS.filter(needsPandoc);
 
 export interface MenuActions {
   /** Choose the folder shown in the sidebar. */
@@ -116,6 +121,18 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       // belong to main, exactly as Open does, so nothing about it has to cross
       // the boundary and come back.
       { id: 'import-document', label: 'Import…', click: () => actions.importDocument() },
+      {
+        label: 'Export',
+        submenu: [
+          // The two Noto renders itself, because what they are for is how the
+          // note looks. Everything below is a conversion of the markdown.
+          ...RENDERED_EXPORTS.map((target) =>
+            command(`${exportShape(target).label}…`, undefined, `export-${target}` as WorkspaceMenuCommandV1)),
+          { type: 'separator' },
+          ...PANDOC_EXPORTS.map((target) =>
+            command(`${exportShape(target).label}…`, undefined, `export-${target}` as WorkspaceMenuCommandV1)),
+        ],
+      },
       { type: 'separator' },
       command('Reload from Disk', 'CmdOrCtrl+R', 'reload-from-disk'),
       { type: 'separator' },

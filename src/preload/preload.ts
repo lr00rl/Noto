@@ -103,6 +103,8 @@ import type {
   WorkspaceContentRequestV1,
   WorkspaceEntryReplyV1,
   WorkspaceEntryRequestV1,
+  WorkspaceExportReplyV1,
+  WorkspaceExportRequestV1,
   WorkspaceRenameRowEventV1,
   WorkspaceRevealReplyV1,
   WorkspaceNewFileReplyV1,
@@ -133,6 +135,8 @@ import {
   isWorkspaceContentRequestV1,
   isWorkspaceEntryRequestV1,
   isWorkspaceEntryResultV1,
+  isWorkspaceExportRequestV1,
+  isWorkspaceExportResultV1,
   isWorkspaceRenameRowEventV1,
   isWorkspaceContentResultV1,
   isWorkspaceNewFileResultV1,
@@ -384,6 +388,9 @@ const workspaceApi: NotoWorkspaceApiV1 = Object.freeze({
         && (value as { version?: unknown }).version === NOTO_WORKSPACE_VERSION,
       () => listener(),
     ),
+  exportRendered: (request: WorkspaceExportRequestV1) => isWorkspaceExportRequestV1(request)
+    ? invokeWorkspace<WorkspaceExportReplyV1>(WORKSPACE_CHANNELS.exportRendered, request, request.requestId, isWorkspaceExportResultV1)
+    : Promise.resolve(rejectedWorkspace<WorkspaceExportReplyV1>('invalid', 'Invalid export request')),
   onRenameRow: (listener: (event: WorkspaceRenameRowEventV1) => void) =>
     subscribe(WORKSPACE_CHANNELS.renameRow, isWorkspaceRenameRowEventV1, listener),
 });

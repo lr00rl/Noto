@@ -16,6 +16,10 @@ import {
   type WorkspaceEntryReplyV1,
   type WorkspaceEntryRequestV1,
   type WorkspaceRenameRowEventV1,
+  type WorkspaceExportReplyV1,
+  type WorkspaceExportRequestV1,
+  EXPORT_KINDS,
+  type WorkspaceExportKindV1,
 } from './contracts';
 import type {
   RecentFileV1,
@@ -366,3 +370,28 @@ export function isWorkspaceRenameRowEventV1(value: unknown): value is WorkspaceR
     && typeof value.path === 'string' && value.path.length > 0 && value.path.length <= 4096
     && (value.intent === 'rename' || value.intent === 'new-folder');
 }
+
+export function isWorkspaceExportRequestV1(value: unknown): value is WorkspaceExportRequestV1 {
+  return record(value) && exact(value, ['version', 'requestId', 'target', 'html', 'title', 'dirty'])
+    && value.version === NOTO_WORKSPACE_VERSION
+    && typeof value.requestId === 'string' && requestId.test(value.requestId)
+    && EXPORT_KINDS.includes(value.target as WorkspaceExportKindV1)
+    // A whole document of markup. The ceiling is the same one a save uses for
+    // the markdown it came from, since HTML is never smaller than its source.
+    && (value.html === null || (typeof value.html === 'string' && value.html.length <= 64 * 1024 * 1024))
+    && typeof value.title === 'string' && value.title.length <= 512
+    && typeof value.dirty === 'boolean';
+}
+
+export function isWorkspaceExportReplyV1(value: unknown): value is WorkspaceExportReplyV1 {
+  if (!record(value) || value.version !== NOTO_WORKSPACE_VERSION) return false;
+  if (value.exported === true) {
+    return exact(value, ['version', 'exported', 'path'])
+      && typeof value.path === 'string' && value.path.length > 0;
+  }
+  return value.exported === false && exact(value, ['version', 'exported', 'reason'])
+    && ['no-document', 'unsaved', 'cancelled', 'no-pandoc', 'failed'].includes(String(value.reason));
+}
+
+export const isWorkspaceExportResultV1 = (value: unknown, id: string): value is WorkspaceResultV1<WorkspaceExportReplyV1> =>
+  isResult(value, id, isWorkspaceExportReplyV1);

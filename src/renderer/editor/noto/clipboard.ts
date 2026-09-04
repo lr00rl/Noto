@@ -100,6 +100,21 @@ export function sliceToHtml(slice: Slice): string {
 }
 
 /**
+ * The whole document as HTML, for export.
+ *
+ * The same serializer the clipboard uses, for the same reason: the schema's
+ * `toDOM` specs are what the editor already draws with and they are semantic,
+ * so there is no second description of a document to keep in step with the
+ * first. What an exported page looks like is then a stylesheet's business.
+ */
+export function documentToHtml(doc: Node): string {
+  const fragment = DOMSerializer.fromSchema(notoSchema).serializeFragment(doc.content);
+  const holder = document.createElement('div');
+  holder.append(fragment);
+  return holder.innerHTML;
+}
+
+/**
  * A copied selection as the words alone.
  *
  * For pasting into somewhere that would show the markdown as noise: a message,
