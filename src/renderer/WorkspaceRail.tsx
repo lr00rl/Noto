@@ -10,6 +10,7 @@
  * their bodies.
  */
 
+import { RailLinks, type RailLinksProps } from './RailLinks';
 import { RailSearch, type RailSearchProps } from './RailSearch';
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { FileTree, type FileTreeProps } from './FileTree';
@@ -17,7 +18,7 @@ import { nestOutline, type OutlineEntry, type OutlineNode } from './outline';
 import { SETTING_RANGES } from '../shared/settings/v1/contracts';
 import { sizeTreeGuides } from './tree-guides';
 
-export type RailView = 'files' | 'outline' | 'search';
+export type RailView = 'files' | 'outline' | 'links' | 'search';
 
 const RAIL_MIN = SETTING_RANGES.railWidth.min;
 const RAIL_MAX = SETTING_RANGES.railWidth.max;
@@ -36,6 +37,8 @@ export interface WorkspaceRailProps {
   readonly tree: FileTreeProps;
   /** The search view's own wiring; the rail only shows it. */
   readonly search: RailSearchProps;
+  /** The links view's wiring, the same way. */
+  readonly links: RailLinksProps;
 }
 
 function Tab({ id, current, onSelect, children, testId }: {
@@ -147,14 +150,17 @@ function OutlineLevel({ nodes, root, onGoToBlock, current, folded, onFold }: {
  * position on the first one.
  */
 const INDICATOR: Record<RailView, { left: string; width: string }> = {
-  files: { left: '0px', width: '30px' },
-  outline: { left: '44px', width: '46px' },
+  // Measured against the drawn labels: where each starts, and its width
+  // less the letter-spacing that trails the last glyph.
+  files: { left: '0px', width: '31px' },
+  outline: { left: '48px', width: '51px' },
+  links: { left: '116px', width: '34px' },
   // No rule under either label while the search has the rail.
   search: { left: '0px', width: '0px' },
 };
 
 export function WorkspaceRail({
-  view, onView, width, onResize, outline, onGoToBlock, currentHeading, tree, search,
+  view, onView, width, onResize, outline, onGoToBlock, currentHeading, tree, search, links,
 }: WorkspaceRailProps) {
   const railRef = useRef<HTMLElement>(null);
   const outlineRef = useRef<HTMLElement>(null);
@@ -241,6 +247,7 @@ export function WorkspaceRail({
       >
         <Tab id="files" current={view} onSelect={onView} testId="rail-files">Files</Tab>
         <Tab id="outline" current={view} onSelect={onView} testId="outline-toggle">Outline</Tab>
+        <Tab id="links" current={view} onSelect={onView} testId="links-toggle">Links</Tab>
         <button type="button" data-testid="rail-search"
           className={view === 'search' ? 'icon-button rail-search is-on' : 'icon-button rail-search'}
           aria-label="Search in notes" aria-pressed={view === 'search'} title="Search in notes (⇧⌘F)"
@@ -255,6 +262,11 @@ export function WorkspaceRail({
       {view === 'files' && (
         <div className="rail-view" id="rail-view-files" role="tabpanel" aria-labelledby="rail-tab-files">
           <FileTree {...tree} />
+        </div>
+      )}
+      {view === 'links' && (
+        <div className="rail-view" id="rail-view-links" role="tabpanel" aria-labelledby="rail-tab-links">
+          <RailLinks {...links} />
         </div>
       )}
       {view === 'search' && (

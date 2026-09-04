@@ -1206,6 +1206,11 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     if (documentId === activeIdRef.current) setCount(next);
   };
 
+  const noteLinks = useCallback(async (target: string) => {
+    const result = await window.notoWorkspace.noteLinks({ version: 1, requestId: rid('note-links'), path: target });
+    return result.ok ? result.value : null;
+  }, []);
+
   const searchContent = useCallback(async (query: string, flags: SearchFlags = PLAIN_FLAGS) => {
     const result = await window.notoWorkspace.searchContent({
       version: 1, requestId: rid('search-content'), query, ...flags,
@@ -1747,6 +1752,11 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
           side two header rows where Typora has one. */}
       {rail.open && (
           <WorkspaceRail
+            links={{
+              currentPath: active?.opened.path ?? null,
+              onLinks: noteLinks,
+              onOpen: (target) => { void openPath(target); },
+            }}
             search={{
               onSearch: searchContent,
               onOpenMatch: openMatch,

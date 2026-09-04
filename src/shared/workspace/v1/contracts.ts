@@ -33,6 +33,7 @@ export const WORKSPACE_CHANNELS = {
   folder: 'noto:v1:workspace:folder',
   menuCommand: 'noto:v1:workspace:menu-command',
   pasteText: 'noto:v1:workspace:paste-text',
+  noteLinks: 'noto:v1:workspace:note-links',
   /** The whole openable file list for the current folder, sent once per
    *  folder so ranking can happen in the renderer without a round trip. */
   fileIndex: 'noto:v1:workspace:file-index',
@@ -539,6 +540,30 @@ export interface WorkspacePasteEventV1 {
 /** The most text a paste carries; past this it is a file, not a paste. */
 export const MAX_PASTE_TEXT = 8 * 1024 * 1024;
 
+/** One note the vault's graph names, as a place to go. */
+export interface WorkspaceLinkV1 {
+  readonly path: string;
+  readonly relativePath: string;
+  readonly title: string;
+}
+
+/**
+ * What the vault's note-assistant graph knows about one note.
+ *
+ * `available` is false when the vault has no graph; `known` is false when
+ * it has one that has not met this note. The lists are empty in both cases,
+ * and the renderer says which of the two it is.
+ */
+export interface WorkspaceLinksReplyV1 {
+  readonly version: typeof NOTO_WORKSPACE_VERSION;
+  readonly available: boolean;
+  readonly known: boolean;
+  readonly generatedAt: string | null;
+  readonly backlinks: readonly WorkspaceLinkV1[];
+  readonly links: readonly WorkspaceLinkV1[];
+  readonly related: readonly WorkspaceLinkV1[];
+}
+
 export interface WorkspaceDocumentEventV1 {
   readonly version: typeof NOTO_WORKSPACE_VERSION;
   readonly opened: FileTruthOpenReplyV1;
@@ -567,6 +592,8 @@ export interface NotoWorkspaceApiV1 {
   onTabsChanged(listener: (event: WorkspaceTabsEventV1) => void): () => void;
   onMenuCommand(listener: (event: WorkspaceMenuEventV1) => void): () => void;
   onPasteText(listener: (event: WorkspacePasteEventV1) => void): () => void;
+  /** The graph's lists for the note at `path`; the request is the folder request, a path. */
+  noteLinks(request: WorkspaceFolderRequestV1): Promise<WorkspaceResultV1<WorkspaceLinksReplyV1>>;
   fileIndex(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceIndexReplyV1>>;
   recentFolders(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceRecentReplyV1>>;
   openRecentFolder(request: WorkspaceOpenPathRequestV1): Promise<WorkspaceResultV1<WorkspaceFolderEventV1>>;

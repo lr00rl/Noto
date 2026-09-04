@@ -57,8 +57,12 @@ test('the table toolbar aligns a column, adds to the table, and takes it away', 
     await expect(tools).toHaveCSS('opacity', '1');
 
     // The same command from the Table menu, on the other column.
+    const host = page.locator('.canvas-slot:not([hidden]) [data-testid="noto-editor"]');
+    const before = (await host.getAttribute('data-caret')) ?? '';
     await editor.locator('th').filter({ hasText: 'a' }).click();
-    await expect(page.locator('.canvas-slot:not([hidden]) [data-testid="noto-editor"]')).toHaveAttribute('data-caret', /\d+/);
+    // The editor learns of the click a moment after the browser does, and the
+    // command aligns the column the editor thinks the caret is in.
+    await expect(host).not.toHaveAttribute('data-caret', before);
     await invokeMenu(app, 'table-align-right');
     await expect(editor.locator('th').nth(0)).toHaveCSS('text-align', 'right');
 

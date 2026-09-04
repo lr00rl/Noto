@@ -93,6 +93,9 @@ export function registerWorkspaceHandlers(deps: {
   register(WORKSPACE_CHANNELS.fileIndex, isWorkspaceRequestV1,
     () => deps.session.fileIndex());
 
+  register(WORKSPACE_CHANNELS.noteLinks, isWorkspaceFolderRequestV1,
+    (request: WorkspaceFolderRequestV1) => deps.session.noteLinks(request.path));
+
   register(WORKSPACE_CHANNELS.recentFolders, isWorkspaceRequestV1,
     async () => ({ version: NOTO_WORKSPACE_VERSION, files: await deps.recentFolders() } as const));
 
