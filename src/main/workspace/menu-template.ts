@@ -29,6 +29,8 @@ export interface MenuActions {
   openPath: (filePath: string) => void;
   /** Convert a document that is not markdown and open the result. */
   importDocument: () => void;
+  /** The system print dialog for the window, which prints the note alone. */
+  print: () => void;
   clearRecent: () => void;
 }
 
@@ -133,6 +135,10 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
             command(`${exportShape(target).label}…`, undefined, `export-${target}` as WorkspaceMenuCommandV1)),
         ],
       },
+      // Typora's Print, and the Mac's: the window prints itself with the
+      // chrome hidden by the print stylesheet, so nothing crosses the
+      // boundary and the dialog is the system's own on this window.
+      { id: 'print', label: 'Print…', accelerator: 'CmdOrCtrl+Alt+P', click: () => actions.print() },
       { type: 'separator' },
       command('Reload from Disk', 'CmdOrCtrl+R', 'reload-from-disk'),
       { type: 'separator' },

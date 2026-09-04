@@ -283,6 +283,11 @@ async function run(): Promise<void> {
     openDialog: () => { void session?.openWithDialog().then(refreshMenu).catch(reportOpenFailure); },
     openPath: (filePath) => { void session?.openPath(filePath).then(refreshMenu).catch(reportOpenFailure); },
     openFolder: () => { void session?.openFolderWithDialog().catch(reportOpenFailure); },
+    print: () => {
+      editorWindow?.webContents.print({ printBackground: true }, (ok, reason) => {
+        logger.log('print', { ok, reason: reason || undefined });
+      });
+    },
     importDocument: () => {
       void session?.importDocument().then((outcome) => {
         refreshMenu();
