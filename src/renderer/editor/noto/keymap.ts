@@ -220,9 +220,29 @@ export function shiftHeading(towardsTitle: boolean): Command {
  * Enter inside a list splits the item; everywhere else it behaves normally.
  * Ordering matters: the list case has to be tried before the generic split.
  */
+/**
+ * Enter on an empty list item climbs out one level.
+ *
+ * Without this, `liftEmptyBlock` got there first and lifted the empty paragraph
+ * clean out of its item, so pressing Enter at the end of a nested list dropped
+ * you onto a line with no bullet instead of onto the level above. The author's
+ * vault has 23,022 nested bullet lines across 1,340 notes, and climbing back
+ * out of a nest is how every one of them was written.
+ *
+ * Guarded on the item being empty, or Enter in the middle of a list item would
+ * outdent it rather than splitting it in two.
+ */
+export const outdentEmptyListItem: Command = (state, dispatch) => {
+  const { $from, empty } = state.selection;
+  if (!empty || $from.parent.content.size !== 0) return false;
+  if ($from.depth < 2 || $from.node(-1).type !== nodes.list_item) return false;
+  return liftListItem(nodes.list_item)(state, dispatch);
+};
+
 const enter: Command = chainCommands(
   newlineInCode,
   createParagraphNear,
+  outdentEmptyListItem,
   liftEmptyBlock,
   splitListItem(nodes.list_item),
   splitBlock,

@@ -94,6 +94,15 @@ export interface WorkspaceTabV1 {
   readonly name: string;
   readonly documentId: string;
   readonly active: boolean;
+  /**
+   * A counter that rises each time this document is brought forward.
+   *
+   * Not a clock: nothing here needs to know when, only which came after which,
+   * and a counter cannot be made to go backwards by the machine's clock moving.
+   * The list itself stays in the order the documents were opened, because that
+   * is the order the neighbour is chosen from when one is closed.
+   */
+  readonly activatedAt: number;
 }
 
 export interface WorkspaceTabsEventV1 {
@@ -338,7 +347,7 @@ export interface WorkspaceTreeMenuReplyV1 {
  * different shape of message. The action is checked against this list on both
  * sides, so an unknown one is refused rather than falling through to a default.
  */
-export const ENTRY_ACTIONS = ['rename', 'duplicate', 'trash', 'new-folder'] as const;
+export const ENTRY_ACTIONS = ['rename', 'duplicate', 'trash', 'new-folder', 'move'] as const;
 
 export type WorkspaceEntryActionV1 = (typeof ENTRY_ACTIONS)[number];
 
@@ -365,6 +374,7 @@ export type WorkspaceEntryRefusalV1 =
   | 'unsaved-changes'
   | 'busy'
   | 'trash-failed'
+  | 'into-itself'
   | 'failed';
 
 export type WorkspaceEntryReplyV1 =

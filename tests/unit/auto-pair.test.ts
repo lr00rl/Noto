@@ -55,3 +55,35 @@ describe('backspace between a pair', () => {
     expect(backspaceTakesPair('', ')')).toBe(false);
   });
 });
+
+describe('a bracket typed after a word', () => {
+  it('closes, because that is the commonest bracket there is', () => {
+    // The rule used to refuse whenever a word character sat before the caret.
+    // In the author's vault that position holds about 105,000 brackets against
+    // 60,000 in the positions that did pair, so it refused in the majority of
+    // the cases it saw: every function call written in prose, every index.
+    expect(pairActionFor('(', 'o', '', false)).toEqual({ kind: 'pair', open: '(', close: ')' });
+    expect(pairActionFor('[', '组', '', false)).toEqual({ kind: 'pair', open: '[', close: ']' });
+    expect(pairActionFor('{', '1', '', false)).toEqual({ kind: 'pair', open: '{', close: '}' });
+    expect(pairActionFor('（', '文', '', false)).toEqual({ kind: 'pair', open: '（', close: '）' });
+  });
+
+  it('still refuses a quote after a word, which is what the rule was for', () => {
+    // `don` then an apostrophe must not become `don''`.
+    expect(pairActionFor("'", 'n', '', false)).toEqual({ kind: 'none' });
+    expect(pairActionFor('"', 'd', '', false)).toEqual({ kind: 'none' });
+    expect(pairActionFor('`', 'x', '', false)).toEqual({ kind: 'none' });
+  });
+
+  it('still refuses any opener typed directly before a word', () => {
+    // Which is nearly always meant as the one character.
+    expect(pairActionFor('(', '', 'a', false)).toEqual({ kind: 'none' });
+    expect(pairActionFor('[', ' ', 'x', false)).toEqual({ kind: 'none' });
+    expect(pairActionFor("'", '', 'a', false)).toEqual({ kind: 'none' });
+  });
+
+  it('still pairs a quote where no word precedes it', () => {
+    expect(pairActionFor("'", ' ', '', false)).toEqual({ kind: 'pair', open: "'", close: "'" });
+    expect(pairActionFor('"', '', '', false)).toEqual({ kind: 'pair', open: '"', close: '"' });
+  });
+});

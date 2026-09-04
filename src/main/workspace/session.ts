@@ -40,6 +40,7 @@ import type { FileTruthStoreV1 } from '../file-truth/v1/file-truth-store';
 import type { RecentFiles } from './recent-files';
 import { isEditableFile, listDirectory, type FileTreeEntryV1, isInside } from './file-tree';
 import { standaloneHtml } from '../../shared/export/document-html';
+import { inlineImages, readFileBytes } from './inline-images';
 import { buildTreeRowMenu, trashLabel } from './tree-row-menu';
 import {
   findPandoc,
@@ -71,6 +72,8 @@ const MARKDOWN_FILTERS = [
 interface OpenDocument {
   readonly store: FileTruthStoreV1;
   readonly opened: FileTruthOpenReplyV1;
+  /** Rises each time this document is brought forward. See `WorkspaceTabV1`. */
+  activatedAt: number;
 }
 
 /** How many documents may be open at once, so a stray loop cannot exhaust handles. */
@@ -79,6 +82,9 @@ const MAX_TABS = 24;
 export class WorkspaceSession {
   /** Keyed by resolved path: opening the same file twice reuses its tab. */
   private readonly documents = new Map<string, OpenDocument>();
+  /* Counts activations rather than reading a clock, so nothing depends on the
+     machine's time being monotonic or even correct. */
+  private activations = 0;
   private activePath: string | null = null;
   /** The folder shown in the sidebar, and the boundary for every listing. */
   private folderRoot: string | null = null;
@@ -140,6 +146,7 @@ export class WorkspaceSession {
       name: path.basename(filePath),
       documentId: document.opened.document.documentId,
       active: filePath === this.activePath,
+      activatedAt: document.activatedAt,
     }));
   }
 
@@ -199,7 +206,8 @@ export class WorkspaceSession {
       });
     };
 
-    this.documents.set(resolved, { store, opened });
+    this.activations += 1;
+    this.documents.set(resolved, { store, opened, activatedAt: this.activations });
     this.activePath = resolved;
     /*
      * A note opened on its own brings its folder with it.
@@ -229,6 +237,8 @@ export class WorkspaceSession {
     const document = this.documents.get(resolved);
     if (!document) return null;
 
+    this.activations += 1;
+    document.activatedAt = this.activations;
     this.activePath = resolved;
     this.publish(document.opened);
     this.publishTabs();
@@ -383,6 +393,7 @@ export class WorkspaceSession {
         version: NOTO_WORKSPACE_VERSION, path: target, intent: 'rename',
       }),
       duplicate: (target) => { void this.manageEntry({ action: 'duplicate', target, name: null }); },
+      move: (target) => { void this.manageEntry({ action: 'move', target, name: null }); },
       trash: (target, kind) => { void this.confirmTrash(target, kind); },
       reveal: (target) => shell.showItemInFolder(target),
       copyPath: (target) => clipboard.writeText(target),
@@ -419,6 +430,7 @@ export class WorkspaceSession {
     if (request.action === 'rename') return this.renameEntry(real, request.name);
     if (request.action === 'duplicate') return this.duplicateEntry(real);
     if (request.action === 'new-folder') return this.newFolder(real, request.name);
+    if (request.action === 'move') return this.moveEntry(real);
     return this.trashEntry(real);
   }
 
@@ -448,15 +460,17 @@ export class WorkspaceSession {
   }
 
   /** The real path, if it is inside the open folder. Null for anything else. */
-  private async inRoot(target: string): Promise<string | null> {
+  private async inRoot(target: string, allowRoot = false): Promise<string | null> {
     const root = this.folderRoot;
     if (root === null) return null;
     try {
       const real = await realpath(path.resolve(target));
       const realRoot = await realpath(root);
+      if (!isInside(realRoot, real)) return null;
       // The root itself is not a row, and renaming or trashing the folder the
       // window is showing is not something a row menu should be able to do.
-      return isInside(realRoot, real) && real !== realRoot ? real : null;
+      // It is a perfectly good destination for a move, though.
+      return allowRoot || real !== realRoot ? real : null;
     } catch {
       return null;
     }
@@ -493,6 +507,48 @@ export class WorkspaceSession {
     await this.followMove(real, destination);
     this.logger.log('entry_renamed', { directory: isDirectory });
     return this.done(destination);
+  }
+
+  /**
+   * Move a file or folder somewhere else in the vault.
+   *
+   * The destination is chosen with the system's folder dialog, and then checked
+   * against the open folder like every other path: the dialog can reach the
+   * whole disk and only the part inside the vault is a place this may write.
+   *
+   * A folder cannot be moved into itself or into anything under it, which is
+   * the one move that would leave a piece of the tree pointing at nothing.
+   * `isInside` answers both, since it is true for a folder and itself.
+   */
+  private async moveEntry(real: string): Promise<WorkspaceEntryReplyV1> {
+    const window = this.getWindow();
+    const options = {
+      title: 'Move to',
+      defaultPath: path.dirname(real),
+      properties: ['openDirectory' as const, 'createDirectory' as const],
+    };
+    const chosen = window
+      ? await dialog.showOpenDialog(window, options)
+      : await dialog.showOpenDialog(options);
+    if (chosen.canceled || chosen.filePaths.length === 0) return this.done(real);
+
+    const destination = await this.inRoot(chosen.filePaths[0], true);
+    if (destination === null) return this.refuse('outside-root');
+    if (isInside(real, destination)) return this.refuse('into-itself');
+
+    const target = path.join(destination, path.basename(real));
+    if (target === real) return this.done(real);
+    if (await this.occupied(target, real)) return this.refuse('exists');
+    if (this.busyUnder(real)) return this.refuse('busy');
+
+    try {
+      await rename(real, target);
+    } catch {
+      return this.refuse('failed');
+    }
+    await this.followMove(real, target);
+    this.logger.log('entry_moved', {});
+    return this.done(target);
   }
 
   private async duplicateEntry(real: string): Promise<WorkspaceEntryReplyV1> {
@@ -648,9 +704,17 @@ export class WorkspaceSession {
     );
     if (destination === null) return { version: NOTO_WORKSPACE_VERSION, exported: false, reason: 'cancelled' };
 
+    // The pictures travel inside the file. The addresses in the markdown are
+    // relative to the note, which is right in the note and wrong everywhere
+    // else, and a PDF is printed from a temporary directory where a relative
+    // address resolves to nothing at all.
+    const body = await inlineImages(request.html, {
+      noteDirectory: path.dirname(note),
+      read: readFileBytes,
+    });
     const page = standaloneHtml({
       title: request.title,
-      body: request.html,
+      body,
       styled: request.target !== 'html-plain',
     });
 

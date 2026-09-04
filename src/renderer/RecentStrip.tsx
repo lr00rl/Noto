@@ -27,12 +27,30 @@ export interface RecentStripProps {
   readonly onActivate: (path: string) => void;
 }
 
+/**
+ * The most recent few, which is what this is for and was not what it did.
+ *
+ * `tabs` arrives in the order the documents were opened, because that is the
+ * order a neighbour is chosen from when one is closed. Taking the first four of
+ * that showed the four oldest: with more than four open, the note you were just
+ * in was the one thing missing from the way back to it.
+ *
+ * The one in front stays in the list, marked. It is where the reader is, and a
+ * signpost that leaves out the place you are standing is harder to read, not
+ * easier.
+ */
+export function recentlyActive(tabs: readonly WorkspaceTabV1[]): WorkspaceTabV1[] {
+  return [...tabs]
+    .sort((left, right) => right.activatedAt - left.activatedAt)
+    .slice(0, RECENT_SHOWN);
+}
+
 export function RecentStrip({ tabs, dirty, onActivate }: RecentStripProps) {
   // Nothing to jump back to with one document, and the title bar already names
   // it, so the strip stays out of the way entirely.
   if (tabs.length < 2) return null;
 
-  const shown = [...tabs].slice(0, RECENT_SHOWN);
+  const shown = recentlyActive(tabs);
 
   return (
     <div className="recent-strip" data-testid="recent-strip">

@@ -84,11 +84,12 @@ export function isWorkspaceTabRequestV1(value: unknown): value is WorkspaceTabRe
 }
 
 function isTab(value: unknown): value is WorkspaceTabV1 {
-  return record(value) && exact(value, ['path', 'name', 'documentId', 'active'])
+  return record(value) && exact(value, ['path', 'name', 'documentId', 'active', 'activatedAt'])
     && typeof value.path === 'string' && value.path.length > 0 && value.path.length <= 4096
     && typeof value.name === 'string' && value.name.length <= 512
     && typeof value.documentId === 'string' && value.documentId.startsWith('noto-doc-v3:')
-    && typeof value.active === 'boolean';
+    && typeof value.active === 'boolean'
+    && Number.isSafeInteger(value.activatedAt) && Number(value.activatedAt) >= 0;
 }
 
 export function isWorkspaceTabsEventV1(value: unknown): value is WorkspaceTabsEventV1 {
@@ -357,8 +358,8 @@ export function isWorkspaceEntryReplyV1(value: unknown): value is WorkspaceEntry
       && typeof value.path === 'string' && value.path.length > 0;
   }
   return value.done === false && exact(value, ['version', 'done', 'reason'])
-    && ['no-folder', 'outside-root', 'bad-name', 'exists', 'unsaved-changes', 'busy', 'trash-failed', 'failed']
-      .includes(String(value.reason));
+    && ['no-folder', 'outside-root', 'bad-name', 'exists', 'unsaved-changes', 'busy',
+      'trash-failed', 'into-itself', 'failed'].includes(String(value.reason));
 }
 
 export const isWorkspaceEntryResultV1 = (value: unknown, id: string): value is WorkspaceResultV1<WorkspaceEntryReplyV1> =>

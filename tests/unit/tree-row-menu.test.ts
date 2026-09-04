@@ -12,6 +12,7 @@ const actions = () => ({
   newFolder: vi.fn(),
   rename: vi.fn(),
   duplicate: vi.fn(),
+  move: vi.fn(),
   trash: vi.fn(),
   reveal: vi.fn(),
   copyPath: vi.fn(),
@@ -24,7 +25,7 @@ describe('the menu on a row of the tree', () => {
     const items = buildTreeRowMenu('/vault/note.md', 'file', actions(), 'darwin');
     expect(labels(items)).toEqual([
       'Open',
-      '---', 'Rename…', 'Duplicate',
+      '---', 'Rename…', 'Duplicate', 'Move to…',
       '---', 'Reveal in Finder', 'Copy Path',
       // Alone below a rule, furthest from Open: it is the only action here
       // with no undo.
@@ -38,7 +39,7 @@ describe('the menu on a row of the tree', () => {
     const items = buildTreeRowMenu('/vault/sub', 'directory', actions(), 'darwin');
     expect(labels(items)).toEqual([
       'New Note Here', 'New Folder Here',
-      '---', 'Rename…', 'Duplicate',
+      '---', 'Rename…', 'Duplicate', 'Move to…',
       '---', 'Reveal in Finder', 'Copy Path',
       '---', 'Move to Trash',
     ]);
@@ -84,10 +85,12 @@ describe('the menu on a row of the tree', () => {
     click('tree-copy-path');
     click('tree-rename');
     click('tree-duplicate');
+    click('tree-move');
     expect(spies.open).toHaveBeenCalledWith('/vault/note.md');
     expect(spies.reveal).toHaveBeenCalledWith('/vault/note.md');
     expect(spies.copyPath).toHaveBeenCalledWith('/vault/note.md');
     expect(spies.rename).toHaveBeenCalledWith('/vault/note.md');
     expect(spies.duplicate).toHaveBeenCalledWith('/vault/note.md');
+    expect(spies.move).toHaveBeenCalledWith('/vault/note.md');
   });
 });

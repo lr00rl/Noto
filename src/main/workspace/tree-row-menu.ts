@@ -21,6 +21,8 @@ export interface TreeRowActions {
   /** Asks the renderer for a name, which is where the row and the caret are. */
   readonly rename: (target: string) => void;
   readonly duplicate: (target: string) => void;
+  /** Asks for a folder, then moves the row into it. */
+  readonly move: (target: string) => void;
   readonly trash: (target: string, kind: 'file' | 'directory') => void;
   readonly reveal: (target: string) => void;
   readonly copyPath: (target: string) => void;
@@ -61,6 +63,7 @@ export function buildTreeRowMenu(
   items.push({ type: 'separator' });
   items.push({ id: 'tree-rename', label: 'Rename…', click: () => actions.rename(target) });
   items.push({ id: 'tree-duplicate', label: 'Duplicate', click: () => actions.duplicate(target) });
+  items.push({ id: 'tree-move', label: 'Move to…', click: () => actions.move(target) });
   items.push({ type: 'separator' });
   items.push({ id: 'tree-reveal', label: revealLabel(platform), click: () => actions.reveal(target) });
   items.push({ id: 'tree-copy-path', label: 'Copy Path', click: () => actions.copyPath(target) });

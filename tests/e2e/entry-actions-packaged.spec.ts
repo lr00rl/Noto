@@ -31,7 +31,7 @@ async function launch(name: string): Promise<{
 /** Ask main to act on a row, the way the tree does after a menu choice. */
 async function act(
   page: Page,
-  action: 'rename' | 'duplicate' | 'trash' | 'new-folder',
+  action: 'rename' | 'duplicate' | 'trash' | 'new-folder' | 'move',
   target: string,
   name: string | null = null,
 ): Promise<unknown> {
@@ -156,6 +156,47 @@ test.describe('acting on a row of the tree', () => {
     try {
       expect(await act(page, 'trash', path.join(vault, 'other.md'))).toMatchObject({ done: true });
       expect(await names(vault)).toEqual(['note.md', 'sub']);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('moves a note into another folder, and refuses one outside the vault', async () => {
+    const { app, page, vault, workspace } = await launch('move');
+    const outside = path.join(workspace, 'outside');
+    try {
+      // The destination comes from a folder dialog, which can reach the whole
+      // disk. Answer it without opening one.
+      const answerWith = async (folder: string) => app.evaluate(({ dialog }, chosen) => {
+        (dialog as unknown as { showOpenDialog: unknown }).showOpenDialog =
+          async () => ({ canceled: false, filePaths: [chosen] });
+      }, folder);
+
+      await answerWith(path.join(vault, 'sub'));
+      expect(await act(page, 'move', path.join(vault, 'note.md'))).toMatchObject({ done: true });
+      expect(await names(path.join(vault, 'sub'))).toEqual(['deeper.md', 'note.md']);
+      expect(await names(vault)).toEqual(['other.md', 'sub']);
+
+      // Only the part of the disk inside the vault is somewhere this may write.
+      await answerWith(outside);
+      expect(await act(page, 'move', path.join(vault, 'other.md')))
+        .toMatchObject({ done: false, reason: 'outside-root' });
+      expect(await names(vault)).toEqual(['other.md', 'sub']);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('refuses to move a folder inside itself, which would lose what is in it', async () => {
+    const { app, page, vault } = await launch('move-into-itself');
+    try {
+      await app.evaluate(({ dialog }, chosen) => {
+        (dialog as unknown as { showOpenDialog: unknown }).showOpenDialog =
+          async () => ({ canceled: false, filePaths: [chosen] });
+      }, path.join(vault, 'sub'));
+      expect(await act(page, 'move', path.join(vault, 'sub')))
+        .toMatchObject({ done: false, reason: 'into-itself' });
+      expect(await names(path.join(vault, 'sub'))).toEqual(['deeper.md']);
     } finally {
       await app.close();
     }
