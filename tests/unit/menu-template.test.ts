@@ -20,6 +20,8 @@ function template(platform: NodeJS.Platform, recent: readonly RecentFileV1[] = [
       print: noop,
       pastePlain: noop,
       reopenClosed: noop,
+      chooseTheme: noop,
+      openThemeFolder: noop,
       clearRecent: noop,
     },
     sendCommand: noop,
@@ -118,7 +120,10 @@ describe('the menu and the renderer agree on commands', () => {
     // Items handled inside main rather than sent to the renderer.
     // Import belongs here too: the dialog, the conversion and the file are all
     // main's, so nothing about it has to cross the boundary and come back.
-    const mainOnly = new Set(['open-dialog', 'open-folder', 'close-tab', 'import-document', 'print', 'paste-plain', 'reopen-closed']);
+    const mainOnly = new Set([
+      'open-dialog', 'open-folder', 'close-tab', 'import-document', 'print', 'paste-plain',
+      'reopen-closed', 'theme-none',
+    ]);
     const sent = ids.filter((id) => !mainOnly.has(id));
     for (const id of sent) {
       expect(known).toContain(id as WorkspaceMenuCommandV1);
@@ -169,5 +174,49 @@ describe('everything the shell needs is reachable', () => {
       'toggle-outline', 'toggle-sidebar', 'settings', 'close-tab']) {
       expect(present.has(id)).toBe(true);
     }
+  });
+});
+
+describe('the Themes menu', () => {
+  const withThemes = (themePath: string) => buildMenuTemplate({
+    platform: 'darwin',
+    appName: 'Noto',
+    recent: [],
+    actions: {
+      openFolder: noop, closeTab: noop, openDialog: noop, openPath: noop, importDocument: noop,
+      print: noop, pastePlain: noop, reopenClosed: noop, chooseTheme: noop, openThemeFolder: noop,
+      clearRecent: noop,
+    },
+    sendCommand: noop,
+    openExternal: noop,
+    state: {
+      readOnly: false,
+      alwaysOnTop: false,
+      themePath,
+      themes: [
+        { path: '/themes/claude-like.css', label: 'Claude like' },
+        { path: '/themes/newsprint.css', label: 'Newsprint' },
+      ],
+    },
+  });
+
+  const themeItems = (template: ReturnType<typeof buildMenuTemplate>) => {
+    const view = menu(template, '&View');
+    const themes = view.find((item) => item.label === 'Themes');
+    if (!themes || !Array.isArray(themes.submenu)) throw new Error('no Themes menu');
+    return themes.submenu;
+  };
+
+  it('lists the stylesheets it was given, with the built-in look first', () => {
+    const items = themeItems(withThemes(''));
+    expect(items.map((item) => item.label ?? item.type))
+      .toEqual(['Noto', 'separator', 'Claude like', 'Newsprint', 'separator', 'Open Themes Folder']);
+  });
+
+  it('ticks the one in use, and the built-in look when there is none', () => {
+    const ticked = (template: ReturnType<typeof buildMenuTemplate>) =>
+      themeItems(template).filter((item) => item.checked).map((item) => item.label);
+    expect(ticked(withThemes(''))).toEqual(['Noto']);
+    expect(ticked(withThemes('/themes/newsprint.css'))).toEqual(['Newsprint']);
   });
 });

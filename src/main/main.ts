@@ -1,7 +1,11 @@
+import {
+  NOTO_SETTINGS_VERSION, SETTINGS_CHANNELS, type NotoSettingsV1,
+} from '../shared/settings/v1/contracts';
+import { ensureThemeFolder, listThemes } from './workspace/themes';
 import path from 'node:path';
 import { statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { app, BrowserWindow, dialog } from 'electron';
+import { app, BrowserWindow, dialog, shell } from 'electron';
 import { FileTruthStoreV1 } from './file-truth/v1/file-truth-store';
 import { registerFileTruthHandlers } from './file-truth/v1/register-file-truth-handlers';
 import { registerIpcHandlers } from './ipc/register-handlers';
@@ -280,7 +284,24 @@ async function run(): Promise<void> {
       finalNewline: chosen.finalNewline ?? own?.hasFinalNewline ?? true,
     } as const;
   };
-  const menuState = { readOnly: false, alwaysOnTop: windowAlwaysOnTop, treeSort: settings.current().treeSort };
+  /*
+   * The themes folder, beside the settings file.
+   *
+   * A folder rather than a preference holding one path, because a reader with
+   * three themes wants to try them, and a menu of what is there is the whole
+   * of Typora's interaction with them. Picking one writes the same
+   * `customCssPath` a hand-typed path writes, so there is one way a stylesheet
+   * reaches the window.
+   */
+  const themeFolder = await ensureThemeFolder(path.join(userData, 'themes'));
+  let themes = await listThemes(themeFolder);
+  const menuState = {
+    readOnly: false,
+    alwaysOnTop: windowAlwaysOnTop,
+    treeSort: settings.current().treeSort,
+    themes,
+    themePath: settings.current().customCssPath,
+  };
   if (windowAlwaysOnTop) editorWindow?.setAlwaysOnTop(true);
   const refreshMenu = () => installApplicationMenu(() => editorWindow, recent.list(), {
     openDialog: () => { void session?.openWithDialog().then(refreshMenu).catch(reportOpenFailure); },
@@ -304,6 +325,24 @@ async function run(): Promise<void> {
     },
     reopenClosed: () => {
       void session?.reopenClosed().then(() => refreshMenu()).catch(reportOpenFailure);
+    },
+    chooseTheme: (themePath: string) => {
+      void settings.update({ customCssPath: themePath }).then((written: NotoSettingsV1) => {
+        menuState.themePath = written.customCssPath;
+        refreshMenu();
+        editorWindow?.webContents.send(SETTINGS_CHANNELS.changed, {
+          version: NOTO_SETTINGS_VERSION, settings: written,
+        });
+      }).catch(() => logger.log('settings_theme_write_failed', {}));
+    },
+    openThemeFolder: () => {
+      // Listed again on the way out, so a stylesheet dropped in while the
+      // folder is open is on the menu the next time it is pulled down.
+      void shell.openPath(themeFolder).then(async () => {
+        themes = await listThemes(themeFolder);
+        menuState.themes = themes;
+        refreshMenu();
+      }).catch(() => logger.log('settings_theme_folder_failed', {}));
     },
     clearRecent: () => {
       void Promise.all(recent.list().map((file) => recent.forget(file.path))).then(refreshMenu);
@@ -393,6 +432,10 @@ async function run(): Promise<void> {
       }
       // The tree's order shows as a tick in the View menu, and the tree
       // itself is listed again when it changes.
+      if (reply.settings.customCssPath !== menuState.themePath) {
+        menuState.themePath = reply.settings.customCssPath;
+        refreshMenu();
+      }
       if (reply.settings.treeSort !== menuState.treeSort) {
         menuState.treeSort = reply.settings.treeSort;
         refreshMenu();
