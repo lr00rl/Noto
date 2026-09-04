@@ -43,7 +43,7 @@ import { Preferences, type PreferencesSection } from './Preferences';
 import { DEFAULT_SETTINGS, stepWidthMode, type NotoSettingsV1 } from '../shared/settings/v1/contracts';
 import type { AssetRefusalV1 } from '../shared/assets/v1/contracts';
 import { copyThroughSelection } from './editor/noto/clipboard';
-import type { WorkspaceEntryRefusalV1 } from '../shared/workspace/v1/contracts';
+import type { WorkspaceEntryRefusalV1, WorkspaceExportKindV1 } from '../shared/workspace/v1/contracts';
 import { EMPTY_TRAIL, forget as forgetTrail, record as recordTrail, stepBack, stepForward, type Trail } from './trail';
 import type { NotoEditor } from './editor/noto/NotoEditor';
 import {
@@ -74,6 +74,20 @@ function reloadRefusalMessage(reason: FileTruthReloadRefusalV1): string {
   if (reason === 'recovery-pending') return 'A recovery record has to be cleared before this note can be reloaded.';
   if (reason === 'parse-failed') return 'The file on disk could not be read as markdown, so nothing was changed.';
   return 'That note is not open.';
+}
+
+/** The note's name without its extension, which is the exported page's title. */
+function noteTitle(notePath: string): string {
+  const base = notePath.split(/[\\/]/).pop() ?? notePath;
+  const dot = base.lastIndexOf('.');
+  return dot > 0 ? base.slice(0, dot) : base;
+}
+
+function exportRefusalMessage(reason: 'no-document' | 'unsaved' | 'cancelled' | 'no-pandoc' | 'failed'): string {
+  if (reason === 'unsaved') return 'Save the note first. This converts the file, not the screen.';
+  if (reason === 'no-pandoc') return 'That format needs Pandoc, which is not installed.';
+  if (reason === 'no-document') return 'Open a note first.';
+  return 'That could not be exported.';
 }
 
 function imageRefusalMessage(reason: AssetRefusalV1): string {
@@ -168,6 +182,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   activeIdRef.current = activeId;
 
   const active = activeId ? docs.get(activeId) ?? null : null;
+  /* Read from the menu handler, which runs outside the render that built it. */
+  const docsRef = useRef(docs);
+  docsRef.current = docs;
   const opened = active?.opened ?? null;
   const document = active?.document ?? null;
   const token = active?.token ?? null;
@@ -1448,6 +1465,39 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
             ? 'Saved with that from now on. Save to write it.'
             : 'The file will no longer end with a newline. Save to write it.');
         }
+        break;
+      }
+      case 'export-pdf': case 'export-html': case 'export-html-plain':
+      case 'export-docx': case 'export-odt': case 'export-rtf': case 'export-epub':
+      case 'export-latex': case 'export-mediawiki': case 'export-rst':
+      case 'export-textile': case 'export-opml': {
+        const target = event.command.slice('export-'.length) as WorkspaceExportKindV1;
+        const editor = editorRef.current;
+        const current = docsRef.current.get(activeIdRef.current ?? '') ?? null;
+        if (!editor || !current) { setLocalMessage('Open a note first.'); break; }
+        // Only the rendered targets need the markup. The rest are a conversion
+        // of the file, which main reads for itself.
+        const rendered = target === 'pdf' || target === 'html' || target === 'html-plain';
+        void window.notoWorkspace.exportRendered({
+          version: 1,
+          requestId: rid('export'),
+          target,
+          html: rendered ? editor.documentHtml() : null,
+          title: noteTitle(current.opened.path),
+          dirty: current.dirty,
+        }).then((result) => {
+          if (!result.ok) {
+            setLocalMessage(actionableFileTruthMessage(result.error.message, 'That could not be exported.'));
+            return;
+          }
+          if (result.value.exported) {
+            setLocalMessage(`Exported to ${result.value.path.split('/').pop() ?? 'the file'}.`);
+            return;
+          }
+          if (result.value.reason !== 'cancelled') {
+            setLocalMessage(exportRefusalMessage(result.value.reason));
+          }
+        });
         break;
       }
       case 'toggle-always-on-top':

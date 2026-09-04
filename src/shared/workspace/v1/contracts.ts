@@ -48,6 +48,8 @@ export const WORKSPACE_CHANNELS = {
   treeChanged: 'noto:v1:workspace:tree-changed',
   /** Push: the reader chose Rename, so the row should offer a field. */
   renameRow: 'noto:v1:workspace:rename-row',
+  /** The renderer hands over the drawn document so main can write or print it. */
+  exportRendered: 'noto:v1:workspace:export-rendered',
 } as const;
 
 /** One entry in the workspace tree. */
@@ -210,6 +212,18 @@ export const WORKSPACE_MENU_COMMANDS = [
   'line-endings-lf',
   'line-endings-crlf',
   'toggle-final-newline',
+  'export-pdf',
+  'export-html',
+  'export-html-plain',
+  'export-docx',
+  'export-odt',
+  'export-rtf',
+  'export-epub',
+  'export-latex',
+  'export-mediawiki',
+  'export-rst',
+  'export-textile',
+  'export-opml',
   'new-file',
   'mark-strong',
   'mark-emphasis',
@@ -380,6 +394,48 @@ export interface WorkspaceRenameRowEventV1 {
   readonly intent: 'rename' | 'new-folder';
 }
 
+/**
+ * Everything the File menu can write a note out as.
+ *
+ * `pdf`, `html` and `html-plain` are how Noto draws the note, so they carry the
+ * renderer's own markup. The rest are conversions of the markdown, which Pandoc
+ * reads from the file on disk and which therefore need the note saved first.
+ */
+export const EXPORT_KINDS = [
+  'pdf', 'html', 'html-plain',
+  'docx', 'odt', 'rtf', 'epub', 'latex', 'mediawiki', 'rst', 'textile', 'opml',
+] as const;
+
+export type WorkspaceExportKindV1 = (typeof EXPORT_KINDS)[number];
+
+export interface WorkspaceExportRequestV1 extends WorkspaceRequestV1 {
+  readonly target: WorkspaceExportKindV1;
+  /**
+   * The document's body, serialized by the editor from its own schema, or null
+   * for a target Pandoc converts from the file instead.
+   */
+  readonly html: string | null;
+  /** The note's name without its extension, used as the page's title. */
+  readonly title: string;
+  /**
+   * Whether the note has changes that have not been written.
+   *
+   * Sent from the renderer because that is where the knowledge lives, and used
+   * to refuse a Pandoc export outright: it converts the file, so exporting a
+   * note with unsaved work would produce a document of the last saved version
+   * while the reader was looking at a newer one.
+   */
+  readonly dirty: boolean;
+}
+
+export type WorkspaceExportReplyV1 =
+  | { readonly version: typeof NOTO_WORKSPACE_VERSION; readonly exported: true; readonly path: string }
+  | {
+      readonly version: typeof NOTO_WORKSPACE_VERSION;
+      readonly exported: false;
+      readonly reason: 'no-document' | 'unsaved' | 'cancelled' | 'no-pandoc' | 'failed';
+    };
+
 export interface WorkspaceContentLineV1 {
   readonly line: string;
   readonly lineNumber: number;
@@ -473,6 +529,7 @@ export interface NotoWorkspaceApiV1 {
   treeMenu(request: WorkspaceTreeMenuRequestV1): Promise<WorkspaceResultV1<WorkspaceTreeMenuReplyV1>>;
   searchContent(request: WorkspaceContentRequestV1): Promise<WorkspaceResultV1<WorkspaceContentReplyV1>>;
   manageEntry(request: WorkspaceEntryRequestV1): Promise<WorkspaceResultV1<WorkspaceEntryReplyV1>>;
+  exportRendered(request: WorkspaceExportRequestV1): Promise<WorkspaceResultV1<WorkspaceExportReplyV1>>;
   onTreeChanged(listener: () => void): () => void;
   onRenameRow(listener: (event: WorkspaceRenameRowEventV1) => void): () => void;
 }

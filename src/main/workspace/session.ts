@@ -12,7 +12,9 @@
  */
 
 import path from 'node:path';
-import { cp, mkdir, readdir, realpath, rename, stat, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { randomUUID } from 'node:crypto';
 import { BrowserWindow, Menu, clipboard, dialog, shell, type MenuItemConstructorOptions } from 'electron';
 import { FILE_TRUTH_CHANNELS, type FileTruthOpenReplyV1 } from '../../shared/file-truth/v1/contracts';
 import { openableExternalUrl } from '../../shared/workspace/v1/validate';
@@ -29,12 +31,15 @@ import type {
   WorkspaceEntryActionV1,
   WorkspaceEntryRefusalV1,
   WorkspaceEntryReplyV1,
+  WorkspaceExportReplyV1,
+  WorkspaceExportKindV1,
   WorkspaceContentReplyV1, WorkspaceIndexReplyV1, WorkspaceRevealReplyV1, WorkspaceRevealTargetV1,
 } from '../../shared/workspace/v1/contracts';
 import type { StructuredLogger } from '../logger';
 import type { FileTruthStoreV1 } from '../file-truth/v1/file-truth-store';
 import type { RecentFiles } from './recent-files';
 import { isEditableFile, listDirectory, type FileTreeEntryV1, isInside } from './file-tree';
+import { standaloneHtml } from '../../shared/export/document-html';
 import { buildTreeRowMenu, trashLabel } from './tree-row-menu';
 import {
   findPandoc,
@@ -43,6 +48,13 @@ import {
   runPandoc,
   type ImportOutcome,
 } from './import-document';
+import {
+  exportShape,
+  exportThroughPandoc,
+  needsPandoc,
+  type ExportOutcome,
+  type ExportTarget,
+} from './export-document';
 import {
   duplicateName,
   isEntryName,
@@ -599,6 +611,143 @@ export class WorkspaceSession {
     for (const [openPath, document] of rebuilt) this.documents.set(openPath, document);
     this.publishTabs();
     await this.recent.remember(this.activePath ?? to).catch(() => {});
+  }
+
+  /**
+   * Write out the document as Noto draws it: a page, or a printed page.
+   *
+   * These two come from the renderer rather than from Pandoc because what they
+   * are for is how the note looks, which Pandoc has never seen. The markup
+   * arrives already serialized; main adds the stylesheet, chooses the file and,
+   * for a PDF, prints it in a window nobody sees.
+   */
+  async exportRendered(request: {
+    target: WorkspaceExportKindV1;
+    html: string | null;
+    title: string;
+    dirty: boolean;
+  }): Promise<WorkspaceExportReplyV1> {
+    const note = this.activePath;
+    if (note === null) return { version: NOTO_WORKSPACE_VERSION, exported: false, reason: 'no-document' };
+
+    if (needsPandoc(request.target)) {
+      const outcome = await this.exportThroughPandoc(request.target, request.dirty);
+      return outcome.exported
+        ? { version: NOTO_WORKSPACE_VERSION, exported: true, path: outcome.path }
+        : { version: NOTO_WORKSPACE_VERSION, exported: false, reason: outcome.reason };
+    }
+    if (request.html === null) {
+      return { version: NOTO_WORKSPACE_VERSION, exported: false, reason: 'failed' };
+    }
+
+    const extension = request.target === 'pdf' ? 'pdf' : 'html';
+    const destination = await this.chooseDestination(
+      `${request.title}.${extension}`,
+      extension === 'pdf' ? 'PDF' : 'Web page',
+      extension,
+    );
+    if (destination === null) return { version: NOTO_WORKSPACE_VERSION, exported: false, reason: 'cancelled' };
+
+    const page = standaloneHtml({
+      title: request.title,
+      body: request.html,
+      styled: request.target !== 'html-plain',
+    });
+
+    try {
+      if (request.target === 'html' || request.target === 'html-plain') {
+        await writeFile(destination, page, 'utf8');
+      } else {
+        await this.printPage(page, destination);
+      }
+    } catch (cause) {
+      this.logger.log('export_failed', {
+        target: request.target,
+        code: cause instanceof Error ? cause.message.split(':', 1)[0] : 'EXPORT_FAILED',
+      });
+      return { version: NOTO_WORKSPACE_VERSION, exported: false, reason: 'failed' };
+    }
+    this.logger.log('exported', { target: request.target });
+    return { version: NOTO_WORKSPACE_VERSION, exported: true, path: destination };
+  }
+
+  /**
+   * Print a page to PDF in a window that is never shown.
+   *
+   * The page is written to a temporary file and loaded from it rather than
+   * handed over as a data URL: a whole document of markup makes a URL megabytes
+   * long, and every layer between here and Chromium has its own opinion about
+   * how long a URL may be.
+   *
+   * The window has no preload and no node integration. It is rendering markup
+   * built from the reader's own note, which is not hostile, but a window with
+   * nothing in it cannot be made to do anything either way.
+   */
+  private async printPage(page: string, destination: string): Promise<void> {
+    const scratch = path.join(tmpdir(), `noto-export-${randomUUID()}.html`);
+    const printer = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true,
+        javascript: false,
+        webSecurity: true,
+      },
+    });
+    try {
+      await writeFile(scratch, page, 'utf8');
+      await printer.loadFile(scratch);
+      const pdf = await printer.webContents.printToPDF({
+        printBackground: true,
+        // A4 with the margins a document is read with rather than the browser's
+        // own, which leaves a printed note swimming in white.
+        pageSize: 'A4',
+        margins: { top: 0.6, bottom: 0.6, left: 0.7, right: 0.7 },
+      });
+      await writeFile(destination, pdf);
+    } finally {
+      printer.destroy();
+      await rm(scratch, { force: true }).catch(() => {});
+    }
+  }
+
+  /** A save dialog for an exported file, which is never a note. */
+  private async chooseDestination(name: string, filterName: string, extension: string): Promise<string | null> {
+    const window = this.getWindow();
+    const options = {
+      title: 'Export',
+      defaultPath: this.folderRoot ? path.join(this.folderRoot, name) : name,
+      filters: [{ name: filterName, extensions: [extension] }],
+    };
+    const result = window
+      ? await dialog.showSaveDialog(window, options)
+      : await dialog.showSaveDialog(options);
+    return result.canceled || !result.filePath ? null : result.filePath;
+  }
+
+  /**
+   * Convert the note in front into a document format, through Pandoc.
+   *
+   * The file on disk is what is converted, not the screen, so a note with
+   * unsaved changes is refused rather than quietly exported at its last saved
+   * version: that is the kind of wrong nobody notices until after they have
+   * sent it to somebody. `dirty` comes from the renderer, which is where the
+   * knowledge of unsaved work lives.
+   */
+  async exportThroughPandoc(target: ExportTarget, dirty: boolean): Promise<ExportOutcome> {
+    const outcome = await exportThroughPandoc(target, {
+      notePath: this.activePath,
+      dirty,
+      choose: (suggested) => this.chooseDestination(
+        suggested, exportShape(target).label, exportShape(target).extension,
+      ),
+      findPandoc: () => findPandoc(),
+      run: runPandoc,
+    });
+    this.logger.log(outcome.exported ? 'exported' : 'export_refused',
+      { target, reason: outcome.exported ? 'ok' : outcome.reason });
+    return outcome;
   }
 
   /**

@@ -20,6 +20,7 @@ import {
   type WorkspaceRevealRequestV1,
   type WorkspaceContentRequestV1,
   type WorkspaceEntryRequestV1,
+  type WorkspaceExportRequestV1,
 } from '../../shared/workspace/v1/contracts';
 import {
   isWorkspaceOpenPathRequestV1,
@@ -31,6 +32,7 @@ import {
   isWorkspaceRevealRequestV1,
   isWorkspaceContentRequestV1,
   isWorkspaceEntryRequestV1,
+  isWorkspaceExportRequestV1,
 } from '../../shared/workspace/v1/validate';
 import { isTrustedRendererSender } from '../ipc/trusted-renderer';
 import type { StructuredLogger } from '../logger';
@@ -120,6 +122,9 @@ export function registerWorkspaceHandlers(deps: {
   // gone stale since the menu opened is refused rather than acted on.
   register(WORKSPACE_CHANNELS.manageEntry, isWorkspaceEntryRequestV1,
     (request: WorkspaceEntryRequestV1) => deps.session.manageEntry(request));
+
+  register(WORKSPACE_CHANNELS.exportRendered, isWorkspaceExportRequestV1,
+    (request: WorkspaceExportRequestV1) => deps.session.exportRendered(request));
 
   register(WORKSPACE_CHANNELS.activateTab, isWorkspaceTabRequestV1,
     (request: WorkspaceTabRequestV1) => {

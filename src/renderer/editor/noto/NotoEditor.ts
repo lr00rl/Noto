@@ -39,7 +39,7 @@ import { notoInputRules, type InputRuleOptions } from './input-rules';
 import { EDITOR_COMMANDS, notoKeymap } from './keymap';
 import { activeNodePlugin } from './active-node-plugin';
 import { imageFromTransfer } from './image-drop';
-import { sliceToHtml, sliceToPlainText } from './clipboard';
+import { documentToHtml, sliceToHtml, sliceToPlainText } from './clipboard';
 import { alertPlugin } from './alert-plugin';
 import { typoraMarksPlugin } from './typora-marks-plugin';
 import { typewriterPlugin } from './typewriter-plugin';
@@ -388,6 +388,12 @@ export class NotoEditor implements NotoEditorPort {
       this.options.onDirtyChange?.(true);
     }
     return true;
+  }
+
+  /** The whole document as HTML, for export. */
+  documentHtml(): string | null {
+    const view = this.view;
+    return view ? documentToHtml(view.state.doc) : null;
   }
 
   /** What is selected, as markdown, HTML, or the words on their own. */
