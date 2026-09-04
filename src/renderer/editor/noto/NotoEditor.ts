@@ -39,7 +39,7 @@ import { notoInputRules, type InputRuleOptions } from './input-rules';
 import { EDITOR_COMMANDS, notoKeymap } from './keymap';
 import { activeNodePlugin } from './active-node-plugin';
 import { imageFromTransfer } from './image-drop';
-import { documentToHtml, sliceToHtml, sliceToPlainText } from './clipboard';
+import { documentDomToHtml, sliceToHtml, sliceToPlainText } from './clipboard';
 import { alertPlugin } from './alert-plugin';
 import { typoraMarksPlugin } from './typora-marks-plugin';
 import { typewriterPlugin } from './typewriter-plugin';
@@ -390,10 +390,16 @@ export class NotoEditor implements NotoEditorPort {
     return true;
   }
 
-  /** The whole document as HTML, for export. */
+  /**
+   * The whole document as HTML, for export.
+   *
+   * From what is drawn, not from the schema: the node views have already had
+   * KaTeX render the maths, Prism colour the code and mermaid draw the
+   * diagrams, and none of that is recoverable from the schema alone.
+   */
   documentHtml(): string | null {
     const view = this.view;
-    return view ? documentToHtml(view.state.doc) : null;
+    return view ? documentDomToHtml(view.dom as HTMLElement) : null;
   }
 
   /** What is selected, as markdown, HTML, or the words on their own. */

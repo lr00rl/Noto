@@ -18,8 +18,14 @@ const NOTE = [
   '- two',
   '',
   '```js',
-  'const x = 1;',
+  'const answer = 1;',
   '```',
+  '',
+  'Inline maths $E = mc^2$ and a block:',
+  '',
+  '$$',
+  '\\int_0^1 x^2 dx',
+  '$$',
   '',
 ].join('\n');
 
@@ -115,6 +121,29 @@ test.describe('export', () => {
       // note would not be one you could send to anybody.
       expect(page).toContain('src="data:image/png;base64,');
       expect(page).not.toContain('./assets/dot.png');
+
+      // Maths arrives as maths. The schema knows only the TeX source, so
+      // exporting from it gave a page of backslashes; this comes from what
+      // KaTeX drew, reduced to the MathML the browser draws for itself.
+      expect(page).toContain('<math');
+      // The TeX survives only inside MathML's own annotation, which is where it
+      // belongs: it makes the formula copyable and recoverable without being
+      // drawn. What must not survive is the source as visible text.
+      const outsideAnnotation = page.replace(/<annotation[^>]*>[\s\S]*?<\/annotation>/g, '');
+      expect(outsideAnnotation).not.toContain('\\int_0^1');
+      expect(page).toContain('<annotation');
+      // And KaTeX's own spans are gone, or the formula would arrive twice over
+      // with no stylesheet to hide either half.
+      expect(page).not.toContain('katex-html');
+
+      // Code arrives coloured, because Prism had already done it.
+      expect(page).toContain('token keyword');
+      expect(page).toContain('answer');
+
+      // None of the editing furniture comes with it.
+      expect(page).not.toContain('noto-fence-gutter');
+      expect(page).not.toContain('noto-fence-copy');
+      expect(page).not.toContain('contenteditable');
     } finally {
       await app.close();
     }

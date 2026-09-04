@@ -77,6 +77,35 @@ th, td { border-bottom: 1px solid var(--hairline); padding: 7px 10px; text-align
 th { font-weight: 600; }
 img { max-width: 100%; height: auto; }
 hr { border: 0; border-top: 1px solid var(--hairline); margin: 2em 0; }
+/* The colours Prism's tokens are given in the editor, restated for a page. The
+   markup is already in the exported file; without these it is correct and grey. */
+.token.comment, .token.prolog, .token.doctype, .token.cdata { color: #8A857D; font-style: italic; }
+.token.punctuation { color: #6F6B66; }
+.token.property, .token.tag, .token.constant, .token.symbol, .token.deleted { color: #A8503B; }
+.token.boolean, .token.number { color: #8A5A2B; }
+.token.selector, .token.attr-name, .token.string, .token.char, .token.builtin, .token.inserted { color: #4E7A4A; }
+.token.operator, .token.entity, .token.url { color: #6F6B66; }
+.token.atrule, .token.attr-value, .token.keyword { color: #7A5AA8; }
+.token.function, .token.class-name { color: #2F6F9F; }
+.token.regex, .token.important, .token.variable { color: #A8703B; }
+.token.important, .token.bold { font-weight: 600; }
+.token.italic { font-style: italic; }
+
+/* Front matter is metadata rather than prose, and reads as a header when it is
+   set apart rather than dropped into the middle of the first page. */
+.noto-frontmatter {
+  background: var(--raised);
+  border-radius: 6px;
+  padding: 12px 14px;
+  color: var(--muted);
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.8em;
+  white-space: pre-wrap;
+}
+
+/* KaTeX is reduced to MathML on the way out, which the browser draws itself. */
+math { font-size: 1.05em; }
+
 /* Printing is the point of the PDF path, so the page breaks are chosen rather
    than left to land in the middle of a heading or across a table row. */
 @media print {

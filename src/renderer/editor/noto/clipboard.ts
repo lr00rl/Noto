@@ -100,12 +100,83 @@ export function sliceToHtml(slice: Slice): string {
 }
 
 /**
+ * The editing chrome, which belongs to the window and not to the document.
+ *
+ * A line-number gutter, a copy button and a language picker are how a fence is
+ * edited. In an exported page they are furniture from another room.
+ */
+const CHROME = [
+  '.noto-fence-gutter',
+  '.noto-fence-tools',
+  '.noto-math-source',
+  '.noto-table-rail',
+  '.noto-table-handle',
+  '.ProseMirror-separator',
+  '.ProseMirror-trailingBreak',
+  '.ProseMirror-gapcursor',
+  '.noto-block-source-toggle',
+].join(',');
+
+/** Attributes that only mean something inside an editor. */
+const EDITING_ATTRIBUTES = [
+  'contenteditable', 'draggable', 'spellcheck', 'tabindex', 'role',
+  'aria-hidden', 'aria-label', 'aria-expanded', 'data-testid', 'title',
+];
+
+/**
  * The whole document as HTML, for export.
  *
- * The same serializer the clipboard uses, for the same reason: the schema's
- * `toDOM` specs are what the editor already draws with and they are semantic,
- * so there is no second description of a document to keep in step with the
- * first. What an exported page looks like is then a stylesheet's business.
+ * Taken from what the editor has actually drawn rather than re-serialized from
+ * the schema. The schema's `toDOM` is honest about structure and says nothing
+ * about appearance: it gives a maths block as its TeX source, a fence as its
+ * plain text and a diagram as the words that describe it. Exported through
+ * that, a note full of formulas arrived as a page of backslashes.
+ *
+ * The node views have already done the work: KaTeX has rendered the maths,
+ * Prism has coloured the code and mermaid has drawn the diagrams. So the
+ * drawn tree is cloned and the editing furniture taken out of the copy, which
+ * leaves the document and nothing else. The copy is why this cannot disturb
+ * what is on screen.
+ */
+export function documentDomToHtml(root: HTMLElement): string {
+  const copy = root.cloneNode(true) as HTMLElement;
+  copy.querySelectorAll(CHROME).forEach((node) => node.remove());
+  copy.querySelectorAll('*').forEach((node) => {
+    for (const attribute of EDITING_ATTRIBUTES) node.removeAttribute(attribute);
+  });
+  // The classes are kept: they are what the exported stylesheet, and KaTeX's
+  // own, hang on. Only the editor's own state classes go, since they describe
+  // where a caret happens to be.
+  copy.querySelectorAll('.noto-active-block').forEach((node) => node.classList.remove('noto-active-block'));
+  reduceMathToMathml(copy);
+  return copy.innerHTML;
+}
+
+/**
+ * Leave the maths as MathML and drop KaTeX's own drawing of it.
+ *
+ * KaTeX writes both: a MathML tree for anything that reads the page, and a
+ * tower of positioned spans for the eye, and its stylesheet is what hides the
+ * first and arranges the second. An exported file has no stylesheet of KaTeX's
+ * and no KaTeX fonts, so both would show at once and a formula would arrive as
+ * the same symbols twice over, jumbled.
+ *
+ * MathML alone is the better half to keep. Chromium draws it natively, which is
+ * what prints the PDF, so the formula arrives as a formula with nothing
+ * embedded and no second stylesheet to carry.
+ */
+function reduceMathToMathml(root: HTMLElement): void {
+  for (const rendered of [...root.querySelectorAll('.katex')]) {
+    const math = rendered.querySelector('math');
+    if (math) rendered.replaceWith(math);
+  }
+}
+
+/**
+ * The document as the schema describes it, for the clipboard.
+ *
+ * Structure without appearance is the right answer there: what is pasted into
+ * another editor should be a heading, not a heading's pixels.
  */
 export function documentToHtml(doc: Node): string {
   const fragment = DOMSerializer.fromSchema(notoSchema).serializeFragment(doc.content);
