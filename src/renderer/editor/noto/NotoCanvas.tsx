@@ -32,6 +32,7 @@ export interface NotoCanvasProps {
   readonly onDocumentChanged?: () => void;
   readonly onFollowWikiLink?: (target: string) => void;
   readonly onFollowLink?: (href: string) => void;
+  readonly onDropNote?: (file: File) => void;
   readonly onCountChanged?: (count: DocumentCount) => void;
   readonly onReady: (editor: NotoEditor) => void;
   readonly onTeardown: (editor: NotoEditor) => void;
@@ -58,6 +59,7 @@ export function NotoCanvas({
   onDocumentChanged,
   onFollowWikiLink,
   onFollowLink,
+  onDropNote,
   onCountChanged,
   onReady,
   onTeardown,
@@ -86,6 +88,7 @@ export function NotoCanvas({
         onDocumentChanged,
         onFollowWikiLink,
         onFollowLink,
+        onDropNote,
         onCountChanged,
         onError,
         onWriteImage,

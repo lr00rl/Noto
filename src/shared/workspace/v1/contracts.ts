@@ -592,6 +592,11 @@ export interface NotoWorkspaceApiV1 {
   onTabsChanged(listener: (event: WorkspaceTabsEventV1) => void): () => void;
   onMenuCommand(listener: (event: WorkspaceMenuEventV1) => void): () => void;
   onPasteText(listener: (event: WorkspacePasteEventV1) => void): () => void;
+  /**
+   * The path of a file the reader dropped in, which the renderer may not
+   * work out for itself. Empty when the browser has no file behind it.
+   */
+  pathForFile(file: File): string;
   /** The graph's lists for the note at `path`; the request is the folder request, a path. */
   noteLinks(request: WorkspaceFolderRequestV1): Promise<WorkspaceResultV1<WorkspaceLinksReplyV1>>;
   fileIndex(request: WorkspaceRequestV1): Promise<WorkspaceResultV1<WorkspaceIndexReplyV1>>;

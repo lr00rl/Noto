@@ -1962,6 +1962,13 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                 }}
                 onFollowWikiLink={(target) => followWikiLinkRef.current(target)}
                 onFollowLink={(href) => followLinkRef.current(href)}
+                onDropNote={(file) => {
+                  // The renderer never names a path itself; the bridge reads
+                  // the file's from the browser and main opens it.
+                  const target = window.notoWorkspace.pathForFile(file);
+                  if (target) void openPath(target);
+                  else setLocalMessage('That file could not be located.');
+                }}
                 onCountChanged={(next) => countRef.current(doc.document.documentId, next)}
                 onWriteImage={writeImage}
                 onWidthStep={(direction) => stepWidthRef.current(direction)}
