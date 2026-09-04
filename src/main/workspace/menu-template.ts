@@ -197,6 +197,8 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       },
       { type: 'separator' },
       command('Find…', 'CmdOrCtrl+F', 'find'),
+      command('Find Next', 'CmdOrCtrl+G', 'find-next'),
+      command('Find Previous', 'CmdOrCtrl+Shift+G', 'find-previous'),
       command('Find and Replace…', 'CmdOrCtrl+Alt+F', 'find-replace'),
       // The name every editor gives this, so nobody has to look for it.
       command('Find in Notes…', 'CmdOrCtrl+Shift+F', 'search-content'),
@@ -258,6 +260,14 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       command('Ordered List', 'CmdOrCtrl+Alt+O', 'block-ordered-list'),
       command('Unordered List', 'CmdOrCtrl+Alt+U', 'block-bullet-list'),
       command('Task List', 'CmdOrCtrl+Alt+X', 'block-task-list'),
+      {
+        label: 'Task Status',
+        submenu: [
+          command('Toggle Task Status', 'Control+X', 'task-toggle'),
+          command('Mark as Complete', undefined, 'task-complete'),
+          command('Mark as Incomplete', undefined, 'task-incomplete'),
+        ],
+      },
       command('Horizontal Line', 'CmdOrCtrl+Alt+-', 'block-rule'),
       {
         // The five GitHub alerts, which the author's notes use and which the

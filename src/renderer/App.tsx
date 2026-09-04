@@ -384,6 +384,15 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const [find, setFind] = useState<{ open: boolean; replace: boolean; query?: string }>(
     { open: false, replace: false },
   );
+  const findRef = useRef(find);
+  findRef.current = find;
+  /*
+   * The last search that was actually run, so Find Next can repeat it.
+   *
+   * The bar owns these while it is open; this remembers what it last asked for
+   * so the stepping commands mean the same search after it has been closed.
+   */
+  const findOptionsRef = useRef({ caseSensitive: false, wholeWord: false, regex: false });
   const cleanStateRef = useRef<'Opened' | 'Saved'>('Opened');
   const dirtyDocumentIds = useMemo(
     () => new Set([...docs.values()].filter((doc) => doc.dirty).map((doc) => doc.document.documentId)),
@@ -1441,6 +1450,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       case 'table-row-delete': case 'table-column-delete': case 'table-delete':
       case 'move-up': case 'move-down':
       case 'move-column-left': case 'move-column-right':
+      case 'task-toggle': case 'task-complete': case 'task-incomplete':
       case 'insert-link': case 'clear-format':
       case 'table-prettify': case 'table-copy':
       case 'insert-footnote': case 'insert-toc':
@@ -1590,6 +1600,29 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       case 'narrow':
         stepWidthRef.current(-1);
         break;
+      case 'find-next': case 'find-previous': {
+        const editor = editorRef.current;
+        if (!editor) break;
+        /*
+         * Stepping without the bar holding focus, which is the whole point.
+         *
+         * A search that was never run has nothing to step through, so the last
+         * query is run first. That is also what makes this work after the bar
+         * has been closed: closing it clears the highlights but not the query.
+         */
+        const query = findRef.current.query ?? '';
+        if (query.length === 0) {
+          setFind((current) => ({ ...current, open: true }));
+          break;
+        }
+        const outcome = editor.search({ query, ...findOptionsRef.current });
+        if (outcome.matches === 0) {
+          setLocalMessage('No matches.');
+          break;
+        }
+        editor.goToMatch(event.command === 'find-next' ? 'forward' : 'backward');
+        break;
+      }
       case 'find':
         setPrefs((current) => ({ ...current, open: false }));
         setFind({ open: true, replace: false });
@@ -1824,7 +1857,12 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
             open={find.open}
             showReplace={find.replace}
             initialQuery={find.query}
-            onSearch={(options) => editorRef.current?.search(options) ?? { matches: 0, active: -1 }}
+            onSearch={(options) => {
+              const { query, ...rest } = options;
+              findOptionsRef.current = rest;
+              setFind((current) => (current.query === query ? current : { ...current, query }));
+              return editorRef.current?.search(options) ?? { matches: 0, active: -1 };
+            }}
             onGo={(direction) => editorRef.current?.goToMatch(direction) ?? { matches: 0, active: -1 }}
             onReplace={(replacement, scope) => editorRef.current?.replace(replacement, scope) ?? 0}
             onClose={() => {
