@@ -19,6 +19,36 @@ export interface FileTreeEntryV1 {
   readonly name: string;
   readonly path: string;
   readonly kind: 'file' | 'directory';
+  /** When the file was last written, in milliseconds, for sorting by it. */
+  readonly modifiedMs: number;
+}
+
+/** How a folder's rows are ordered. Typora offers the same three. */
+export const TREE_SORTS = ['name', 'name-desc', 'modified', 'modified-old'] as const;
+
+export type TreeSortV1 = (typeof TREE_SORTS)[number];
+
+/**
+ * Folders first, then files, in the order asked for.
+ *
+ * Folders stay at the top whatever the order, which is what every file
+ * browser does and what keeps a deep tree navigable: a folder that sank
+ * below the notes because it had not been written to lately would be a
+ * folder nobody finds.
+ */
+export function sortEntries(entries: FileTreeEntryV1[], order: TreeSortV1 = 'name'): FileTreeEntryV1[] {
+  const byName = (left: FileTreeEntryV1, right: FileTreeEntryV1) =>
+    left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
+  return entries.sort((left, right) => {
+    if (left.kind !== right.kind) return left.kind === 'directory' ? -1 : 1;
+    if (order === 'name') return byName(left, right);
+    if (order === 'name-desc') return byName(right, left);
+    const newest = right.modifiedMs - left.modifiedMs;
+    const difference = order === 'modified' ? newest : -newest;
+    // Two files written in the same millisecond are ordered by name, so the
+    // list does not shuffle between one listing and the next.
+    return difference !== 0 ? difference : byName(left, right);
+  });
 }
 
 /** Extensions the editor can actually open. Anything else is noise in a tree. */
@@ -81,7 +111,11 @@ async function resolved(target: string): Promise<string | null> {
  * Throws when the target escapes the root, because that is a request the
  * renderer should never make and silently returning nothing would hide a bug.
  */
-export async function listDirectory(root: string, target: string): Promise<FileTreeEntryV1[]> {
+export async function listDirectory(
+  root: string,
+  target: string,
+  order: TreeSortV1 = 'name',
+): Promise<FileTreeEntryV1[]> {
   const realRoot = await resolved(root);
   const realTarget = await resolved(target);
   if (!realRoot || !realTarget) throw new Error('WORKSPACE_PATH_UNREADABLE');
@@ -121,13 +155,16 @@ export async function listDirectory(root: string, target: string): Promise<FileT
       continue;
     }
 
-    results.push({ name: entry.name, path: entryPath, kind });
+    let modifiedMs = 0;
+    try {
+      modifiedMs = (await stat(entryPath)).mtimeMs;
+    } catch {
+      // A row whose time cannot be read still belongs in the tree; it sorts
+      // as the oldest thing there rather than disappearing.
+      modifiedMs = 0;
+    }
+    results.push({ name: entry.name, path: entryPath, kind, modifiedMs });
   }
 
-  // Folders first, then files, each alphabetically and case insensitively,
-  // which is the order every file browser uses and the eye expects.
-  return results.sort((left, right) => {
-    if (left.kind !== right.kind) return left.kind === 'directory' ? -1 : 1;
-    return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
-  });
+  return sortEntries(results, order);
 }

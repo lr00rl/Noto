@@ -59,6 +59,8 @@ export interface WorkspaceEntryV1 {
   readonly name: string;
   readonly path: string;
   readonly kind: 'file' | 'directory';
+  /** When the file was last written, in milliseconds. */
+  readonly modifiedMs: number;
 }
 
 export interface WorkspaceFolderRequestV1 extends WorkspaceRequestV1 {
@@ -182,6 +184,11 @@ export const WORKSPACE_MENU_COMMANDS = [
   'select-line',
   'jump-to-selection',
   'select-scope',
+  'tree-sort-name',
+  'tree-sort-name-desc',
+  'tree-sort-modified',
+  'tree-sort-modified-old',
+  'tree-collapse-all',
   'insert-comment',
   'indent-more',
   'indent-less',

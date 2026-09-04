@@ -12,6 +12,7 @@
  * and inspected outside a running app.
  */
 
+import type { TreeSortV1 } from '../../shared/settings/v1/contracts';
 import type { BrowserWindow, MenuItemConstructorOptions } from 'electron';
 import type { RecentFileV1, WorkspaceMenuCommandV1 } from '../../shared/workspace/v1/contracts';
 import { EXPORT_TARGETS, exportShape, needsPandoc } from './export-document';
@@ -59,6 +60,8 @@ export interface MenuTemplateOptions {
     /** What the note in front will be written with. Per document, not a setting. */
     readonly lineEnding?: 'lf' | 'crlf' | 'mixed';
     readonly finalNewline?: boolean;
+    /** The order the file tree is in, which is a setting rather than a document's. */
+    readonly treeSort?: TreeSortV1;
   };
 }
 
@@ -84,6 +87,7 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
   const state = options.state ?? { readOnly: false, alwaysOnTop: false };
   const lineEnding = state.lineEnding ?? 'lf';
   const finalNewline = state.finalNewline ?? true;
+  const treeSort = state.treeSort ?? 'name';
   const mac = platform === 'darwin';
 
   // Each command item carries its command as its id, so the menu can be driven
@@ -353,6 +357,17 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
     submenu: [
       command('Toggle Sidebar', 'CmdOrCtrl+Shift+L', 'toggle-sidebar'),
       command('Toggle Outline', 'CmdOrCtrl+Shift+O', 'toggle-outline'),
+      {
+        // Typora sorts its sidebar the same three ways, each reversible.
+        label: 'Sort Files By',
+        submenu: [
+          { id: 'tree-sort-name', label: 'Name', type: 'radio', checked: treeSort === 'name', click: () => sendCommand('tree-sort-name') },
+          { id: 'tree-sort-name-desc', label: 'Name, reversed', type: 'radio', checked: treeSort === 'name-desc', click: () => sendCommand('tree-sort-name-desc') },
+          { id: 'tree-sort-modified', label: 'Recently changed first', type: 'radio', checked: treeSort === 'modified', click: () => sendCommand('tree-sort-modified') },
+          { id: 'tree-sort-modified-old', label: 'Longest untouched first', type: 'radio', checked: treeSort === 'modified-old', click: () => sendCommand('tree-sort-modified-old') },
+        ],
+      },
+      command('Collapse All Folders', undefined, 'tree-collapse-all'),
       // Typora's chord shows the whole note as text; the block-only view
       // is this editor's own and moves to a chord of its own.
       command('Source Code Mode', 'CmdOrCtrl+/', 'source-code-mode'),
