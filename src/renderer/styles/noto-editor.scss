@@ -1881,6 +1881,47 @@
  * matter how the columns are sized. */
 .noto-table-frame { position: relative; }
 
+/* The toolbar above the table's left corner, there while the caret is in
+   the table and gone otherwise, as Typora's is. Above the rails, so a click
+   on it is a click on it. */
+.noto-table-tools {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 4px);
+  z-index: 4;
+  display: flex;
+  gap: 1px;
+  padding: 2px;
+  border: 1px solid var(--hairline);
+  border-radius: 5px;
+  background: var(--panel);
+  box-shadow: 0 2px 8px rgba(24, 22, 20, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-default) var(--ease-out);
+}
+.noto-table-frame.noto-active-block > .noto-table-tools { opacity: 1; pointer-events: auto; }
+
+.noto-table-tool {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 22px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+
+  svg { width: 14px; height: 14px; fill: none; stroke: currentcolor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+  &.noto-table-tool:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--ink); }
+  &.noto-table-tool-delete:hover { color: var(--accent); }
+}
+
 .noto-table-rails {
   position: absolute;
   inset: 0;
