@@ -121,6 +121,17 @@ export interface NotoSettingsV1 {
   readonly theme: NotoTheme;
   /** The order of the rows in the file tree. See `TREE_SORTS`. */
   readonly treeSort: TreeSortV1;
+  /**
+   * The inline syntax Typora adds to markdown, each on its own switch.
+   *
+   * `==highlight==` is safe anywhere, but `^x^` and `~x~` are a caret and a
+   * tilde in ordinary prose as often as they are a mark, and a note full of
+   * file names or maths is better off with them read as the characters they
+   * are. Typora's Markdown pane offers the same three.
+   */
+  readonly markHighlight: boolean;
+  readonly markSuperscript: boolean;
+  readonly markSubscript: boolean;
   /** Which face the document is set in. See `PROSE_FACES`. */
   readonly proseFace: ProseFaceV1;
   /** Document text size in CSS pixels. */
@@ -238,6 +249,9 @@ export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   // to his eye. The leading is the theme's.
   proseFace: 'serif',
   treeSort: 'name',
+  markHighlight: true,
+  markSuperscript: true,
+  markSubscript: true,
   fontSize: 15,
   lineHeight: 1.58,
   widthMode: 'default',

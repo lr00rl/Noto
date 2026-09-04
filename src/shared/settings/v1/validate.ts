@@ -93,6 +93,11 @@ export function coerceSettings(value: unknown): NotoSettingsV1 {
     treeSort: TREE_SORTS.includes(value.treeSort as TreeSortV1)
       ? value.treeSort as TreeSortV1
       : DEFAULT_SETTINGS.treeSort,
+    markHighlight: typeof value.markHighlight === 'boolean' ? value.markHighlight : DEFAULT_SETTINGS.markHighlight,
+    markSuperscript: typeof value.markSuperscript === 'boolean'
+      ? value.markSuperscript
+      : DEFAULT_SETTINGS.markSuperscript,
+    markSubscript: typeof value.markSubscript === 'boolean' ? value.markSubscript : DEFAULT_SETTINGS.markSubscript,
     fontSize: numeric(value, 'fontSize'),
     lineHeight: numeric(value, 'lineHeight'),
     widthMode: isWidthMode(value.widthMode) ? value.widthMode : DEFAULT_SETTINGS.widthMode,

@@ -34,17 +34,26 @@ const HIGHLIGHT = /==([^=\n]+?)==/g;
 const SUPERSCRIPT = /\^([^\s^]+?)\^/g;
 const SUBSCRIPT = /(^|[^~])~([^\s~]+?)~(?!~)/g;
 
-export function typoraMarkRanges(text: string): TyporaMarkRange[] {
+/** Which of the three are read as marks; the rest stay as characters. */
+export interface TyporaMarkKinds {
+  readonly highlight: boolean;
+  readonly superscript: boolean;
+  readonly subscript: boolean;
+}
+
+export const ALL_MARK_KINDS: TyporaMarkKinds = { highlight: true, superscript: true, subscript: true };
+
+export function typoraMarkRanges(text: string, kinds: TyporaMarkKinds = ALL_MARK_KINDS): TyporaMarkRange[] {
   const ranges: TyporaMarkRange[] = [];
-  for (const match of text.matchAll(HIGHLIGHT)) {
+  if (kinds.highlight) for (const match of text.matchAll(HIGHLIGHT)) {
     const from = match.index;
     ranges.push({ kind: 'highlight', from, to: from + match[0].length, innerFrom: from + 2, innerTo: from + 2 + match[1].length });
   }
-  for (const match of text.matchAll(SUPERSCRIPT)) {
+  if (kinds.superscript) for (const match of text.matchAll(SUPERSCRIPT)) {
     const from = match.index;
     ranges.push({ kind: 'superscript', from, to: from + match[0].length, innerFrom: from + 1, innerTo: from + 1 + match[1].length });
   }
-  for (const match of text.matchAll(SUBSCRIPT)) {
+  if (kinds.subscript) for (const match of text.matchAll(SUBSCRIPT)) {
     const from = match.index + match[1].length;
     const length = match[0].length - match[1].length;
     ranges.push({ kind: 'subscript', from, to: from + length, innerFrom: from + 1, innerTo: from + 1 + match[2].length });

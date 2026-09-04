@@ -599,6 +599,28 @@ export function Preferences({
                   onChange={(value) => onChange({ smartEllipsis: value })}
                   testId="setting-smart-ellipsis"
                 />
+                <p className="pref-group">Syntax Typora adds</p>
+                <Switch
+                  label="Highlight"
+                  hint="Draws ==marked text== as a highlight."
+                  checked={settings.markHighlight}
+                  onChange={(value) => onChange({ markHighlight: value })}
+                  testId="setting-mark-highlight"
+                />
+                <Switch
+                  label="Superscript"
+                  hint="Draws ^raised^ text above the line. Off leaves the carets as characters."
+                  checked={settings.markSuperscript}
+                  onChange={(value) => onChange({ markSuperscript: value })}
+                  testId="setting-mark-superscript"
+                />
+                <Switch
+                  label="Subscript"
+                  hint="Draws ~lowered~ text below the line. Off leaves the tildes as characters."
+                  checked={settings.markSubscript}
+                  onChange={(value) => onChange({ markSubscript: value })}
+                  testId="setting-mark-subscript"
+                />
               </>
             )}
 

@@ -33,3 +33,15 @@ describe('Typora inline marks', () => {
     expect(typoraMarkRanges('plain text, 3 = 3, a~b')).toEqual([]);
   });
 });
+
+describe('the three switches', () => {
+  it('leave the characters alone for a mark that is turned off', () => {
+    const text = 'a ==hit== and x^2^ and H~2~O';
+    expect(typoraMarkRanges(text).map((range) => range.kind)).toEqual(['highlight', 'superscript', 'subscript']);
+    expect(typoraMarkRanges(text, { highlight: false, superscript: true, subscript: true })
+      .map((range) => range.kind)).toEqual(['superscript', 'subscript']);
+    expect(typoraMarkRanges(text, { highlight: true, superscript: false, subscript: false })
+      .map((range) => range.kind)).toEqual(['highlight']);
+    expect(typoraMarkRanges(text, { highlight: false, superscript: false, subscript: false })).toEqual([]);
+  });
+});

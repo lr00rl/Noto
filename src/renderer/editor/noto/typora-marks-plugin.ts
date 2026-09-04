@@ -19,9 +19,12 @@ import { Plugin, PluginKey, type EditorState, type Transaction } from 'prosemirr
 import { Decoration, DecorationSet } from 'prosemirror-view';
 import { AddMarkStep, RemoveMarkStep } from 'prosemirror-transform';
 import type { Node as ProseNode } from 'prosemirror-model';
-import { typoraMarkRanges } from './typora-marks';
+import { ALL_MARK_KINDS, typoraMarkRanges, type TyporaMarkKinds } from './typora-marks';
 
 export const typoraMarksKey = new PluginKey<DecorationSet>('noto-typora-marks');
+
+/** Asks the plugin to read the whole document again, whatever the transaction did. */
+export const RESCAN = 'rescan';
 
 /** Tags drawn as what they are; anything with attributes is left as source. */
 const PAIRED_TAGS = new Set(['kbd', 'sub', 'sup', 'u', 'mark', 'b', 'strong', 'i', 'em', 's', 'del', 'ins', 'small']);
@@ -44,7 +47,12 @@ interface TagNode {
   readonly position: number;
 }
 
-function blockDecorations(block: ProseNode, position: number, editing: boolean): Decoration[] {
+function blockDecorations(
+  block: ProseNode,
+  position: number,
+  editing: boolean,
+  kinds: TyporaMarkKinds,
+): Decoration[] {
   const contentStart = position + 1;
   const decorations: Decoration[] = [];
   let text = '';
@@ -85,7 +93,7 @@ function blockDecorations(block: ProseNode, position: number, editing: boolean):
   });
 
   if (plain) {
-    for (const range of typoraMarkRanges(text)) {
+    for (const range of typoraMarkRanges(text, kinds)) {
       decorations.push(Decoration.inline(contentStart + range.from, contentStart + range.innerFrom, { class: 'noto-typora-delim' }));
       decorations.push(Decoration.inline(contentStart + range.innerFrom, contentStart + range.innerTo, { class: MARK_CLASS[range.kind] }));
       decorations.push(Decoration.inline(contentStart + range.innerTo, contentStart + range.to, { class: 'noto-typora-delim' }));
@@ -121,24 +129,35 @@ function blocksIn(doc: ProseNode, from: number, to: number): Map<number, ProseNo
   return blocks;
 }
 
-function scan(state: EditorState, set: DecorationSet, blocks: Map<number, ProseNode>): DecorationSet {
+function scan(
+  state: EditorState,
+  set: DecorationSet,
+  blocks: Map<number, ProseNode>,
+  kinds: TyporaMarkKinds,
+): DecorationSet {
   let next = set;
   for (const [position, block] of blocks) {
     // Strictly inside the block. `find` includes what ends at the block's
     // start, which is the previous block's own node decoration.
     const stale = next.find(position + 1, position + block.nodeSize - 1);
     if (stale.length > 0) next = next.remove(stale);
-    const fresh = blockDecorations(block, position, touches(state, position, block));
+    const fresh = blockDecorations(block, position, touches(state, position, block), kinds);
     if (fresh.length > 0) next = next.add(state.doc, fresh);
   }
   return next;
 }
 
-function fullScan(state: EditorState): DecorationSet {
-  return scan(state, DecorationSet.empty, blocksIn(state.doc, 0, state.doc.content.size));
+function fullScan(state: EditorState, kinds: TyporaMarkKinds): DecorationSet {
+  return scan(state, DecorationSet.empty, blocksIn(state.doc, 0, state.doc.content.size), kinds);
 }
 
-function apply(tr: Transaction, set: DecorationSet, oldState: EditorState, state: EditorState): DecorationSet {
+function apply(
+  tr: Transaction,
+  set: DecorationSet,
+  oldState: EditorState,
+  state: EditorState,
+  kinds: TyporaMarkKinds,
+): DecorationSet {
   if (!tr.docChanged && !tr.selectionSet) return set;
   const blocks = new Map<number, ProseNode>();
   const collect = (from: number, to: number) => {
@@ -167,15 +186,26 @@ function apply(tr: Transaction, set: DecorationSet, oldState: EditorState, state
     collect(tr.mapping.map(before.from, -1), tr.mapping.map(before.to, 1));
     collect(state.selection.from, state.selection.to);
   }
-  return blocks.size > 0 ? scan(state, next, blocks) : next;
+  return blocks.size > 0 ? scan(state, next, blocks, kinds) : next;
 }
 
-export function typoraMarksPlugin(): Plugin<DecorationSet> {
+/**
+ * `kinds` is read at each scan rather than captured, so turning one of the
+ * three off in preferences shows at the next keystroke without the plugin
+ * list being rebuilt, which would cost the reader their undo stack.
+ */
+export function typoraMarksPlugin(kinds: () => TyporaMarkKinds = () => ALL_MARK_KINDS): Plugin<DecorationSet> {
   return new Plugin<DecorationSet>({
     key: typoraMarksKey,
     state: {
-      init: (_config, state) => fullScan(state),
-      apply,
+      init: (_config, state) => fullScan(state, kinds()),
+      apply: (tr, set, oldState, state) => (tr.getMeta(typoraMarksKey) === RESCAN
+        // A switch in preferences changes what counts as a mark without
+        // changing a character, so nothing in the transaction says where to
+        // look and the whole document is read again. It happens once, when
+        // the switch is pressed.
+        ? fullScan(state, kinds())
+        : apply(tr, set, oldState, state, kinds())),
     },
     props: {
       decorations(state) {

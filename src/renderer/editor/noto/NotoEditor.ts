@@ -47,7 +47,8 @@ import { indexBlockPlugin } from './index-block';
 import { imageFromTransfer } from './image-drop';
 import { documentDomToHtml, sliceToHtml, sliceToPlainText } from './clipboard';
 import { alertPlugin } from './alert-plugin';
-import { typoraMarksPlugin } from './typora-marks-plugin';
+import { RESCAN, typoraMarksKey, typoraMarksPlugin } from './typora-marks-plugin';
+import { ALL_MARK_KINDS, type TyporaMarkKinds } from './typora-marks';
 import { typewriterPlugin } from './typewriter-plugin';
 import { autoPairPlugin } from './auto-pair';
 import { mathEditingPlugin, mathNodeViews } from './math-view';
@@ -130,6 +131,9 @@ export class NotoEditor implements NotoEditorPort {
   private substitutions = { quotes: false, dashes: false, ellipsis: false };
   private typewriter = false;
   private autoPair = true;
+
+  /** Which of Typora's inline marks are read; a preference, read at each scan. */
+  private markKinds: TyporaMarkKinds = ALL_MARK_KINDS;
   private activeBlock = -1;
   /* Bumped by every change, so a picture that arrives after the document moved
      under it is put where the caret is now rather than at a stale offset. */
@@ -235,7 +239,7 @@ export class NotoEditor implements NotoEditorPort {
       dropCursor({ color: 'var(--accent)' }),
       gapCursor(),
       alertPlugin(),
-      typoraMarksPlugin(),
+      typoraMarksPlugin(() => this.markKinds),
       typewriterPlugin(() => this.typewriter),
       autoPairPlugin(() => this.autoPair),
       columnResizing(),
@@ -716,6 +720,9 @@ export class NotoEditor implements NotoEditorPort {
    */
   applySettings(settings: {
     spellCheck?: boolean;
+    markHighlight?: boolean;
+    markSuperscript?: boolean;
+    markSubscript?: boolean;
     smartQuotes?: boolean;
     smartDashes?: boolean;
     smartEllipsis?: boolean;
@@ -729,11 +736,26 @@ export class NotoEditor implements NotoEditorPort {
     if (settings.typewriterMode !== undefined) {
       this.typewriter = settings.typewriterMode;
     }
+    const marks = {
+      highlight: settings.markHighlight ?? this.markKinds.highlight,
+      superscript: settings.markSuperscript ?? this.markKinds.superscript,
+      subscript: settings.markSubscript ?? this.markKinds.subscript,
+    };
+    const marksChanged = marks.highlight !== this.markKinds.highlight
+      || marks.superscript !== this.markKinds.superscript
+      || marks.subscript !== this.markKinds.subscript;
+    this.markKinds = marks;
     if (settings.smartQuotes !== undefined) this.substitutions.quotes = settings.smartQuotes;
     if (settings.smartDashes !== undefined) this.substitutions.dashes = settings.smartDashes;
     if (settings.smartEllipsis !== undefined) this.substitutions.ellipsis = settings.smartEllipsis;
     const view = this.view;
     if (!view) return;
+    if (marksChanged) {
+      // A transaction that changes nothing, carrying the one instruction the
+      // marks plugin needs: read the document again. It costs the document
+      // nothing and stays out of the undo history.
+      view.dispatch(view.state.tr.setMeta(typoraMarksKey, RESCAN).setMeta('addToHistory', false));
+    }
     if (settings.remoteImages !== undefined && settings.remoteImages !== this.imageContext.remote) {
       this.imageContext = { ...this.imageContext, remote: settings.remoteImages };
       this.refreshImages();
