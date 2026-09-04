@@ -2011,6 +2011,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                 remoteImages={settings.remoteImages}
                 typewriterMode={settings.typewriterMode}
                 autoPair={settings.autoPair}
+                markHighlight={settings.markHighlight}
+                markSuperscript={settings.markSuperscript}
+                markSubscript={settings.markSubscript}
                 onActiveBlockChanged={setActiveBlock}
                 onDirtyChange={(dirty) => onDocumentDirtyChange(doc.document.documentId, dirty)}
                 onDocumentChanged={() => {

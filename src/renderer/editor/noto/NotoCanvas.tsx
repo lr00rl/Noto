@@ -26,6 +26,9 @@ export interface NotoCanvasProps {
   readonly typewriterMode?: boolean;
   /** Close a bracket or a quote as it is opened. */
   readonly autoPair?: boolean;
+  readonly markHighlight?: boolean;
+  readonly markSuperscript?: boolean;
+  readonly markSubscript?: boolean;
   /** The top level block the caret is in, when it changes. */
   readonly onActiveBlockChanged?: (index: number) => void;
   readonly onDirtyChange: (dirty: boolean) => void;
@@ -54,6 +57,9 @@ export function NotoCanvas({
   remoteImages,
   typewriterMode,
   autoPair,
+  markHighlight,
+  markSuperscript,
+  markSubscript,
   onActiveBlockChanged,
   onDirtyChange,
   onDocumentChanged,
@@ -119,8 +125,11 @@ export function NotoCanvas({
   // Settings reach the running editor rather than rebuilding it, so changing a
   // preference never costs the user their undo history or cursor.
   useEffect(() => {
-    editorRef.current?.applySettings({ smartQuotes, smartDashes, smartEllipsis, spellCheck, remoteImages, typewriterMode, autoPair });
-  }, [smartQuotes, smartDashes, smartEllipsis, spellCheck, remoteImages, typewriterMode, autoPair]);
+    editorRef.current?.applySettings({
+      smartQuotes, smartDashes, smartEllipsis, spellCheck, remoteImages, typewriterMode, autoPair,
+      markHighlight, markSuperscript, markSubscript,
+    });
+  }, [smartQuotes, smartDashes, smartEllipsis, spellCheck, remoteImages, typewriterMode, autoPair, markHighlight, markSuperscript, markSubscript]);
 
   return <div ref={hostRef} className="noto-editor-host" data-testid="noto-editor" />;
 }
