@@ -2030,3 +2030,37 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Printing: the note alone, on white, flowing down the page. Everything
+   that is the window rather than the document goes, and the canvas stops
+   being a scroll box so the printer sees all of it. */
+@media print {
+  :root, body, .app-shell, .workspace-layout, .canvas-scroll, .canvas-slot { background: #fff !important; }
+  .workspace-rail,
+  .rail-resize,
+  .titlebar,
+  .operational-status,
+  .find-bar,
+  .editor-commandbar,
+  .noto-table-tools,
+  .noto-table-rails,
+  .noto-fence-tools,
+  [data-testid='sidebar-toggle'] { display: none !important; }
+  .workspace-layout,
+  .canvas-scroll,
+  .canvas-slot:not([hidden]) {
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    width: 100% !important;
+  }
+  .ProseMirror {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  h1, h2, h3, h4, h5, h6 { break-after: avoid-page; }
+  pre, blockquote, table, img, .noto-alert { break-inside: avoid; }
+}
