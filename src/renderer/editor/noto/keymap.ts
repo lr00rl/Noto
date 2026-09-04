@@ -31,6 +31,8 @@ import {
   deleteRow,
   deleteTable,
   goToNextCell,
+  selectionCell,
+  TableMap,
   isInTable,
 } from 'prosemirror-tables';
 import { findWrapping } from 'prosemirror-transform';
@@ -204,6 +206,38 @@ export const nextCellOrRow: Command = (state, dispatch, view) => {
     // The caret follows into the row that was just made.
     && goToNextCell(1)(view?.state ?? state, dispatch, view);
 };
+
+export type ColumnAlign = 'left' | 'center' | 'right' | null;
+
+/**
+ * Align the caret's column, header and every cell in it at once.
+ *
+ * Alignment in a markdown table belongs to the column, in the rule row, so
+ * setting one cell would be a lie the file could not hold. Typora's toolbar
+ * sets it the same way.
+ */
+export function alignColumn(align: ColumnAlign): Command {
+  return (state, dispatch) => {
+    if (!isInTable(state)) return false;
+    const $cell = selectionCell(state);
+    const table = $cell.node(-1);
+    const start = $cell.start(-1);
+    const map = TableMap.get(table);
+    const index = map.map.indexOf($cell.pos - start);
+    if (index < 0) return false;
+    const column = index % map.width;
+    if (dispatch) {
+      const tr = state.tr;
+      for (let row = 0; row < map.height; row += 1) {
+        const pos = start + map.map[row * map.width + column];
+        const cell = table.nodeAt(map.map[row * map.width + column]);
+        if (cell && cell.attrs.align !== align) tr.setNodeMarkup(pos, undefined, { ...cell.attrs, align });
+      }
+      if (tr.docChanged) dispatch(tr);
+    }
+    return true;
+  };
+}
 
 /** A table of the given shape, with a header row, where the caret is. */
 export function insertTable(rows: number, columns: number): Command {
@@ -409,6 +443,10 @@ export const EDITOR_COMMANDS: Readonly<Record<string, Command>> = {
   'table-row-delete': deleteRow,
   'table-column-delete': deleteColumn,
   'table-delete': deleteTable,
+  'table-align-left': alignColumn('left'),
+  'table-align-center': alignColumn('center'),
+  'table-align-right': alignColumn('right'),
+  'table-align-none': alignColumn(null),
   'move-up': moveBlock(true),
   'move-down': moveBlock(false),
   'move-column-left': moveColumn(true),

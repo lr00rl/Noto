@@ -23,6 +23,9 @@
  * down.
  */
 
+import { addColumnAfter, addRowAfter, deleteTable } from 'prosemirror-tables';
+import type { Command } from 'prosemirror-state';
+import { alignColumn } from './keymap';
 import { Fragment, type Node as ProseNode } from 'prosemirror-model';
 import type { EditorView, NodeView, ViewMutationRecord } from 'prosemirror-view';
 import { CellSelection } from 'prosemirror-tables';
@@ -62,6 +65,30 @@ function cellPos(table: ProseNode, tablePos: number, row: number, column: number
   return pos;
 }
 
+const ICON = (paths: string) => `<svg viewBox="0 0 16 16" aria-hidden="true">${paths}</svg>`;
+
+interface Tool {
+  readonly name: string;
+  readonly title: string;
+  readonly icon: string;
+  readonly run: Command;
+}
+
+const TOOLS: readonly Tool[] = [
+  { name: 'align-left', title: 'Align column left', run: alignColumn('left'),
+    icon: ICON('<path d="M2 4h12M2 8h8M2 12h12"/>') },
+  { name: 'align-center', title: 'Align column center', run: alignColumn('center'),
+    icon: ICON('<path d="M2 4h12M4 8h8M2 12h12"/>') },
+  { name: 'align-right', title: 'Align column right', run: alignColumn('right'),
+    icon: ICON('<path d="M2 4h12M6 8h8M2 12h12"/>') },
+  { name: 'row', title: 'Add a row below', run: addRowAfter,
+    icon: ICON('<rect x="2" y="3" width="12" height="5" rx="1"/><path d="M8 10v4M6 12h4"/>') },
+  { name: 'column', title: 'Add a column after', run: addColumnAfter,
+    icon: ICON('<rect x="2" y="2" width="5" height="12" rx="1"/><path d="M11 6v4M9 8h4"/>') },
+  { name: 'delete', title: 'Delete the table', run: deleteTable,
+    icon: ICON('<path d="M3 4h10M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4M6.5 7v4M9.5 7v4"/>') },
+];
+
 export class TableView implements NodeView {
   readonly dom: HTMLElement;
 
@@ -76,6 +103,8 @@ export class TableView implements NodeView {
   private readonly columnRail: HTMLElement;
 
   private readonly drop: HTMLElement;
+
+  private readonly tools: HTMLElement;
 
   private drag: Drag | null = null;
 
@@ -107,7 +136,31 @@ export class TableView implements NodeView {
     this.table.append(body);
     this.contentDOM = body;
 
-    this.dom.append(this.rails, this.table);
+    // Typora's table toolbar, above the table's left corner while the caret
+    // is in it: the column's alignment, a row, a column, and the whole table
+    // gone. Outside the editable content, and its clicks are kept from the
+    // editor so the caret stays in the cell the command is about.
+    this.tools = document.createElement('div');
+    this.tools.className = 'noto-table-tools';
+    this.tools.setAttribute('contenteditable', 'false');
+    this.tools.setAttribute('role', 'toolbar');
+    this.tools.setAttribute('aria-label', 'Table');
+    for (const tool of TOOLS) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `noto-table-tool noto-table-tool-${tool.name}`;
+      button.title = tool.title;
+      button.dataset.tool = tool.name;
+      button.innerHTML = tool.icon;
+      button.addEventListener('mousedown', (event) => event.preventDefault());
+      button.addEventListener('click', () => {
+        tool.run(this.view.state, this.view.dispatch, this.view);
+        this.view.focus();
+      });
+      this.tools.append(button);
+    }
+
+    this.dom.append(this.rails, this.tools, this.table);
     this.dom.addEventListener('pointerenter', this.measure);
     this.dom.addEventListener('pointerdown', this.onPointerDown);
   }
@@ -130,7 +183,12 @@ export class TableView implements NodeView {
   }
 
   ignoreMutation(mutation: ViewMutationRecord): boolean {
-    return this.rails.contains(mutation.target);
+    return this.rails.contains(mutation.target) || this.tools.contains(mutation.target);
+  }
+
+  /** The toolbar's events are its own; the editor would otherwise move the caret out of the cell. */
+  stopEvent(event: Event): boolean {
+    return event.target instanceof Node && this.tools.contains(event.target);
   }
 
   destroy(): void {
