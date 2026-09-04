@@ -207,6 +207,41 @@ export const nextCellOrRow: Command = (state, dispatch, view) => {
     && goToNextCell(1)(view?.state ?? state, dispatch, view);
 };
 
+/** Typora's Select Word: the word around the caret, by letters and digits. */
+export const selectWord: Command = (state, dispatch) => {
+  const { $from } = state.selection;
+  if (!$from.parent.isTextblock) return false;
+  const text = $from.parent.textBetween(0, $from.parent.content.size, '\n', '\n');
+  const offset = $from.parentOffset;
+  const isWord = (character: string) => /[\p{L}\p{N}_]/u.test(character);
+  let start = offset;
+  while (start > 0 && isWord(text[start - 1])) start -= 1;
+  let end = offset;
+  while (end < text.length && isWord(text[end])) end += 1;
+  if (start === end) return false;
+  if (dispatch) {
+    const base = $from.start();
+    dispatch(state.tr.setSelection(TextSelection.create(state.doc, base + start, base + end)));
+  }
+  return true;
+};
+
+/** Typora's Select Line: the whole of the block the caret is in. */
+export const selectLine: Command = (state, dispatch) => {
+  const { $from } = state.selection;
+  if (!$from.parent.isTextblock) return false;
+  if (dispatch) {
+    dispatch(state.tr.setSelection(TextSelection.create(state.doc, $from.start(), $from.end())));
+  }
+  return true;
+};
+
+/** Typora's Jump to Selection: bring the caret back into view after scrolling away. */
+export const jumpToSelection: Command = (state, dispatch) => {
+  if (dispatch) dispatch(state.tr.scrollIntoView());
+  return true;
+};
+
 export type ColumnAlign = 'left' | 'center' | 'right' | null;
 
 /**
@@ -452,6 +487,9 @@ export const EDITOR_COMMANDS: Readonly<Record<string, Command>> = {
   'move-column-left': moveColumn(true),
   'move-column-right': moveColumn(false),
   'insert-link': openLinkEditor,
+  'select-word': selectWord,
+  'select-line': selectLine,
+  'jump-to-selection': jumpToSelection,
   'clear-format': clearFormat,
   'block-alert-note': insertAlert('NOTE'),
   'block-alert-tip': insertAlert('TIP'),

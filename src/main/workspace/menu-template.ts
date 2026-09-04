@@ -168,6 +168,10 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       // with the rich form ignored. Main reads the clipboard for it.
       { id: 'paste-plain', label: 'Paste as Plain Text', accelerator: 'Shift+CmdOrCtrl+V', click: () => actions.pastePlain() },
       { role: 'selectAll' },
+      // Typora's own three, on its chords.
+      command('Select Word', 'CmdOrCtrl+D', 'select-word'),
+      command('Select Line', 'CmdOrCtrl+L', 'select-line'),
+      command('Jump to Selection', 'CmdOrCtrl+J', 'jump-to-selection'),
       { type: 'separator' },
       // Plain copy already puts markdown on the clipboard, which is what a
       // markdown editor should do. These are the three other things a reader
