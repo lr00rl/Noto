@@ -151,7 +151,8 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       command('Save a Copy…', 'CmdOrCtrl+Shift+S', 'save-as'),
       { type: 'separator' },
       // Quit belongs to the application menu on macOS, so File closes instead.
-      mac ? { role: 'close' } : { role: 'quit' },
+      // Close Tab has Command-W; the window closes on Typora's Shift-Command-W.
+      mac ? { role: 'close', label: 'Close Window', accelerator: 'Shift+CmdOrCtrl+W' } : { role: 'quit' },
     ],
   };
 
@@ -175,6 +176,7 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       command('Select Word', 'CmdOrCtrl+D', 'select-word'),
       command('Select Line', 'CmdOrCtrl+L', 'select-line'),
       command('Jump to Selection', 'CmdOrCtrl+J', 'jump-to-selection'),
+      command('Select Styled Scope', 'CmdOrCtrl+E', 'select-scope'),
       { type: 'separator' },
       // Plain copy already puts markdown on the clipboard, which is what a
       // markdown editor should do. These are the three other things a reader
@@ -248,6 +250,11 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       { type: 'separator' },
       command('Move Up', 'Alt+Up', 'move-up'),
       command('Move Down', 'Alt+Down', 'move-down'),
+      { type: 'separator' },
+      // The keys for these live in the editor, where Command-] also steps
+      // the page width outside a list; the menu names the list half.
+      command('Increase Indent', undefined, 'indent-more'),
+      command('Decrease Indent', undefined, 'indent-less'),
       { type: 'separator' },
       {
         label: 'Table',
@@ -327,7 +334,8 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       command('Strong', 'CmdOrCtrl+B', 'mark-strong'),
       command('Emphasis', 'CmdOrCtrl+I', 'mark-emphasis'),
       command('Underline', 'CmdOrCtrl+U', 'mark-underline'),
-      command('Code', 'CmdOrCtrl+E', 'mark-code'),
+      // Typora's chord for code; Command-E is its Select Styled Scope.
+      command('Code', 'Control+`', 'mark-code'),
       command('Strike', 'CmdOrCtrl+Shift+X', 'mark-strike'),
       command('Highlight', 'CmdOrCtrl+Shift+H', 'mark-highlight'),
       command('Inline Math', 'Control+M', 'mark-math'),
@@ -336,6 +344,7 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       command('Image…', 'CmdOrCtrl+Shift+I', 'insert-image'),
       { type: 'separator' },
       command('Clear Format', 'CmdOrCtrl+Shift+Backspace', 'clear-format'),
+      command('Comment', undefined, 'insert-comment'),
     ],
   };
 

@@ -40,7 +40,7 @@ import { captureMarkdown, captureTransaction, type CaptureStats, type PristineBl
 import type { NotoEditorPort } from './NotoEditorPort';
 import { createOriginPlugin, getBlockOrigins, rebaseOrigins } from './origin-plugin';
 import { notoInputRules, type InputRuleOptions } from './input-rules';
-import { EDITOR_COMMANDS, notoKeymap } from './keymap';
+import { EDITOR_COMMANDS, insertTable, notoKeymap } from './keymap';
 import { activeNodePlugin } from './active-node-plugin';
 import { taskClickPlugin } from './task-click';
 import { indexBlockPlugin } from './index-block';
@@ -762,6 +762,15 @@ export class NotoEditor implements NotoEditorPort {
     view.dispatch(setSearch(view.state.tr, {
       options: { query: '', caseSensitive: false, wholeWord: false, regex: false },
     }));
+  }
+
+  /** A table of the size the dialog asked for, where the caret is. */
+  insertTable(rows: number, columns: number): boolean {
+    const view = this.view;
+    if (!view || this.readOnly) return false;
+    const ran = insertTable(rows, columns)(view.state, view.dispatch, view);
+    if (ran) view.focus();
+    return ran;
   }
 
   /** Paste text at the caret, read as markdown: Paste as Plain Text's half. */

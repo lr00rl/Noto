@@ -40,6 +40,7 @@ import { FindBar } from './FindBar';
 import { RecentStrip } from './RecentStrip';
 import { WorkspaceRail, type RailView } from './WorkspaceRail';
 import { SourceMode } from './SourceMode';
+import { TableDialog } from './TableDialog';
 import { RailFooter } from './RailFooter';
 import { Preferences, type PreferencesSection } from './Preferences';
 import { DEFAULT_SETTINGS, stepWidthMode, type NotoSettingsV1 } from '../shared/settings/v1/contracts';
@@ -225,6 +226,8 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const [themeReload, setThemeReload] = useState(0);
   const [themeProblem, setThemeProblem] = useState('');
   const [activeBlock, setActiveBlock] = useState(-1);
+  /** Typora's Insert Table dialog, open or not. */
+  const [tableDialog, setTableDialog] = useState(false);
   /** Source Code Mode, Typora's Command-slash: the note as text, for every tab. */
   const [sourceMode, setSourceMode] = useState(false);
   /** Pushes the source view's pending text into the document, before a save. */
@@ -1483,7 +1486,8 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       case 'block-code': case 'block-math': case 'block-quote':
       case 'block-ordered-list': case 'block-bullet-list': case 'block-task-list':
       case 'block-rule': case 'mark-underline': case 'mark-highlight': case 'mark-math':
-      case 'table-insert': case 'table-row-above': case 'table-row-below':
+      case 'select-scope': case 'insert-comment': case 'indent-more': case 'indent-less':
+      case 'table-row-above': case 'table-row-below':
       case 'table-column-before': case 'table-column-after':
       case 'table-row-delete': case 'table-column-delete': case 'table-delete':
       case 'move-up': case 'move-down':
@@ -1616,6 +1620,11 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         break;
       case 'source-code-mode':
         if (editorRef.current) setSourceMode((current) => !current);
+        break;
+      case 'table-insert':
+        // Typora asks how big first.
+        if (editorRef.current) setTableDialog(true);
+        else setLocalMessage('Open a note first.');
         break;
       case 'toggle-source':
         if (sourceMode) break;
@@ -1900,6 +1909,17 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       />
 
       <div className={`workspace-layout ${rail.open ? 'has-rail' : ''}`}>
+        {tableDialog && (
+          <TableDialog
+            onClose={() => { setTableDialog(false); editorRef.current?.focus(); }}
+            onInsert={(rows, columns) => {
+              setTableDialog(false);
+              if (!editorRef.current?.insertTable(rows, columns)) {
+                setLocalMessage('A table cannot go where the cursor is.');
+              }
+            }}
+          />
+        )}
         {/* A sibling of the canvas rather than a child of it, so opening find
             overlays the document instead of pushing every line down. */}
         {document && (
