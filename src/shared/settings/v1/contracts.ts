@@ -112,8 +112,15 @@ export const PROSE_FACES = ['serif', 'sans', 'mono'] as const;
 
 export type ProseFaceV1 = (typeof PROSE_FACES)[number];
 
+/** How the file tree is ordered. Typora's sidebar offers the same choice. */
+export const TREE_SORTS = ['name', 'name-desc', 'modified', 'modified-old'] as const;
+
+export type TreeSortV1 = (typeof TREE_SORTS)[number];
+
 export interface NotoSettingsV1 {
   readonly theme: NotoTheme;
+  /** The order of the rows in the file tree. See `TREE_SORTS`. */
+  readonly treeSort: TreeSortV1;
   /** Which face the document is set in. See `PROSE_FACES`. */
   readonly proseFace: ProseFaceV1;
   /** Document text size in CSS pixels. */
@@ -230,6 +237,7 @@ export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   // it, Noto's 16 looked a size louder, and 15 is where the two windows match
   // to his eye. The leading is the theme's.
   proseFace: 'serif',
+  treeSort: 'name',
   fontSize: 15,
   lineHeight: 1.58,
   widthMode: 'default',

@@ -43,7 +43,9 @@ import { SourceMode } from './SourceMode';
 import { TableDialog } from './TableDialog';
 import { RailFooter } from './RailFooter';
 import { Preferences, type PreferencesSection } from './Preferences';
-import { DEFAULT_SETTINGS, stepWidthMode, type NotoSettingsV1 } from '../shared/settings/v1/contracts';
+import {
+  DEFAULT_SETTINGS, stepWidthMode, type NotoSettingsV1, type TreeSortV1,
+} from '../shared/settings/v1/contracts';
 import type { AssetRefusalV1 } from '../shared/assets/v1/contracts';
 import { copyThroughSelection } from './editor/noto/clipboard';
 import type { WorkspaceEntryRefusalV1, WorkspaceExportKindV1 } from '../shared/workspace/v1/contracts';
@@ -1366,6 +1368,8 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   >(null);
   /** Bumped whenever something in the tree moved, so listings are read again. */
   const [treeVersion, setTreeVersion] = useState(0);
+  /** Bumped to shut every folder in the tree, which the tree watches for. */
+  const [treeCollapse, setTreeCollapse] = useState(0);
 
   /**
    * What to say when an action on a row did nothing.
@@ -1638,6 +1642,16 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       case 'toggle-outline':
         toggleRail('outline');
         break;
+      case 'tree-sort-name': case 'tree-sort-name-desc':
+      case 'tree-sort-modified': case 'tree-sort-modified-old':
+        changeSettings({ treeSort: event.command.slice('tree-sort-'.length) as TreeSortV1 });
+        // The order is main's, so the tree has to ask again to see it.
+        setTreeVersion((current) => current + 1);
+        break;
+      case 'tree-collapse-all':
+        setRail((current) => ({ ...current, open: true, view: 'files' }));
+        setTreeCollapse((current) => current + 1);
+        break;
       case 'source-code-mode':
         if (editorRef.current) setSourceMode((current) => !current);
         break;
@@ -1828,6 +1842,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
               editing: treeEditing,
               onEditingDone: finishTreeEdit,
               reloadToken: treeVersion,
+              collapseToken: treeCollapse,
             }}
           />
       )}

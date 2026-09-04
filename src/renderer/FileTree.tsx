@@ -48,6 +48,8 @@ export interface FileTreeProps {
   readonly onEditingDone?: (name: string | null) => void;
   /** Refreshed listings, so a folder changed on disk is read again. */
   readonly reloadToken?: number;
+  /** Bumped to shut every folder, which is Typora's Collapse All. */
+  readonly collapseToken?: number;
 }
 
 /**
@@ -113,11 +115,21 @@ export const TREE_ROW_HEIGHT = 32;
 
 export function FileTree({
   root, rootName, activePath, list, onOpenFile, onRowMenu, onChooseFolder, onMoveEntry, vaultMenu,
-  editing = null, onEditingDone, reloadToken = 0,
+  editing = null, onEditingDone, reloadToken = 0, collapseToken = 0,
 }: FileTreeProps) {
   const [children, setChildren] = useState<ReadonlyMap<string, readonly WorkspaceEntryV1[]>>(new Map());
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [failed, setFailed] = useState<string | null>(null);
+
+  // Collapse All: every folder shut at once, which a tree of seven thousand
+  // notes needs after an afternoon of opening things. The first render is not
+  // one, so the token is compared rather than acted on.
+  const collapsedAt = useRef(collapseToken);
+  useEffect(() => {
+    if (collapsedAt.current === collapseToken) return;
+    collapsedAt.current = collapseToken;
+    setExpanded(new Set());
+  }, [collapseToken]);
   const bodyRef = useRef<HTMLElement>(null);
 
   const load = useCallback(async (directory: string) => {

@@ -17,7 +17,7 @@ import {
   type RecentFileV1,
   type WorkspaceMenuCommandV1,
 } from '../../shared/workspace/v1/contracts';
-import { buildMenuTemplate, type MenuActions } from './menu-template';
+import { buildMenuTemplate, type MenuActions, type MenuTemplateOptions } from './menu-template';
 
 export type { MenuActions };
 
@@ -51,7 +51,7 @@ export function buildApplicationMenu(
   getWindow: () => BrowserWindow | null,
   recent: readonly RecentFileV1[],
   actions: MenuActions,
-  state?: { readonly readOnly: boolean; readonly alwaysOnTop: boolean },
+  state?: MenuTemplateOptions['state'],
   /** Told about every command sent, so a tick in this menu can follow one. */
   onCommand?: (command: WorkspaceMenuCommandV1) => void,
 ): Menu {
@@ -73,7 +73,7 @@ export function installApplicationMenu(
   getWindow: () => BrowserWindow | null,
   recent: readonly RecentFileV1[],
   actions: MenuActions,
-  state?: { readonly readOnly: boolean; readonly alwaysOnTop: boolean },
+  state?: MenuTemplateOptions['state'],
   onCommand?: (command: WorkspaceMenuCommandV1) => void,
 ): void {
   Menu.setApplicationMenu(buildApplicationMenu(getWindow, recent, actions, state, onCommand));

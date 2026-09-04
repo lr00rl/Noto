@@ -115,10 +115,11 @@ export function isWorkspaceFolderRequestV1(value: unknown): value is WorkspaceFo
 }
 
 function isEntry(value: unknown): value is WorkspaceEntryV1 {
-  return record(value) && exact(value, ['name', 'path', 'kind'])
+  return record(value) && exact(value, ['name', 'path', 'kind', 'modifiedMs'])
     && typeof value.name === 'string' && value.name.length > 0 && value.name.length <= 512
     && typeof value.path === 'string' && value.path.length > 0 && value.path.length <= 4096
-    && (value.kind === 'file' || value.kind === 'directory');
+    && (value.kind === 'file' || value.kind === 'directory')
+    && typeof value.modifiedMs === 'number' && Number.isFinite(value.modifiedMs);
 }
 
 function isFolderReply(value: unknown): value is WorkspaceFolderReplyV1 {

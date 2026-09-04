@@ -241,7 +241,10 @@ async function run(): Promise<void> {
   await recentFolders.load();
   const settings = new SettingsStore(path.join(userData, 'settings.json'));
   await settings.load();
-  session = new WorkspaceSession(createStore, recent, () => editorWindow, logger, recentFolders);
+  session = new WorkspaceSession(
+    createStore, recent, () => editorWindow, logger, recentFolders,
+    () => settings.current().treeSort,
+  );
   app.once('before-quit', () => session?.closeAll());
 
   /*
@@ -277,7 +280,7 @@ async function run(): Promise<void> {
       finalNewline: chosen.finalNewline ?? own?.hasFinalNewline ?? true,
     } as const;
   };
-  const menuState = { readOnly: false, alwaysOnTop: windowAlwaysOnTop };
+  const menuState = { readOnly: false, alwaysOnTop: windowAlwaysOnTop, treeSort: settings.current().treeSort };
   if (windowAlwaysOnTop) editorWindow?.setAlwaysOnTop(true);
   const refreshMenu = () => installApplicationMenu(() => editorWindow, recent.list(), {
     openDialog: () => { void session?.openWithDialog().then(refreshMenu).catch(reportOpenFailure); },
@@ -387,6 +390,16 @@ async function run(): Promise<void> {
         windowAlwaysOnTop = reply.settings.alwaysOnTop;
         editorWindow?.setAlwaysOnTop(reply.settings.alwaysOnTop);
         refreshMenu();
+      }
+      // The tree's order shows as a tick in the View menu, and the tree
+      // itself is listed again when it changes.
+      if (reply.settings.treeSort !== menuState.treeSort) {
+        menuState.treeSort = reply.settings.treeSort;
+        refreshMenu();
+        // The listing is made in main, so the tree has to ask for it again.
+        // The same event a file action sends, since the answer is the same:
+        // what you have is stale.
+        session?.announceTreeChanged();
       }
     },
   });

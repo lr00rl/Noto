@@ -41,7 +41,7 @@ import type {
 import type { StructuredLogger } from '../logger';
 import type { FileTruthStoreV1 } from '../file-truth/v1/file-truth-store';
 import type { RecentFiles } from './recent-files';
-import { isEditableFile, listDirectory, type FileTreeEntryV1, isInside } from './file-tree';
+import { isEditableFile, listDirectory, type FileTreeEntryV1, isInside, type TreeSortV1 } from './file-tree';
 import { standaloneHtml } from '../../shared/export/document-html';
 import { inlineImages, readFileBytes } from './inline-images';
 import { buildTreeRowMenu, trashLabel } from './tree-row-menu';
@@ -116,6 +116,8 @@ export class WorkspaceSession {
     /** The folders opened before, in the same shape as the recent documents:
      *  the list is a list of paths either way, so it is the same store. */
     private readonly recentFolders?: RecentFiles,
+    /** How the tree is ordered, read at each listing so a change shows at once. */
+    private readonly treeSort: () => TreeSortV1 = () => 'name',
   ) {}
 
   get current(): FileTruthOpenReplyV1 | null {
@@ -1010,6 +1012,11 @@ export class WorkspaceSession {
    * The note has to be inside the open folder, since the graph's paths are
    * relative to it; a note from elsewhere is simply not known.
    */
+  /** Tell the renderer its listing is stale, without saying what changed. */
+  announceTreeChanged(): void {
+    this.send(WORKSPACE_CHANNELS.treeChanged, { version: NOTO_WORKSPACE_VERSION });
+  }
+
   async noteLinks(target: string): Promise<WorkspaceLinksReplyV1> {
     const empty = (available: boolean, known: boolean, generatedAt: string | null = null): WorkspaceLinksReplyV1 => ({
       version: NOTO_WORKSPACE_VERSION, available, known, generatedAt, backlinks: [], links: [], related: [],
@@ -1078,7 +1085,7 @@ export class WorkspaceSession {
     if (!this.folderRoot) throw new Error('NO_FOLDER_OPEN: choose a folder first');
     return {
       version: NOTO_WORKSPACE_VERSION,
-      entries: await listDirectory(this.folderRoot, path.resolve(target)),
+      entries: await listDirectory(this.folderRoot, path.resolve(target), this.treeSort()),
     };
   }
 
