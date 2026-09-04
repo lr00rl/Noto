@@ -1885,6 +1885,28 @@
   outline-offset: -1px;
 }
 
+/* Typora's corner for resizing a picture: shown while the picture is
+   hovered or selected, and dragged to write a zoom into the tag. */
+.ProseMirror .noto-image-frame { position: relative; display: inline-block; max-width: 100%; }
+.ProseMirror .noto-image-handle {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 12px;
+  height: 12px;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  background: var(--paper);
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity var(--motion-default) var(--ease-out);
+}
+.ProseMirror .noto-image-frame:hover > .noto-image-handle,
+.ProseMirror .noto-image-frame[data-resizing] > .noto-image-handle,
+.ProseMirror .ProseMirror-selectednode .noto-image-handle,
+.ProseMirror .noto-image-frame.ProseMirror-selectednode > .noto-image-handle { opacity: 1; }
+.ProseMirror .noto-image-frame[data-resizing] > img { outline-color: var(--accent); }
+
 /* The theme's callout box: the block radius and a little more room around. */
 .ProseMirror .noto-alert { border-radius: 6px; }
 .ProseMirror > .noto-alert { margin: 0.9em 0; }

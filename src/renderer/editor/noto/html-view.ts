@@ -14,6 +14,7 @@
  * picture in front of it.
  */
 
+import { zoomedTag } from './image-tag';
 import type { Node as ProseNode } from 'prosemirror-model';
 import { TextSelection } from 'prosemirror-state';
 import type { EditorView, NodeView } from 'prosemirror-view';
@@ -131,12 +132,28 @@ export class InlineHtmlView implements NodeView {
   private readonly preview: HTMLElement;
   private readonly frame: ImageFrame;
 
-  constructor(private node: ProseNode, context: () => ImageContext, registry: Set<Refreshable>) {
+  constructor(
+    private node: ProseNode,
+    private readonly view: EditorView,
+    private readonly getPos: () => number | undefined,
+    context: () => ImageContext,
+    registry: Set<Refreshable>,
+  ) {
     this.dom = document.createElement('span');
     this.dom.className = 'noto-inline-html';
     this.source = document.createElement('span');
     this.source.className = 'noto-inline-html-source';
     this.frame = new ImageFrame(context, registry);
+    this.frame.resizer = {
+      editable: () => this.view.editable,
+      commit: (zoom) => {
+        const pos = this.getPos();
+        if (pos === undefined) return;
+        const value = zoomedTag(this.node.attrs.value as string, zoom);
+        if (value === null) return;
+        this.view.dispatch(this.view.state.tr.setNodeMarkup(pos, undefined, { ...this.node.attrs, value }));
+      },
+    };
     this.preview = document.createElement('span');
     this.preview.className = 'noto-html-preview';
     this.preview.append(this.frame.dom);
@@ -178,6 +195,7 @@ export function htmlNodeViews(registry: Set<Refreshable>, context: () => ImageCo
   return {
     html_block: (node: ProseNode, view: EditorView, getPos: () => number | undefined) =>
       new HtmlBlockView(node, view, getPos, context, registry),
-    inline_html: (node: ProseNode) => new InlineHtmlView(node, context, registry),
+    inline_html: (node: ProseNode, view: EditorView, getPos: () => number | undefined) =>
+      new InlineHtmlView(node, view, getPos, context, registry),
   };
 }
