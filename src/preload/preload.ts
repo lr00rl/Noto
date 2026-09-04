@@ -89,6 +89,7 @@ import type {
   NotoWorkspaceApiV1,
   WorkspaceDocumentEventV1,
   WorkspaceMenuEventV1,
+  WorkspacePasteEventV1,
   WorkspaceOpenPathRequestV1,
   WorkspaceTabRequestV1,
   WorkspaceTabsEventV1,
@@ -121,6 +122,7 @@ import { NOTO_WORKSPACE_VERSION, WORKSPACE_CHANNELS } from '../shared/workspace/
 import {
   isWorkspaceDocumentEventV1,
   isWorkspaceMenuEventV1,
+  isWorkspacePasteEventV1,
   isWorkspaceOpenPathRequestV1,
   isWorkspaceTabRequestV1,
   isWorkspaceTabsEventV1,
@@ -377,6 +379,8 @@ const workspaceApi: NotoWorkspaceApiV1 = Object.freeze({
     : Promise.resolve(rejectedWorkspace<WorkspaceIndexReplyV1>('invalid', 'Invalid file index request')),
   onMenuCommand: (listener: (event: WorkspaceMenuEventV1) => void) =>
     subscribe(WORKSPACE_CHANNELS.menuCommand, isWorkspaceMenuEventV1, listener),
+  onPasteText: (listener: (event: WorkspacePasteEventV1) => void) =>
+    subscribe(WORKSPACE_CHANNELS.pasteText, isWorkspacePasteEventV1, listener),
   manageEntry: (request: WorkspaceEntryRequestV1) => isWorkspaceEntryRequestV1(request)
     ? invokeWorkspace<WorkspaceEntryReplyV1>(WORKSPACE_CHANNELS.manageEntry, request, request.requestId, isWorkspaceEntryResultV1)
     : Promise.resolve(rejectedWorkspace<WorkspaceEntryReplyV1>('invalid', 'Invalid entry action request')),

@@ -1425,6 +1425,10 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
    * Menu commands arrive from main because only the renderer knows the editor's
    * contents. Keep this list aligned with `WorkspaceMenuCommandV1`.
    */
+  useEffect(() => window.notoWorkspace.onPasteText((event) => {
+    editorRef.current?.pasteText(event.text);
+  }), []);
+
   useEffect(() => window.notoWorkspace.onMenuCommand((event) => {
     switch (event.command) {
       case 'save':

@@ -25,7 +25,7 @@ import { RecentFiles } from './workspace/recent-files';
 import { SettingsStore } from './workspace/settings-store';
 import { registerSettingsHandlers } from './workspace/register-settings-handlers';
 import { WorkspaceSession } from './workspace/session';
-import { installApplicationMenu } from './workspace/menu';
+import { installApplicationMenu, sendPasteText } from './workspace/menu';
 import { registerWorkspaceHandlers } from './workspace/register-workspace-handlers';
 import { registerAssetHandlers } from './workspace/register-asset-handlers';
 
@@ -283,6 +283,7 @@ async function run(): Promise<void> {
     openDialog: () => { void session?.openWithDialog().then(refreshMenu).catch(reportOpenFailure); },
     openPath: (filePath) => { void session?.openPath(filePath).then(refreshMenu).catch(reportOpenFailure); },
     openFolder: () => { void session?.openFolderWithDialog().catch(reportOpenFailure); },
+    pastePlain: () => sendPasteText(editorWindow),
     print: () => {
       editorWindow?.webContents.print({ printBackground: true }, (ok, reason) => {
         logger.log('print', { ok, reason: reason || undefined });

@@ -15,6 +15,7 @@
  *   is not committed yet, and saving it would write a half finished word.
  */
 
+import { sliceFromText } from './paste-text';
 import { EditorState, Selection, type Plugin, type Transaction } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import { history, redo, undo } from 'prosemirror-history';
@@ -173,7 +174,21 @@ export class NotoEditor implements NotoEditorPort {
       editable: () => !this.readOnly,
       // What leaves on the clipboard is the markdown, not the words without it.
       clipboardTextSerializer: (slice) => sliceToMarkdown(slice),
-      handlePaste: (view, event) => this.handleTransfer(view, event.clipboardData, null),
+      clipboardTextParser: (text, $context) => sliceFromText(text, $context),
+      handlePaste: (view, event) => {
+        if (this.handleTransfer(view, event.clipboardData, null)) return true;
+        // Text with no richer form is markdown and is read as such here,
+        // whole. Left to the library, the text would be read and then opened
+        // as deep as it goes, so a pasted heading's words would land inside
+        // the paragraph the caret is in. Rich text, and the editor's own
+        // copies, keep the library's path.
+        const data = event.clipboardData;
+        if (!data || data.types.includes('text/html')) return false;
+        const text = data.getData('text/plain');
+        if (text.length === 0) return false;
+        this.pasteText(text);
+        return true;
+      },
       handleDrop: (view, event) => {
         const at = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? null;
         return this.handleTransfer(view, (event as DragEvent).dataTransfer, at);
@@ -428,6 +443,11 @@ export class NotoEditor implements NotoEditorPort {
     const view = this.view;
     if (!view) return;
     view.updateState(view.state.apply(transaction));
+    // Where the caret is, on the host, so what drives the editor from outside
+    // can wait for the editor to have learned of a selection the browser has
+    // already moved: the two are a moment apart, and a key or a paste in that
+    // moment lands where the caret was.
+    this.host.dataset.caret = String(this.view?.state.selection.from ?? 0);
     this.reportActiveBlock();
     if (!transaction.docChanged) return;
     this.docVersion += 1;
@@ -729,6 +749,15 @@ export class NotoEditor implements NotoEditorPort {
     view.dispatch(setSearch(view.state.tr, {
       options: { query: '', caseSensitive: false, wholeWord: false, regex: false },
     }));
+  }
+
+  /** Paste text at the caret, read as markdown: Paste as Plain Text's half. */
+  pasteText(text: string): void {
+    const view = this.view;
+    if (!view || this.readOnly) return;
+    const slice = sliceFromText(text, view.state.selection.$from);
+    view.dispatch(view.state.tr.replaceSelection(slice).scrollIntoView());
+    view.focus();
   }
 
   /** The whole document as markdown, which is what a transform plugin reads. */
