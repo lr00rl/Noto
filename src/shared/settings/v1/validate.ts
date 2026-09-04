@@ -24,6 +24,8 @@ import {
   type WidthModeV1,
   IMAGE_DESTINATIONS,
   type ImageDestinationV1,
+  PROSE_FACES,
+  type ProseFaceV1,
 } from './contracts';
 
 const requestId = /^[A-Za-z0-9._:-]{1,96}$/;
@@ -83,6 +85,9 @@ export function coerceSettings(value: unknown): NotoSettingsV1 {
   if (!record(value)) return DEFAULT_SETTINGS;
   return {
     theme: themes.includes(value.theme as NotoTheme) ? value.theme as NotoTheme : DEFAULT_SETTINGS.theme,
+    proseFace: PROSE_FACES.includes(value.proseFace as ProseFaceV1)
+      ? value.proseFace as ProseFaceV1
+      : DEFAULT_SETTINGS.proseFace,
     fontSize: numeric(value, 'fontSize'),
     lineHeight: numeric(value, 'lineHeight'),
     widthMode: isWidthMode(value.widthMode) ? value.widthMode : DEFAULT_SETTINGS.widthMode,
@@ -151,6 +156,7 @@ export function isSettingsWriteRequestV1(value: unknown): value is SettingsWrite
     if (!SETTING_KEYS.includes(key as keyof NotoSettingsV1)) return false;
     if (key === 'theme') return themes.includes(patch.theme as NotoTheme);
     if (key === 'widthMode') return isWidthMode(patch.widthMode);
+    if (key === 'proseFace') return PROSE_FACES.includes(patch.proseFace as ProseFaceV1);
     if (key === 'customCssPath') return isCssPath(patch.customCssPath);
     if (key === 'imageDestination') return IMAGE_DESTINATIONS.includes(patch.imageDestination as ImageDestinationV1);
     if (key === 'imageCustomFolder') return isImageFolder(patch.imageCustomFolder);

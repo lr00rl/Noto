@@ -99,8 +99,23 @@ export const IMAGE_DESTINATIONS = ['assets', 'note-assets', 'folder', 'custom', 
 
 export type ImageDestinationV1 = (typeof IMAGE_DESTINATIONS)[number];
 
+/**
+ * The faces a document can be set in.
+ *
+ * Typora's Appearance pane offers a font, and a reader of Chinese cares
+ * which: a Song face for reading, a Hei face for the screen, a mono face
+ * for a note that is mostly code. Named rather than free text, because a
+ * name the machine does not have is a note set in Times and no way to see
+ * why; each of these carries the fallbacks the theme already lists.
+ */
+export const PROSE_FACES = ['serif', 'sans', 'mono'] as const;
+
+export type ProseFaceV1 = (typeof PROSE_FACES)[number];
+
 export interface NotoSettingsV1 {
   readonly theme: NotoTheme;
+  /** Which face the document is set in. See `PROSE_FACES`. */
+  readonly proseFace: ProseFaceV1;
   /** Document text size in CSS pixels. */
   readonly fontSize: number;
   /** Unitless line height for document text. */
@@ -214,6 +229,7 @@ export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   // A step under the author's theme, which reads at 16px in Typora: set beside
   // it, Noto's 16 looked a size louder, and 15 is where the two windows match
   // to his eye. The leading is the theme's.
+  proseFace: 'serif',
   fontSize: 15,
   lineHeight: 1.58,
   widthMode: 'default',

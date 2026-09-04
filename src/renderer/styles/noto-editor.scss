@@ -2100,3 +2100,21 @@
 
   &:hover { color: var(--ink); background: var(--panel); }
 }
+
+/* The folder a dragged row will land in. The accent's own tint, as the
+   hover is, with a ring so a folder in a list of folders is unmistakably
+   the one under the pointer. */
+.tree-row.is-drop-target,
+.tree-row.is-drop-target:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* What is being dragged recedes while it is in the air. */
+.tree-row[draggable='true']:active { cursor: grabbing; }
+
+/* The face the document is set in, from the Appearance pane. The serif is
+   the theme's own and needs no rule; the other two name the stacks the
+   tokens already carry, so a machine missing one falls back the same way. */
+:root[data-prose-face='sans'] .ProseMirror { font-family: tokens.$ui; }
+:root[data-prose-face='mono'] .ProseMirror { font-family: tokens.$mono; }

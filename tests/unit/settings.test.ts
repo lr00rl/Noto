@@ -156,3 +156,16 @@ describe('image settings', () => {
     })).toBe(false);
   });
 });
+
+describe('the document font', () => {
+  it('is one of the three faces, and anything else falls back to the serif', () => {
+    expect(coerceSettings({ proseFace: 'mono' }).proseFace).toBe('mono');
+    expect(coerceSettings({ proseFace: 'Comic Sans' }).proseFace).toBe('serif');
+    expect(coerceSettings({}).proseFace).toBe('serif');
+  });
+
+  it('is written only as a face the app knows', () => {
+    expect(isSettingsWriteRequestV1({ version: 1, requestId: 'a', patch: { proseFace: 'sans' } })).toBe(true);
+    expect(isSettingsWriteRequestV1({ version: 1, requestId: 'a', patch: { proseFace: 'Songti SC' } })).toBe(false);
+  });
+});

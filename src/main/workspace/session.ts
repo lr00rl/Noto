@@ -449,6 +449,8 @@ export class WorkspaceSession {
     action: WorkspaceEntryActionV1;
     target: string;
     name: string | null;
+    /** Only `move-into` has one; the callers inside main leave it out. */
+    destination?: string | null;
   }): Promise<WorkspaceEntryReplyV1> {
     const real = await this.inRoot(request.target);
     if (real === null) {
@@ -460,6 +462,7 @@ export class WorkspaceSession {
     if (request.action === 'duplicate') return this.duplicateEntry(real);
     if (request.action === 'new-folder') return this.newFolder(real, request.name);
     if (request.action === 'move') return this.moveEntry(real);
+    if (request.action === 'move-into') return this.moveInto(real, request.destination ?? null);
     return this.trashEntry(real);
   }
 
@@ -549,6 +552,34 @@ export class WorkspaceSession {
    * the one move that would leave a piece of the tree pointing at nothing.
    * `isInside` answers both, since it is true for a folder and itself.
    */
+  /**
+   * Move something into a folder the reader dragged it onto.
+   *
+   * The same checks the dialog's move makes, and one more: a drop back into
+   * the folder something already lives in is not a refusal, it is nothing,
+   * which is what a short drag usually means.
+   */
+  private async moveInto(real: string, destination: string | null): Promise<WorkspaceEntryReplyV1> {
+    if (destination === null) return this.refuse('failed');
+    const folder = await this.inRoot(destination, true);
+    if (folder === null) return this.refuse('outside-root');
+    if (folder === real || isInside(real, folder)) return this.refuse('into-itself');
+
+    const target = path.join(folder, path.basename(real));
+    if (target === real) return this.done(real);
+    if (await this.occupied(target, real)) return this.refuse('exists');
+    if (this.busyUnder(real)) return this.refuse('busy');
+
+    try {
+      await rename(real, target);
+    } catch {
+      return this.refuse('failed');
+    }
+    await this.followMove(real, target);
+    this.logger.log('entry_moved', { by: 'drag' });
+    return this.done(target);
+  }
+
   private async moveEntry(real: string): Promise<WorkspaceEntryReplyV1> {
     const window = this.getWindow();
     const options = {

@@ -25,6 +25,11 @@ export interface FileTreeProps {
   readonly onRowMenu: (rowPath: string, kind: 'file' | 'directory') => void;
   readonly onChooseFolder: () => void;
   /**
+   * A row dragged onto a folder. Absent while no folder is open, in which
+   * case the rows are not draggable at all.
+   */
+  readonly onMoveEntry?: (source: string, destination: string) => void;
+  /**
    * The folder's own actions, drawn on the folder's own row.
    *
    * They used to live in a bar along the bottom of the rail, which spent an
@@ -107,7 +112,7 @@ function NameField({ initial, onDone }: {
 export const TREE_ROW_HEIGHT = 32;
 
 export function FileTree({
-  root, rootName, activePath, list, onOpenFile, onRowMenu, onChooseFolder, vaultMenu,
+  root, rootName, activePath, list, onOpenFile, onRowMenu, onChooseFolder, onMoveEntry, vaultMenu,
   editing = null, onEditingDone, reloadToken = 0,
 }: FileTreeProps) {
   const [children, setChildren] = useState<ReadonlyMap<string, readonly WorkspaceEntryV1[]>>(new Map());
@@ -320,11 +325,13 @@ export function FileTree({
               <div className="tree-node" key={entry.path}>
                 <button
                   type="button"
-                  className={onPath ? 'tree-row tree-directory tree-on-path' : 'tree-row tree-directory'}
+                  className={`${onPath ? 'tree-row tree-directory tree-on-path' : 'tree-row tree-directory'}${dropClass(entry.path)}`}
                   data-testid="tree-directory"
                   data-depth={depth}
                   title={entry.name}
                   aria-expanded={isOpen}
+                  {...dragProps(entry.path)}
+                  {...dropProps(entry.path)}
                   onClick={() => toggle(entry.path)}
                   onContextMenu={(event) => { event.preventDefault(); onRowMenu(entry.path, 'directory'); }}
                 >
@@ -360,6 +367,7 @@ export function FileTree({
                 data-path={entry.path}
                 title={entry.name}
                 aria-current={isActive ? 'true' : undefined}
+                {...dragProps(entry.path)}
                 onClick={() => onOpenFile(entry.path)}
                 onContextMenu={(event) => { event.preventDefault(); onRowMenu(entry.path, 'file'); }}
               >
@@ -375,6 +383,47 @@ export function FileTree({
       </div>
     );
   };
+
+  /**
+   * Dragging a row onto a folder moves it, which is how a vault is tidied in
+   * every file manager and in Typora's own sidebar.
+   *
+   * The path travels in the drag as text, and the folder under the pointer is
+   * held in state so it can be drawn as the one that will take the drop. Main
+   * checks everything: this only says what was dragged onto what.
+   */
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [over, setOver] = useState<string | null>(null);
+
+  const dragProps = (path: string) => (onMoveEntry === undefined ? {} : {
+    draggable: true,
+    onDragStart: (event: React.DragEvent) => {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', path);
+      setDragging(path);
+    },
+    onDragEnd: () => { setDragging(null); setOver(null); },
+  });
+
+  const dropProps = (folder: string) => (onMoveEntry === undefined ? {} : {
+    onDragOver: (event: React.DragEvent) => {
+      // Only our own rows; a file dragged in from the Finder is not this.
+      if (dragging === null || dragging === folder) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      setOver(folder);
+    },
+    onDragLeave: () => setOver((current) => (current === folder ? null : current)),
+    onDrop: (event: React.DragEvent) => {
+      event.preventDefault();
+      const source = dragging ?? event.dataTransfer.getData('text/plain');
+      setDragging(null);
+      setOver(null);
+      if (source && source !== folder) onMoveEntry(source, folder);
+    },
+  });
+
+  const dropClass = (folder: string) => (over === folder ? ' is-drop-target' : '');
 
   const commitEdit = (name: string | null) => onEditingDone?.(name);
 
@@ -394,7 +443,8 @@ export function FileTree({
               column: it would hang from empty space beside the folder rather
               than from the folder. Dropping the column puts the icon where the
               line starts. */}
-          <div className="tree-row tree-directory tree-vault-row" data-testid="tree-vault" data-depth={0} title={root}>
+          <div className={`tree-row tree-directory tree-vault-row${dropClass(root)}`} data-testid="tree-vault"
+            data-depth={0} title={root} {...dropProps(root)}>
             <FolderGlyph open />
             <span className="tree-name">{vaultName}</span>
             {vaultMenu}
