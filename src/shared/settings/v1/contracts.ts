@@ -82,14 +82,20 @@ export function stepWidthMode(current: WidthModeV1, direction: 1 | -1): WidthMod
  * Where a pasted or dropped picture is put, which is the only choice in the
  * image pane that changes what lands in the vault.
  *
- * Typora offers the same four and its own default is `assets`, a folder beside
+ * `upload` is Typora's "Upload image": the picture goes to PicGo.app, which
+ * this vault already uses for 2,486 of its pictures, and the note refers to the
+ * address that comes back. It is written beside the note first and that copy
+ * is removed once the address arrives, so a paste while PicGo is not running
+ * leaves a picture in the vault rather than nothing at all.
+ *
+ * Typora offers the same choices and its own default is `assets`, a folder beside
  * the note. That is the one that keeps a note portable: the note and its
  * pictures move together, and nothing lands loose in the folder the reader is
  * looking at. `note-assets` is the same idea with a folder per note, for a
  * vault where one note owns forty screenshots. `folder` writes beside the note.
  * `custom` is for a vault that already has a pictures folder and wants it used.
  */
-export const IMAGE_DESTINATIONS = ['assets', 'note-assets', 'folder', 'custom'] as const;
+export const IMAGE_DESTINATIONS = ['assets', 'note-assets', 'folder', 'custom', 'upload'] as const;
 
 export type ImageDestinationV1 = (typeof IMAGE_DESTINATIONS)[number];
 

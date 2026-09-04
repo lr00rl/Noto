@@ -60,7 +60,32 @@ export const ASSET_CHANNELS = {
   write: 'noto:v1:assets:write',
   /** Pick a picture with the system dialog and copy it in, for the menu. */
   pick: 'noto:v1:assets:pick',
+  /** Send one small picture through the uploader and report what came back. */
+  testUpload: 'noto:v1:assets:test-upload',
 } as const;
+
+/** Why an upload did not happen, each one a sentence the reader can act on. */
+export type AssetUploadFailureV1 = 'unreachable' | 'refused' | 'bad-reply';
+
+/**
+ * What happened to the picture after it was written, when uploading is on.
+ *
+ * Null when it was never meant to upload. `ok: false` is not a refusal: the
+ * picture was written and the note refers to the copy, and this says why the
+ * address is a local one rather than the bucket's.
+ */
+export type AssetUploadNoteV1 =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly reason: AssetUploadFailureV1; readonly detail?: string };
+
+export type AssetTestUploadReplyV1 =
+  | { readonly version: typeof NOTO_ASSETS_VERSION; readonly ok: true; readonly url: string }
+  | {
+      readonly version: typeof NOTO_ASSETS_VERSION;
+      readonly ok: false;
+      readonly reason: AssetUploadFailureV1;
+      readonly detail?: string;
+    };
 
 /**
  * The ceiling on one pasted picture, checked on both sides.
@@ -99,6 +124,7 @@ export type AssetWriteReplyV1 =
       readonly url: string;
       /** The name without its extension, which is the alt text Typora writes. */
       readonly alt: string;
+      readonly upload: AssetUploadNoteV1 | null;
     }
   | {
       readonly version: typeof NOTO_ASSETS_VERSION;
@@ -117,4 +143,5 @@ export type AssetResultV1<T> =
 export interface NotoAssetsApiV1 {
   write(request: AssetWriteRequestV1): Promise<AssetResultV1<AssetWriteReplyV1>>;
   pick(request: AssetRequestV1): Promise<AssetResultV1<AssetWriteReplyV1>>;
+  testUpload(request: AssetRequestV1): Promise<AssetResultV1<AssetTestUploadReplyV1>>;
 }

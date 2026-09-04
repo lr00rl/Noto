@@ -28,6 +28,7 @@ import {
   type AssetWriteReplyV1,
 } from '../../shared/assets/v1/contracts';
 import { sniffImageExtension } from '../../shared/assets/v1/sniff';
+import type { UploadOutcome } from './picgo-upload';
 import type { ImageDestinationV1, NotoSettingsV1 } from '../../shared/settings/v1/contracts';
 import { isInside } from './file-tree';
 
@@ -40,6 +41,8 @@ export interface AssetWriteDeps {
   readonly realpath: (target: string) => Promise<string>;
   /** For the timestamped name. Injected so a test can pin it. */
   readonly now: () => Date;
+  /** Hands a written file to PicGo. Absent means uploading is not available. */
+  readonly upload?: (absolutePath: string) => Promise<UploadOutcome>;
 }
 
 const refuse = (reason: Exclude<AssetWriteReplyV1, { written: true }>['reason']): AssetWriteReplyV1 =>
@@ -58,7 +61,9 @@ export function destinationFolder(
   noteName: string,
 ): string {
   if (destination === 'folder') return noteDirectory;
-  if (destination === 'assets') return path.join(noteDirectory, 'assets');
+  // An upload is staged beside the note in the same folder a copy would go,
+  // which is also where it stays if the upload does not happen.
+  if (destination === 'assets' || destination === 'upload') return path.join(noteDirectory, 'assets');
   if (destination === 'note-assets') {
     const stem = noteName.replace(/\.[^.]*$/, '');
     return path.join(noteDirectory, `${stem}.assets`);
@@ -141,12 +146,36 @@ export async function writeAsset(bytes: Uint8Array, deps: AssetWriteDeps): Promi
       if (created) await rm(created, { recursive: true, force: true }).catch(() => {});
       return refuse('write-failed');
     }
-    return {
+    const alt = name.slice(0, name.length - extension.length);
+    const local = {
       version: NOTO_ASSETS_VERSION,
       written: true,
       reference: noteRelativeReference(noteDirectory, target, deps.settings.imageEscapeUrl),
       url: toAssetUrl(target),
-      alt: name.slice(0, name.length - extension.length),
+      alt,
+      upload: null,
+    } as const;
+    if (deps.settings.imageDestination !== 'upload' || !deps.upload) return local;
+
+    /*
+     * Uploaded from the file just written, as Typora does it: PicGo takes
+     * paths, not bytes. When the address comes back the local copy has done
+     * its job and goes; when it does not, the copy stays and the note refers
+     * to it, and the reply says why, because a paste that appears to have
+     * worked while quietly falling back is worse than one that says so.
+     */
+    const outcome = await deps.upload(target);
+    if (!outcome.uploaded) {
+      return { ...local, upload: { ok: false, reason: outcome.reason, detail: outcome.detail } };
+    }
+    await rm(target, { force: true }).catch(() => {});
+    return {
+      version: NOTO_ASSETS_VERSION,
+      written: true,
+      reference: outcome.url,
+      url: outcome.url,
+      alt,
+      upload: { ok: true },
     };
   }
   return refuse('write-failed');

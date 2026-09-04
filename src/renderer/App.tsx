@@ -1254,7 +1254,16 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       setLocalMessage(actionableFileTruthMessage(result.error.message, 'The picture could not be added.'));
       return null;
     }
-    if (result.value.written) return result.value;
+    if (result.value.written) {
+      // Written, but not where the setting asked: say so, and use the copy.
+      const upload = result.value.upload;
+      if (upload && !upload.ok) {
+        setLocalMessage(upload.reason === 'unreachable'
+          ? 'PicGo.app is not running, so the picture was kept beside the note instead.'
+          : `PicGo did not take the picture (${upload.detail ?? upload.reason}), so it was kept beside the note.`);
+      }
+      return result.value;
+    }
     setLocalMessage(imageRefusalMessage(result.value.reason));
     return null;
   }, []);
