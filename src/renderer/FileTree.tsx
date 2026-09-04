@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { WorkspaceEntryV1 } from '../shared/workspace/v1/contracts';
-import { branchToCurrentFile, sizeTreeGuides } from './tree-guides';
+import { sizeTreeGuides } from './tree-guides';
 
 export interface FileTreeProps {
   readonly root: string | null;
@@ -243,13 +243,9 @@ export function FileTree({
         }
       }
     }
-    // Light the branch, and stop each quiet stem at the corner that finishes
-    // it. Read once per change of the tree, not per scroll: the stems do not
-    // move when the rail does.
-    sizeTreeGuides(body, {
-      litChild: branchToCurrentFile,
-      litOffset: TREE_ROW_HEIGHT / 2,
-    });
+    // Stop each stem at the corner that finishes it. Read once per change of
+    // the tree, not per scroll: the stems do not move when the rail does.
+    sizeTreeGuides(body);
     return () => {
       scroller.removeEventListener('scroll', onScroll);
       if (frame !== 0) cancelAnimationFrame(frame);
@@ -418,9 +414,11 @@ export function FileTree({
  */
 function FolderGlyph({ open }: { open: boolean }) {
   return (
-    <svg className="tree-glyph" viewBox="0 0 16 16" aria-hidden="true">
-      <path d="M1.75 4.5a1 1 0 0 1 1-1h3.1l1.5 1.5h5.9a1 1 0 0 1 1 1v6.25a1 1 0 0 1-1 1h-10.5a1 1 0 0 1-1-1z" />
-      {open && <path d="M1.75 7.25h12.5" />}
+    <svg className="tree-glyph tree-glyph-folder" viewBox="0 0 16 16" aria-hidden="true">
+      {/* Filled, as the theme's icon font draws it. The open state shows as
+          the flap lifted, not as a rule across the middle. */}
+      <path d="M1.5 4.25a1 1 0 0 1 1-1h3.2l1.4 1.5h6.4a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z" />
+      {open && <path className="tree-glyph-flap" d="M1.5 7h13v5.25a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z" />}
     </svg>
   );
 }
@@ -430,6 +428,9 @@ function FileGlyph() {
     <svg className="tree-glyph" viewBox="0 0 16 16" aria-hidden="true">
       <path d="M4.25 1.75h5l3 3v9.5h-8z" />
       <path d="M9.25 1.75v3h3" />
+      {/* The lines of text, which is what makes it a document rather than a
+          blank sheet and is how the theme's icon font draws it. */}
+      <path d="M6.25 8h4M6.25 10.5h4" />
     </svg>
   );
 }

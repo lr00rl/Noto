@@ -170,7 +170,7 @@ test.describe('parity with Typora', () => {
     }
   });
 
-  test('stacks the path flush against the top and lights the branch', async () => {
+  test('stacks the path flush against the top, and draws every connector alike', async () => {
     const { app, page } = await launch('stack');
     try {
       // The note opened from the shell is deep in the tree. Nothing is clicked:
@@ -181,21 +181,24 @@ test.describe('parity with Typora', () => {
       await expect(page.getByTestId('tree-file').filter({ hasText: 'note.md' })).toBeVisible();
       await expect(page.locator('.tree-node-active')).toHaveCount(1);
 
-      const lit = await page.evaluate(() => {
-        const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+      const drawn = await page.evaluate(() => {
         const levels = [...document.querySelectorAll<HTMLElement>('.tree-level')];
         const stops = levels.map((level) => level.style.getPropertyValue('--path-stop')).filter(Boolean);
-        const arm = getComputedStyle(document.querySelector('.tree-node-active')!, '::before').borderBottomColor;
-        const swatch = document.createElement('span');
-        swatch.style.color = accent;
-        document.body.append(swatch);
-        const accentRgb = getComputedStyle(swatch).color;
-        swatch.remove();
-        return { stops, arm, accentRgb };
+        const gradients = levels.map((level) =>
+          (getComputedStyle(level).backgroundImage.match(/linear-gradient/g) ?? []).length);
+        const arms = [...document.querySelectorAll<HTMLElement>('.tree-level:not(.is-root) > .tree-node')]
+          .map((node) => getComputedStyle(node, '::before').borderBottomColor);
+        const activeArm = getComputedStyle(document.querySelector('.tree-node-active')!, '::before').borderBottomColor;
+        return { stops, gradients, arms: [...new Set(arms)], activeArm };
       });
-      // Three levels on the way down, each with a lit length.
-      expect(lit.stops.length).toBe(3);
-      expect(lit.arm).toBe(lit.accentRgb);
+      // The theme this imitates has never lit a branch. Every level draws one
+      // stem, every arm is the same colour, and the arm to the file in front is
+      // no different from its neighbours: the accent is the row's own bar and
+      // nothing else.
+      expect(drawn.stops).toEqual([]);
+      expect(new Set(drawn.gradients)).toEqual(new Set([1]));
+      expect(drawn.arms).toHaveLength(1);
+      expect(drawn.activeArm).toBe(drawn.arms[0]);
 
       // Scroll into the logs: the stack sits flush at the top of the scrollport.
       await page.getByTestId('tree-file').filter({ hasText: 'log-50' }).scrollIntoViewIfNeeded();

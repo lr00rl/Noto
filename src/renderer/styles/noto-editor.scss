@@ -978,42 +978,29 @@
    read as a tree rather than as a grid of ticks. */
 
 .tree-level {
-  --tree-indent: 13px;
-  /* How far down a row the arm crosses. The script that sizes the stem reads
-     the same number, so the stem ends exactly on the arm rather than a few
-     pixels past it. */
-  --tree-arm: 13px;
-  /*
-   * Each level answers for itself.
-   *
-   * These are custom properties, so a level nested inside a lit one inherited
-   * its length and drew a 16px stub of accent against its own first child,
-   * which is a branch highlight pointing at a file nobody opened. Declaring
-   * them here gives every level its own value, and the inline style the tree
-   * sets still wins on the levels that really are on the path.
-   */
-  --path-stop: 0px;
+  /* The author's Typora theme, measured out of its stylesheet rather than
+     approximated: the children of a folder are indented 20px and the level is
+     set 10px in, so each depth costs 30px and the stem stands at the level's
+     left edge. The arm crosses 14px down the row, which is where the theme's
+     own SVG draws it. */
+  --tree-indent: 20px;
+  --tree-arm: 14px;
+  /* Where the stem stops. The tree sets it to the last child's top, and that
+     child's own corner takes the line the rest of the way. Declared here so a
+     level never inherits its parent's length. */
   --stem-stop: 100%;
   padding-left: var(--tree-indent);
-  margin-left: 8px;
-  /* Two stems on top of each other: the branch to the file in front in the
-     accent, down to that child's arm, over the quiet stem the whole way.
-     The tree sets `--path-stop` on the levels along the path; everywhere
-     else the lit stem has no length. This is the second of the author's four
-     guide-line schemes, the one that answers "which branch am I in" without
-     a single extra element. */
-  background-image:
-    linear-gradient(var(--tree-accent), var(--tree-accent)),
-    linear-gradient(var(--tree-line), var(--tree-line));
-  /* The quiet stem stops at the last child's arm rather than running to the
-     bottom of the level and being covered up again. It was drawn full height
-     with a rounded corner over it and a strip of panel colour masking the
-     overshoot, and the three of them met at a place where the corner's
-     antialiasing showed past the mask as a nick in the line. Two straight
-     lines meeting is the same corner with nothing to go wrong. */
-  background-size: 1px var(--path-stop), 1px var(--stem-stop);
+  margin-left: 10px;
+  /* One stem, one colour. The branch to the file in front used to be drawn a
+     second time in the accent, which the theme this imitates has never done:
+     every connector in it is the same quiet line, and the accent has exactly
+     one job, the bar on the active row. Two colours of line made the tree
+     read as pointing at something, and the corner at the active file came out
+     as an orange hook. */
+  background-image: linear-gradient(var(--tree-line), var(--tree-line));
+  background-size: 1px var(--stem-stop);
   background-repeat: no-repeat;
-  background-position: left top, left top;
+  background-position: left top;
 }
 
 /* The outermost level has nothing to its left to connect to. */
@@ -1053,14 +1040,6 @@
   border-bottom-left-radius: 7px;
 }
 
-/* The arm to a node on the path, and to the file itself, in the accent.
-   After the plain arm and the corner, and a class heavier, so it wins on
-   weight rather than on its place in the file. */
-.tree-level:not(.is-root) > .tree-node.tree-node:has(> .tree-on-path)::before,
-.tree-level:not(.is-root) > .tree-node.tree-node-active::before {
-  border-color: var(--tree-accent);
-}
-
 /* The folder's own row, at the head of the tree. Not a button: there is
    nothing to open and nothing to fold, so it is set in ink at weight 600 and
    the pointer stays an arrow. */
@@ -1072,14 +1051,13 @@
   &:hover { background: none; }
 }
 
-/* The stem that descends from this row is drawn 8px in, which is where a
-   level's margin puts it. A 15px glyph is centred on that when its left edge
-   sits half a pixel in, and centred is what makes the line look like it comes
-   out of the folder rather than from beside it. A class heavier than the rule
-   that sets every row's padding, so it wins on weight rather than on where it
-   happens to sit in the file. */
+/* The theme's own 4px of row padding plus the 3px it gives the icon, so the
+   icon starts 7px in while the first level's stem stands 10px in: the line
+   descends from 3px inside the folder's left edge, which is exactly where
+   Typora's does. A class heavier than the rule that sets every row's padding,
+   so it wins on weight rather than on its place in the file. */
 .tree-row.tree-vault-row {
-  padding-left: 0.5px;
+  padding-left: 7px;
 }
 
 /* The path to the current file holds at the top while its contents scroll
@@ -1136,8 +1114,7 @@
 .tree-node-active[data-stuck]::before { background: var(--surface-active); }
 
 /* The row's own corner of the branch, drawn on the row so it holds while
-   the row does; the arm on the node scrolled away with the node. Lit, since
-   a stuck row is by definition on the path to the file in front. */
+   the row does; the arm on the node scrolled away with the node. */
 .tree-directory[data-stuck]::after,
 .tree-node-active[data-stuck]::after {
   content: '';
@@ -1148,9 +1125,9 @@
   width: var(--tree-indent);
   height: 14px;
   background: none;
-  border-left: 1px solid var(--tree-accent);
-  border-bottom: 1px solid var(--tree-accent);
-  border-bottom-left-radius: 6px;
+  border-left: 1px solid var(--tree-line);
+  border-bottom: 1px solid var(--tree-line);
+  border-bottom-left-radius: 7px;
   pointer-events: none;
 }
 
@@ -1219,7 +1196,11 @@
   border-radius: 5px;
   cursor: pointer;
 
-  &:hover { background: var(--raised); }
+  /* The theme's own hover: eight percent of the accent, which is warm without
+     being a colour, over the row's 5px radius. Doubled so it outweighs the
+     generic button hover in app.scss, whose `:not(:disabled)` made it a class
+     heavier than this and painted every row the raised grey instead. */
+  &.tree-row:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 }
 
 .tree-directory { color: var(--muted); }
@@ -1258,6 +1239,19 @@
   stroke-linecap: round;
   color: var(--muted);
   opacity: 0.85;
+}
+
+/* A folder is a solid shape, as the theme's icon font draws it; a file is a
+   page drawn in line. The open folder's flap is the same colour a shade
+   lighter, which is how a lifted flap reads without a second colour. */
+.tree-glyph-folder {
+  fill: currentcolor;
+  stroke: none;
+}
+
+.tree-glyph-flap {
+  fill: var(--panel);
+  opacity: 0.45;
 }
 
 .tree-file-active .tree-glyph { color: var(--ink); opacity: 1; }
@@ -1301,27 +1295,21 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 24%, transparent);
 }
 
-/* The spine, and the whole job of the accent in this app: it marks where you
-   are and nothing else. A straight bar with its own rounded caps rather than an
-   inset shadow, because an inset shadow follows the row's border radius and
-   comes out as a crescent pinched at both ends. */
+/* The one place the accent appears in the tree, and exactly as the theme has
+   it: `box-shadow: inset 2px 0 0` on the row, which is a 2px bar the full
+   height of the row with square ends. The row is square too, because a bar
+   inside a rounded box pokes out of the curve at both corners, and Typora's
+   row is square. */
 .tree-file-active {
   color: var(--ink);
   font-weight: 500;
   background: var(--surface-active);
+  border-radius: 0;
+  box-shadow: inset 2px 0 0 var(--accent);
 
-  &:hover { background: var(--surface-active); }
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 5px;
-    bottom: 5px;
-    width: 2px;
-    border-radius: 1px;
-    background: var(--accent);
-  }
+  /* Stays the active surface under the pointer, as the theme's `!important`
+     keeps it. Doubled for the same reason the row's hover is. */
+  &.tree-file-active:hover { background: var(--surface-active); }
 }
 
 .tree-error {
