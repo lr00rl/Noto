@@ -22,6 +22,8 @@ import {
   type WorkspaceExportKindV1,
   WorkspacePasteEventV1,
   MAX_PASTE_TEXT,
+  WorkspaceLinkV1,
+  WorkspaceLinksReplyV1,
 } from './contracts';
 import type {
   RecentFileV1,
@@ -188,6 +190,27 @@ export function isWorkspaceMenuEventV1(value: unknown): value is WorkspaceMenuEv
   return record(value) && exact(value, ['version', 'command']) && value.version === 1
     && menuCommands.includes(value.command as WorkspaceMenuCommandV1);
 }
+
+function isWorkspaceLinkV1(value: unknown): value is WorkspaceLinkV1 {
+  return record(value) && exact(value, ['path', 'relativePath', 'title'])
+    && typeof value.path === 'string' && value.path.length > 0
+    && typeof value.relativePath === 'string' && typeof value.title === 'string';
+}
+
+export function isWorkspaceLinksReplyV1(value: unknown): value is WorkspaceLinksReplyV1 {
+  return record(value)
+    && exact(value, ['version', 'available', 'known', 'generatedAt', 'backlinks', 'links', 'related'])
+    && value.version === 1
+    && typeof value.available === 'boolean' && typeof value.known === 'boolean'
+    && (value.generatedAt === null || typeof value.generatedAt === 'string')
+    && Array.isArray(value.backlinks) && value.backlinks.every(isWorkspaceLinkV1)
+    && Array.isArray(value.links) && value.links.every(isWorkspaceLinkV1)
+    && Array.isArray(value.related) && value.related.every(isWorkspaceLinkV1);
+}
+
+export const isWorkspaceLinksResultV1 = (
+  value: unknown, id: string,
+): value is WorkspaceResultV1<WorkspaceLinksReplyV1> => isResult(value, id, isWorkspaceLinksReplyV1);
 
 export function isWorkspacePasteEventV1(value: unknown): value is WorkspacePasteEventV1 {
   return record(value) && exact(value, ['version', 'text']) && value.version === 1

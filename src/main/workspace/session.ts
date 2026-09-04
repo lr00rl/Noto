@@ -11,6 +11,7 @@
  * request came from the menu, the renderer, the dock, or a file association.
  */
 
+import { GraphCache, linksFor } from './note-graph';
 import type { SearchFlags } from '../../shared/search/pattern';
 import path from 'node:path';
 import { cp, mkdir, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
@@ -27,6 +28,7 @@ import {
   type WorkspaceNewFileReplyV1,
   type WorkspaceTreeMenuReplyV1,
   type WorkspaceOpenExternalReplyV1,
+  type WorkspaceLinksReplyV1,
 } from '../../shared/workspace/v1/contracts';
 import type {
   WorkspaceEntryActionV1,
@@ -89,6 +91,9 @@ export class WorkspaceSession {
   private activePath: string | null = null;
   /** The folder shown in the sidebar, and the boundary for every listing. */
   private folderRoot: string | null = null;
+
+  /** The vault's graph, read once per version of its file. */
+  private readonly graphCache = new GraphCache();
 
   /**
    * Whether the reader asked for the current folder.
@@ -945,6 +950,48 @@ export class WorkspaceSession {
    * renderer asks for it whenever quick open is first used. It is dropped when
    * the folder changes rather than kept warm for a folder nobody is in.
    */
+  /**
+   * What the vault's note-assistant graph knows about one note.
+   *
+   * The note has to be inside the open folder, since the graph's paths are
+   * relative to it; a note from elsewhere is simply not known.
+   */
+  async noteLinks(target: string): Promise<WorkspaceLinksReplyV1> {
+    const empty = (available: boolean, known: boolean, generatedAt: string | null = null): WorkspaceLinksReplyV1 => ({
+      version: NOTO_WORKSPACE_VERSION, available, known, generatedAt, backlinks: [], links: [], related: [],
+    });
+    const root = this.folderRoot;
+    if (!root) return empty(false, false);
+    const graph = await this.graphCache.graphFor(root);
+    if (!graph) return empty(false, false);
+    let realRoot: string;
+    let real: string;
+    try {
+      realRoot = await realpath(root);
+      real = await realpath(path.resolve(target));
+    } catch {
+      return empty(true, false, graph.generatedAt);
+    }
+    if (!isInside(realRoot, real)) return empty(true, false, graph.generatedAt);
+    const relative = path.relative(realRoot, real).split(path.sep).join('/');
+    const found = linksFor(graph, relative);
+    if (!found) return empty(true, false, graph.generatedAt);
+    const absolute = (link: { relativePath: string; title: string }) => ({
+      path: path.join(root, ...link.relativePath.split('/')),
+      relativePath: link.relativePath,
+      title: link.title,
+    });
+    return {
+      version: NOTO_WORKSPACE_VERSION,
+      available: true,
+      known: true,
+      generatedAt: graph.generatedAt,
+      backlinks: found.backlinks.map(absolute),
+      links: found.links.map(absolute),
+      related: found.related.map(absolute),
+    };
+  }
+
   async fileIndex(): Promise<WorkspaceIndexReplyV1> {
     if (!this.folderRoot) {
       return { version: NOTO_WORKSPACE_VERSION, root: null, entries: [], truncated: false };
