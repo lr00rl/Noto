@@ -244,20 +244,11 @@
   white-space: pre-wrap;
 }
 
-/*
- * Frontmatter is metadata, not prose. It stays collapsed to a single quiet line
- * until the cursor enters it, so a document does not open on a wall of YAML.
- */
-.ProseMirror .noto-frontmatter {
-  max-height: 2.6em;
-  overflow: hidden;
-  transition: max-height var(--motion-medium) var(--ease-out);
-}
-
-.ProseMirror > .noto-active-block.noto-frontmatter {
-  max-height: 40em;
-  overflow: auto;
-}
+/* Front matter is shown whole, as Typora shows it: a metadata block is a
+   few lines long and a reader who opens a note wants to see all of them, not
+   the first one and a fold. It was collapsed to a line once, and every note
+   with three keys hid two of them. */
+.ProseMirror .noto-frontmatter { margin-top: 0; }
 
 .ProseMirror .noto-inline-html {
   border-radius: 3px;
@@ -295,6 +286,114 @@
 .ProseMirror .noto-html-block[data-comment='true'].noto-active-block {
   color: var(--muted);
   opacity: 1;
+}
+
+/* A generated index, drawn as the author's note-assistant plugin draws it in
+   Typora: the region's markdown hidden, and in its place a quiet list, one
+   note to a line, title first and path after in small type. The measurements
+   are the plugin's own. */
+.ProseMirror .noto-index-source { display: none; }
+
+.ProseMirror .noto-index {
+  margin: 14px 0 18px;
+  padding: 2px 0 0;
+  font-family: tokens.$ui;
+}
+
+.ProseMirror .noto-index-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  user-select: none;
+}
+
+.ProseMirror .noto-index-title {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--muted);
+  opacity: 0.72;
+}
+
+.ProseMirror .noto-index-count {
+  font-size: 11px;
+  color: var(--muted);
+  opacity: 0.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.ProseMirror .noto-index-section {
+  margin-top: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  opacity: 0.55;
+  user-select: none;
+}
+
+.ProseMirror .noto-index-list {
+  display: grid;
+  gap: 1px;
+  margin-top: 4px;
+}
+
+.ProseMirror .noto-index-section + .noto-index-list { margin-top: 2px; }
+
+.ProseMirror .noto-index-item,
+.ProseMirror .noto-index-label {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  margin: 0 0 0 -8px;
+  padding: 3px 8px;
+  /* Each level of nesting in the source list steps in 14px, as the plugin's does. */
+  padding-inline-start: calc(8px + var(--index-depth, 0) * 14px);
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+}
+
+.ProseMirror .noto-index-item { cursor: pointer; }
+.ProseMirror .noto-index-item.noto-index-item:hover { background: color-mix(in srgb, var(--ink) 3.5%, transparent); }
+.ProseMirror .noto-index-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.ProseMirror .noto-index-item-title {
+  min-width: 0;
+  flex-shrink: 1;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+  opacity: 0.86;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ProseMirror .noto-index-label .noto-index-item-title {
+  font-size: 12px;
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+.ProseMirror .noto-index-item-path {
+  min-width: 0;
+  flex-shrink: 2;
+  overflow: hidden;
+  font-family: tokens.$mono;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+  opacity: 0.5;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .ProseMirror .noto-html-block { position: relative; }

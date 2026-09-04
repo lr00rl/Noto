@@ -137,9 +137,14 @@ describe('image settings', () => {
   });
 
   it('rejects a write of a destination it does not know rather than storing something else', () => {
+    // `upload` is a real choice now, Typora's own; `ipic` is its internal name
+    // for the same thing and not one this app defines.
+    expect(isSettingsWriteRequestV1({
+      version: 1, requestId: 'a', patch: { imageDestination: 'ipic' },
+    })).toBe(false);
     expect(isSettingsWriteRequestV1({
       version: 1, requestId: 'a', patch: { imageDestination: 'upload' },
-    })).toBe(false);
+    })).toBe(true);
     expect(isSettingsWriteRequestV1({
       version: 1, requestId: 'a', patch: { imageDestination: 'custom' },
     })).toBe(true);

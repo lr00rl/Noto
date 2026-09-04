@@ -69,7 +69,7 @@ const SECTIONS: readonly { value: PreferencesSection; label: string; keywords: s
   { value: 'appearance', label: 'Appearance', keywords: 'theme dark light text size line height width rail stylesheet css font always on top float window' },
   { value: 'editor', label: 'Editor', keywords: 'spell check images brackets pairs focus typewriter save autosave line numbers guides reload external disk sync watch' },
   { value: 'markdown', label: 'Markdown', keywords: 'smart quotes dashes ellipsis punctuation typography syntax' },
-  { value: 'images', label: 'Images', keywords: 'image picture paste drop screenshot assets folder copy relative path escape url' },
+  { value: 'images', label: 'Images', keywords: 'image picture paste drop screenshot assets folder copy relative path escape url upload picgo bucket' },
   { value: 'plugins', label: 'Plugins', keywords: 'plugin extension enable disable palette' },
 ];
 
@@ -195,6 +195,7 @@ function ImageDestination({ value, custom, onPick }: {
     { value: 'note-assets', label: 'A folder named after the note', example: './My Note.assets/image-20260902.png' },
     { value: 'folder', label: 'Beside the note itself', example: './image-20260902.png' },
     { value: 'custom', label: 'A folder I choose', example: `${trimmed.replace(/\/+$/, '')}/image-20260902.png` },
+    { value: 'upload', label: 'Upload it with PicGo.app', example: 'https://your-bucket/typora/image-20260902.png' },
   ];
   return (
     <div className="pref-row pref-stack">
@@ -221,6 +222,50 @@ function ImageDestination({ value, custom, onPick }: {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The uploader, and a button that tries it.
+ *
+ * There is one uploader, so this is not a choice: it says what will be used and
+ * lets the reader find out whether it works before pasting a picture in
+ * earnest. The test sends one transparent pixel, the way Typora's Test
+ * Uploader does, and shows the address that comes back or the reason none did.
+ */
+function ImageUploader() {
+  const [state, setState] = useState<{ kind: 'idle' } | { kind: 'busy' } | { kind: 'done'; text: string; ok: boolean }>({ kind: 'idle' });
+  const test = async () => {
+    setState({ kind: 'busy' });
+    const result = await window.notoAssets.testUpload({ version: 1, requestId: `upload-test:${crypto.randomUUID()}` });
+    if (!result.ok) { setState({ kind: 'done', ok: false, text: result.error.message }); return; }
+    if (result.value.ok) { setState({ kind: 'done', ok: true, text: result.value.url }); return; }
+    const reason = result.value.reason === 'unreachable'
+      ? 'PicGo.app is not running, or is not listening on 127.0.0.1:36677.'
+      : result.value.reason === 'refused'
+        ? `PicGo refused it: ${result.value.detail ?? 'no reason given'}.`
+        : `The reply was not one PicGo gives: ${result.value.detail ?? 'unknown'}.`;
+    setState({ kind: 'done', ok: false, text: reason });
+  };
+  return (
+    <div className="pref-row pref-stack">
+      <span className="pref-label">
+        Image uploader
+        <small>PicGo.app, listening on 127.0.0.1:36677. A pasted picture is written beside the note first, sent, and the copy removed once its address comes back. If PicGo is not running the copy stays and the note refers to it, and you are told.</small>
+      </span>
+      <span className="pref-file">
+        <input type="text" value="PicGo.app" readOnly aria-label="Image uploader" data-testid="setting-image-uploader" />
+        <button type="button" className="pref-inline-action" data-testid="test-uploader"
+          disabled={state.kind === 'busy'} onClick={() => { void test(); }}>
+          {state.kind === 'busy' ? 'Sending…' : 'Test uploader'}
+        </button>
+      </span>
+      {state.kind === 'done' && (
+        <p className={state.ok ? 'pref-note' : 'pref-problem'} role="status" data-testid="test-uploader-result">
+          {state.ok ? `Uploaded. It came back as ${state.text}` : state.text}
+        </p>
+      )}
     </div>
   );
 }
@@ -557,6 +602,7 @@ export function Preferences({
                 {settings.imageDestination === 'custom' && (
                   <ImageFolder settings={settings} onChange={onChange} />
                 )}
+                {settings.imageDestination === 'upload' && <ImageUploader />}
                 <Switch
                   label="Escape the address"
                   hint="Percent-encode the reference, so a space or a Chinese character in a folder name still resolves. Off writes the name as it is, which other editors read too."

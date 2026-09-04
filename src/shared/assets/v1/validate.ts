@@ -13,6 +13,7 @@ import {
   NOTO_ASSETS_VERSION,
   type AssetRequestV1,
   type AssetResultV1,
+  type AssetTestUploadReplyV1,
   type AssetWriteReplyV1,
   type AssetWriteRequestV1,
 } from './contracts';
@@ -41,6 +42,37 @@ export function isAssetWriteRequestV1(value: unknown): value is AssetWriteReques
   return value.bytes.byteLength > 0 && value.bytes.byteLength <= MAX_ASSET_BYTES;
 }
 
+const UPLOAD_FAILURES = new Set(['unreachable', 'refused', 'bad-reply']);
+
+function isUploadNote(value: unknown): boolean {
+  if (!record(value)) return false;
+  if (value.ok === true) return Object.keys(value).length === 1;
+  return value.ok === false
+    && typeof value.reason === 'string' && UPLOAD_FAILURES.has(value.reason)
+    && (value.detail === undefined || (typeof value.detail === 'string' && value.detail.length <= 400))
+    && Object.keys(value).every((key) => ['ok', 'reason', 'detail'].includes(key));
+}
+
+export function isAssetTestUploadReplyV1(value: unknown): value is AssetTestUploadReplyV1 {
+  if (!record(value) || value.version !== NOTO_ASSETS_VERSION) return false;
+  if (value.ok === true) {
+    return exact(value, ['version', 'ok', 'url']) && typeof value.url === 'string' && value.url.startsWith('https://');
+  }
+  return value.ok === false && typeof value.reason === 'string' && UPLOAD_FAILURES.has(value.reason)
+    && (value.detail === undefined || typeof value.detail === 'string')
+    && Object.keys(value).every((key) => ['version', 'ok', 'reason', 'detail'].includes(key));
+}
+
+export function isAssetTestUploadResultV1(
+  value: unknown,
+  expectedRequestId: string,
+): value is AssetResultV1<AssetTestUploadReplyV1> {
+  if (!record(value) || value.requestId !== expectedRequestId) return false;
+  if (value.ok === true) return isAssetTestUploadReplyV1(value.value);
+  return value.ok === false && record(value.error)
+    && typeof value.error.code === 'string' && typeof value.error.message === 'string';
+}
+
 const REFUSALS = new Set([
   'no-document', 'unsupported-type', 'too-large', 'outside-root', 'cancelled', 'write-failed',
 ]);
@@ -48,9 +80,10 @@ const REFUSALS = new Set([
 export function isAssetWriteReplyV1(value: unknown): value is AssetWriteReplyV1 {
   if (!record(value) || value.version !== NOTO_ASSETS_VERSION) return false;
   if (value.written === true) {
-    return exact(value, ['version', 'written', 'reference', 'url', 'alt'])
+    return exact(value, ['version', 'written', 'reference', 'url', 'alt', 'upload'])
       && typeof value.reference === 'string' && value.reference.length > 0
-      && typeof value.url === 'string' && typeof value.alt === 'string';
+      && typeof value.url === 'string' && typeof value.alt === 'string'
+      && (value.upload === null || isUploadNote(value.upload));
   }
   return value.written === false && exact(value, ['version', 'written', 'reason'])
     && typeof value.reason === 'string' && REFUSALS.has(value.reason);

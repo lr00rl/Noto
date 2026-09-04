@@ -3,6 +3,7 @@ import {
   ASSET_CHANNELS,
   type AssetRequestV1,
   type AssetResultV1,
+  type AssetTestUploadReplyV1,
   type AssetWriteReplyV1,
   type AssetWriteRequestV1,
   type NotoAssetsApiV1,
@@ -10,6 +11,7 @@ import {
 import {
   isAssetRequestV1,
   isAssetResultV1,
+  isAssetTestUploadResultV1,
   isAssetWriteRequestV1,
 } from '../shared/assets/v1/validate';
 import type {
@@ -442,6 +444,15 @@ const assetsApi: NotoAssetsApiV1 = Object.freeze({
   pick: (request: AssetRequestV1) => isAssetRequestV1(request)
     ? invokeAsset(ASSET_CHANNELS.pick, request, request.requestId)
     : Promise.resolve(rejectedAsset('invalid', 'Invalid image pick request')),
+  testUpload: async (request: AssetRequestV1): Promise<AssetResultV1<AssetTestUploadReplyV1>> => {
+    if (!isAssetRequestV1(request)) {
+      return { ok: false, requestId: 'invalid', error: { code: 'BAD_REQUEST', message: 'Invalid upload test request' } };
+    }
+    const value: unknown = await ipcRenderer.invoke(ASSET_CHANNELS.testUpload, request);
+    return isAssetTestUploadResultV1(value, request.requestId)
+      ? value
+      : { ok: false, requestId: request.requestId, error: { code: 'BAD_REQUEST', message: 'Main returned an invalid upload test response' } };
+  },
 });
 
 contextBridge.exposeInMainWorld('notoWorkspace', workspaceApi);

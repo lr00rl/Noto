@@ -149,6 +149,42 @@ describe('writeAsset', () => {
     expect(reply.written && reply.reference).toBe('./a note.assets/image-20260902190530123.png');
   });
 
+  it('uploads through PicGo when asked, and lets the local copy go once the address is back', async () => {
+    const sent: string[] = [];
+    const reply = await writeAsset(PNG, {
+      ...deps({ imageDestination: 'upload' }),
+      upload: async (absolute) => { sent.push(absolute); return { uploaded: true, url: 'https://img.example.com/typora/a.png' }; },
+    });
+    expect(reply).toMatchObject({ written: true, reference: 'https://img.example.com/typora/a.png', upload: { ok: true } });
+    // PicGo takes a path, so the file is written first and sent by name.
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toContain(path.join('notes', 'assets', 'image-20260902190530123.png'));
+    // And the copy has done its job.
+    await expect(readdir(path.join(vault, 'notes', 'assets'))).resolves.toEqual([]);
+  });
+
+  it('keeps the copy beside the note and says why when the upload does not happen', async () => {
+    const reply = await writeAsset(PNG, {
+      ...deps({ imageDestination: 'upload' }),
+      upload: async () => ({ uploaded: false, reason: 'unreachable', detail: 'ECONNREFUSED' }),
+    });
+    // The note refers to a picture that exists rather than to nothing, and the
+    // reply says the address is local because PicGo could not be reached.
+    expect(reply).toMatchObject({
+      written: true,
+      reference: './assets/image-20260902190530123.png',
+      upload: { ok: false, reason: 'unreachable', detail: 'ECONNREFUSED' },
+    });
+    await expect(readdir(path.join(vault, 'notes', 'assets'))).resolves.toEqual(['image-20260902190530123.png']);
+  });
+
+  it('never uploads when the setting is a folder, whatever else is available', async () => {
+    let called = false;
+    const reply = await writeAsset(PNG, { ...deps(), upload: async () => { called = true; return { uploaded: true, url: 'https://x/a.png' }; } });
+    expect(called).toBe(false);
+    expect(reply).toMatchObject({ written: true, upload: null });
+  });
+
   it('gives the picture a URL the renderer can show it with', async () => {
     const reply = await writeAsset(PNG, deps());
     expect(reply.written && reply.url).toContain(encodeURIComponent(path.join(vault, 'notes', 'assets')));
