@@ -10,7 +10,6 @@
 import {
   InputRule,
   ellipsis,
-  emDash,
   inputRules,
   smartQuotes,
   textblockTypeInputRule,
@@ -120,6 +119,21 @@ function gatedRules(rules: readonly InputRule[], enabled: () => boolean): InputR
     },
   ));
 }
+
+/**
+ * Two hyphens become an em dash, except on a line that starts with a pipe.
+ *
+ * That line is a table being typed, and its rule row is made of hyphens: with
+ * the built-in rule on, `|---|` came out as `|—-|` and the table never formed.
+ * The rest of the line is left alone for the same reason, since what is being
+ * typed there is markdown and not prose until the table appears.
+ */
+const emDash = new InputRule(/--$/, (state, _match, start, end) => {
+  const $start = state.doc.resolve(start);
+  const line = $start.parent.textBetween(0, $start.parentOffset, '\n');
+  if (/^\s*\|/.test(line.slice(line.lastIndexOf('\n') + 1))) return null;
+  return state.tr.insertText('\u2014', start, end);
+});
 
 export function notoInputRules(options: InputRuleOptions = {}): Plugin {
   const quotes = options.smartQuotes ?? (() => false);
