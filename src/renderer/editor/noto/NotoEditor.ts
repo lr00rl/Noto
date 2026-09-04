@@ -15,6 +15,7 @@
  *   is not committed yet, and saving it would write a half finished word.
  */
 
+import { footnoteHoverPlugin } from './footnote-hover';
 import { sliceFromText } from './paste-text';
 import { EditorState, Selection, type Plugin, type Transaction } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
@@ -233,6 +234,7 @@ export class NotoEditor implements NotoEditorPort {
       taskClickPlugin(),
       wikiLinkPlugin({ onFollow: (target) => this.options.onFollowWikiLink?.(target) }),
       indexBlockPlugin({ onFollow: (target) => this.options.onFollowWikiLink?.(target) }),
+      footnoteHoverPlugin(),
       linkEditorPlugin(),
       followLinkPlugin({ onFollow: (href) => this.options.onFollowLink?.(href) }),
       mathEditingPlugin(),

@@ -527,9 +527,12 @@
  * Headings carry their `#` in the gutter, visible only while the caret is in
  * the block. Generated content, so the marker cannot leak into the file.
  */
-@each $level, $marker in (1: '#', 2: '##', 3: '###', 4: '####', 5: '#####', 6: '######') {
+/* Typora's badge: `h2` in the margin beside the heading being written, so
+   the level is known without hashes, which are not shown. The theme places
+   it 1.5625rem into the margin and a little lower for the small levels. */
+@each $level in (1, 2, 3, 4, 5, 6) {
   .ProseMirror > h#{$level}::before {
-    content: '#{$marker}';
+    content: 'h#{$level}';
   }
 }
 
@@ -544,13 +547,17 @@
      it like a footnote mark. Muted, because it is a hint about the syntax and
      not a thing to look at. */
   position: absolute;
-  top: 0;
-  right: calc(100% + 8px);
+  top: 0.32em;
+  right: calc(100% + 12px);
+  padding: 0 4px;
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
   color: var(--muted);
   font-family: tokens.$mono;
-  font-size: 0.5em;
-  font-weight: 400;
-  line-height: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: 0.02em;
   opacity: 0;
   transition: opacity var(--motion-micro) var(--ease-out);
   pointer-events: none;

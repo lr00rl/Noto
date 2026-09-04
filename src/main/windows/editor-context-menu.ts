@@ -12,6 +12,7 @@
  * an image.
  */
 
+import { sendPasteText } from '../workspace/menu';
 import { Menu, clipboard, type BrowserWindow, type ContextMenuParams, type MenuItemConstructorOptions } from 'electron';
 
 /** Suggestions past this many are guesses rather than corrections. */
@@ -55,7 +56,7 @@ export function buildEditorContextMenu(
   items.push({ role: 'paste', enabled: editFlags.canPaste });
   // The markdown a note is made of is text, so pasting a styled fragment as
   // text is what you want far more often than the fragment's own markup.
-  items.push({ role: 'pasteAndMatchStyle', label: 'Paste as Plain Text', enabled: editFlags.canPaste });
+  items.push({ label: 'Paste as Plain Text', enabled: editFlags.canPaste, click: () => sendPasteText(window) });
   items.push({ type: 'separator' });
   items.push({ role: 'selectAll', enabled: editFlags.canSelectAll });
 
