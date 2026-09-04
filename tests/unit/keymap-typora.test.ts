@@ -123,8 +123,11 @@ describe('clearing the formatting', () => {
     expect(run(whole, clearFormat)).toBe('# A bold heading');
   });
 
-  it('declines with nothing selected, so a stray key cannot strip a paragraph', () => {
-    expect(run(stateFor('**bold** text', 3), clearFormat)).toBeNull();
+  it('clears the styled run the caret is in, as Typora does, and nothing else', () => {
+    // Inside the bold run: the run loses its marks and the rest is untouched.
+    expect(run(stateFor('**bold** text', 3), clearFormat)).toBe('bold text');
+    // In plain text there is no styled run, so a stray key strips nothing.
+    expect(run(stateFor('**bold** text', 8), clearFormat)).toBeNull();
   });
 });
 

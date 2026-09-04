@@ -72,8 +72,13 @@ describe('the menu follows each platform', () => {
     expect(labels(menu(template('win32'), '&File'))).toContain('quit');
     expect(labels(menu(template('linux'), '&File'))).toContain('quit');
     // On macOS Quit lives in the application menu, so File closes the window.
-    expect(labels(menu(template('darwin'), '&File'))).toContain('close');
-    expect(labels(menu(template('darwin'), '&File'))).not.toContain('quit');
+    // Named, because Close Tab has Command-W and this is the other close.
+    const file = menu(template('darwin'), '&File');
+    expect(labels(file)).toContain('Close Window');
+    expect(labels(file)).not.toContain('quit');
+    const closeWindow = file.find((item) => item.label === 'Close Window');
+    expect(closeWindow?.role).toBe('close');
+    expect(closeWindow?.accelerator).toBe('Shift+CmdOrCtrl+W');
   });
 
   it('puts About under Help only where there is no application menu', () => {

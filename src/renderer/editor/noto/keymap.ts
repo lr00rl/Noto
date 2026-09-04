@@ -36,11 +36,11 @@ import {
   isInTable,
 } from 'prosemirror-tables';
 import { findWrapping } from 'prosemirror-transform';
-import type { ResolvedPos } from 'prosemirror-model';
+import type { Node as ProseNode, ResolvedPos } from 'prosemirror-model';
 import { moveBlock, moveColumn } from './move-block';
 import { enterInTable, tableFromRows, unwrapAtStart } from './block-edges';
 import { openLinkEditor } from './link-plugin';
-import { TextSelection, type Command, type Plugin, type Transaction } from 'prosemirror-state';
+import { TextSelection, type Command, type EditorState, type Plugin, type Transaction } from 'prosemirror-state';
 import { notoSchema } from '../../../shared/markdown/v3/pm/schema';
 import {
   insertFootnote,
@@ -363,8 +363,88 @@ const enter: Command = chainCommands(
  */
 export const clearFormat: Command = (state, dispatch) => {
   const { from, to, empty } = state.selection;
-  if (empty) return false;
-  if (dispatch) dispatch(state.tr.removeMark(from, to));
+  // With nothing selected, Typora clears the styled run the caret is in.
+  const range = empty ? styledScopeAt(state) : { from, to };
+  if (!range) return false;
+  if (dispatch) dispatch(state.tr.removeMark(range.from, range.to));
+  return true;
+};
+
+/**
+ * The run of text around the caret that carries the same marks, or null
+ * when the caret's text carries none. Typora calls this the styled scope:
+ * the whole of a bold phrase, from the caret anywhere inside it.
+ */
+export function styledScopeAt(state: EditorState): { from: number; to: number } | null {
+  const { $from } = state.selection;
+  const parent = $from.parent;
+  if (!parent.isTextblock) return null;
+  const offset = $from.parentOffset;
+  const base = $from.start();
+  // The marks at the caret: the text before it, or after it at a run's start.
+  let index = $from.index();
+  let child = parent.maybeChild(index);
+  if ($from.textOffset === 0 && index > 0) {
+    const before = parent.child(index - 1);
+    if (before.marks.length > 0) { index -= 1; child = before; }
+  }
+  if (!child || child.marks.length === 0) return null;
+  const marks = child.marks;
+  const same = (node: ProseNode) => node.isInline && node.marks.length === marks.length
+    && marks.every((mark) => mark.isInSet(node.marks));
+  let start = 0;
+  let end = 0;
+  let at = 0;
+  let from = -1;
+  let to = -1;
+  parent.forEach((node, pos, position) => {
+    if (position === index) { start = pos; end = pos + node.nodeSize; }
+    at = pos;
+  });
+  void at;
+  // Grow outwards over every neighbour with the same marks.
+  from = start; to = end;
+  for (let i = index - 1; i >= 0; i -= 1) {
+    const node = parent.child(i);
+    if (!same(node)) break;
+    from -= node.nodeSize;
+  }
+  for (let i = index + 1; i < parent.childCount; i += 1) {
+    const node = parent.child(i);
+    if (!same(node)) break;
+    to += node.nodeSize;
+  }
+  void offset;
+  return { from: base + from, to: base + to };
+}
+
+/** Typora's Select Styled Scope, Command-E: the styled run, or the block when there is none. */
+export const selectStyledScope: Command = (state, dispatch) => {
+  const { $from } = state.selection;
+  if (!$from.parent.isTextblock) return false;
+  const range = styledScopeAt(state) ?? { from: $from.start(), to: $from.end() };
+  if (dispatch) dispatch(state.tr.setSelection(TextSelection.create(state.doc, range.from, range.to)));
+  return true;
+};
+
+/**
+ * Typora's Format > Comment: the selection inside an HTML comment, which
+ * the note keeps and no reader sees. The two halves go in as HTML nodes, as
+ * a tag does, because a `<` typed as text is escaped on the way out.
+ */
+export const insertComment: Command = (state, dispatch) => {
+  const { $from, from, to, empty } = state.selection;
+  if (!$from.parent.isTextblock || $from.parent.type.spec.code) return false;
+  if (!dispatch) return true;
+  const open = nodes.inline_html.create({ value: '<!-- ' });
+  const close = nodes.inline_html.create({ value: ' -->' });
+  const tr = state.tr;
+  tr.insert(to, close);
+  tr.insert(from, open);
+  tr.setSelection(empty
+    ? TextSelection.create(tr.doc, from + open.nodeSize)
+    : TextSelection.create(tr.doc, from + open.nodeSize, to + open.nodeSize));
+  dispatch(tr.scrollIntoView());
   return true;
 };
 
@@ -490,6 +570,10 @@ export const EDITOR_COMMANDS: Readonly<Record<string, Command>> = {
   'select-word': selectWord,
   'select-line': selectLine,
   'jump-to-selection': jumpToSelection,
+  'select-scope': selectStyledScope,
+  'insert-comment': insertComment,
+  'indent-more': sinkListItem(nodes.list_item),
+  'indent-less': liftListItem(nodes.list_item),
   'clear-format': clearFormat,
   'block-alert-note': insertAlert('NOTE'),
   'block-alert-tip': insertAlert('TIP'),

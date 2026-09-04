@@ -2081,3 +2081,60 @@ button:disabled { color: var(--muted); opacity: 0.7; }
 .rail-links-count { margin-left: 4px; font-variant-numeric: tabular-nums; opacity: 0.7; }
 .rail-link { display: flex; }
 .rail-empty code { font-family: tokens.$mono; font-size: 11px; }
+
+/* Typora's Insert Table: two numbers in a small panel over the note. */
+.table-dialog-scrim {
+  animation: noto-fade var(--motion-micro) var(--ease-out);
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--scrim);
+}
+
+.table-dialog {
+  animation: noto-arrive var(--motion-default) var(--ease-out);
+  display: grid;
+  gap: 10px;
+  width: 260px;
+  padding: 16px 18px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow: 0 18px 48px -12px color-mix(in srgb, var(--ink) 34%, transparent);
+  font-family: tokens.$ui;
+}
+
+.table-dialog-title { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--ink); }
+
+.table-dialog-field {
+  display: grid;
+  grid-template-columns: 1fr 88px;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--ink);
+
+  input {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--hairline);
+    border-radius: 5px;
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    &:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  }
+}
+
+.table-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+
+  .is-primary { background: var(--accent); color: var(--paper); border-color: transparent; }
+  .is-primary.is-primary:hover { background: color-mix(in srgb, var(--accent) 88%, var(--ink)); }
+}

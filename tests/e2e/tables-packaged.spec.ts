@@ -97,9 +97,13 @@ test.describe('editing a table', () => {
     const { app, page } = await launch('insert');
     try {
       await placeCaret(page, page.locator('.ProseMirror > p').last());
+      // Typora asks the size first; the dialog's defaults are two by three.
       await invokeMenu(app, 'table-insert');
+      await expect(page.getByTestId('table-dialog')).toBeVisible();
+      await page.getByTestId('table-insert').click();
       await expect(page.locator('.ProseMirror table')).toHaveCount(2);
       await expect(page.locator('.ProseMirror table').last().locator('th')).toHaveCount(3);
+      await expect(page.locator('.ProseMirror table').last().locator('tr')).toHaveCount(3);
     } finally {
       await app.close();
     }
