@@ -2118,3 +2118,69 @@
    tokens already carry, so a machine missing one falls back the same way. */
 :root[data-prose-face='sans'] .ProseMirror { font-family: tokens.$ui; }
 :root[data-prose-face='mono'] .ProseMirror { font-family: tokens.$mono; }
+
+/* The HTML a note draws with, once it is cleaned: a table, a `<details>`,
+   a picture in a centred block. Set in the document's own face, and given
+   the same table rules the editor's own tables have, so a note that mixes
+   the two does not look like two documents. The source is hidden the way
+   the picture preview hides it, out of sight and still reachable by the
+   caret, and comes back while the block is being edited. */
+.ProseMirror .noto-html-block[data-preview='markup']:not(.noto-html-editing) {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  white-space: normal;
+
+  > .noto-html-source {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+/* While the block is being edited the drawing steps aside and the source is
+   back in the flow, where the caret can be moved through it. Clipped to a
+   pixel, as it is behind the drawing, the arrow keys have nowhere to go and
+   a press of End lands after the first character. */
+.ProseMirror .noto-html-block.noto-html-editing[data-preview='markup'] > .noto-html-drawn { display: none; }
+
+.ProseMirror .noto-html-drawn {
+  cursor: default;
+
+  table {
+    border-collapse: collapse;
+    margin: 0.4em 0;
+    font-size: 0.96em;
+  }
+
+  th, td {
+    border: 1px solid var(--hairline);
+    padding: 6px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th { font-weight: 600; background: color-mix(in srgb, var(--ink) 3%, transparent); }
+
+  details {
+    margin: 0.4em 0;
+    padding: 8px 12px;
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+  }
+
+  summary { cursor: pointer; font-weight: 500; }
+  summary::marker { color: var(--muted); }
+
+  img { max-width: 100%; height: auto; }
+  a { color: var(--accent); }
+  p:first-child { margin-top: 0; }
+  p:last-child { margin-bottom: 0; }
+  [align='center'] { text-align: center; }
+  [align='right'] { text-align: right; }
+  center { display: block; text-align: center; }
+}

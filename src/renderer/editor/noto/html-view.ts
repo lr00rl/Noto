@@ -14,6 +14,8 @@
  * picture in front of it.
  */
 
+import { resolveImageSource } from './image-source';
+import { sanitizeHtml, worthDrawing } from './html-sanitize';
 import { zoomedTag } from './image-tag';
 import type { Node as ProseNode } from 'prosemirror-model';
 import { TextSelection } from 'prosemirror-state';
@@ -57,13 +59,14 @@ export class HtmlBlockView implements NodeView {
   readonly dom: HTMLElement;
   readonly contentDOM: HTMLElement;
   private readonly preview: HTMLElement;
+  private readonly markup: HTMLElement;
   private readonly frame: ImageFrame;
 
   constructor(
     private node: ProseNode,
     private readonly view: EditorView,
     private readonly getPos: () => number | undefined,
-    context: () => ImageContext,
+    private readonly context: () => ImageContext,
     registry: Set<Refreshable>,
   ) {
     this.dom = document.createElement('div');
@@ -75,6 +78,24 @@ export class HtmlBlockView implements NodeView {
     this.preview.className = 'noto-html-preview';
     this.preview.contentEditable = 'false';
     this.preview.append(this.frame.dom);
+    // The drawn markup, for everything that is not a lone picture. It takes
+    // the same press as the picture does: a click puts the caret in the
+    // source behind it, which is how the markup is edited.
+    this.markup = document.createElement('div');
+    this.markup.className = 'noto-html-drawn';
+    this.markup.contentEditable = 'false';
+    this.markup.addEventListener('mousedown', (event) => {
+      // Not a link: following one is what a reader means by pressing it.
+      if (event.target instanceof Element && event.target.closest('a[href]')) return;
+      // Nor the twisty of a `<details>`, which is there to be opened.
+      if (event.target instanceof Element && event.target.closest('summary')) return;
+      event.preventDefault();
+      const base = this.getPos();
+      if (base === undefined) return;
+      const { state } = this.view;
+      this.view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, base + 1)));
+      this.view.focus();
+    });
     // A press on the picture puts the caret in the source behind it, which
     // is how the tag is edited: the block becomes the active one and shows
     // its text.
@@ -103,7 +124,8 @@ export class HtmlBlockView implements NodeView {
   }
 
   stopEvent(event: Event): boolean {
-    return event.target instanceof Node && this.preview.contains(event.target);
+    return event.target instanceof Node
+      && (this.preview.contains(event.target) || this.markup.contains(event.target));
   }
 
   destroy(): void {
@@ -114,15 +136,37 @@ export class HtmlBlockView implements NodeView {
     // Said quietly rather than drawn as a slab of source. The text is still
     // there and still editable; only its frame is dropped.
     this.dom.dataset.comment = String(isHtmlComment(this.node.textContent));
-    const tag = parseImageTag(this.node.textContent);
+    const source = this.node.textContent;
+    const tag = parseImageTag(source);
     if (tag) {
+      this.markup.remove();
       this.frame.render(pictureOf(tag));
       if (!this.preview.isConnected) this.dom.append(this.preview);
       this.dom.dataset.preview = 'image';
-    } else {
-      this.preview.remove();
-      this.dom.dataset.preview = 'none';
+      return;
     }
+    this.preview.remove();
+    // Everything else a note draws with: a table with a merged cell, a
+    // `<details>` to fold open, a picture centred in a `<div align>`. What
+    // survives the cleaning is what is drawn, and the source stays behind it.
+    if (!isHtmlComment(source) && worthDrawing(source)) {
+      const drawn = sanitizeHtml(source);
+      // A picture inside the markup names a file the way the note does, and
+      // the renderer is not allowed to read one: each address goes through
+      // the same resolver a markdown image uses, and one that resolves to
+      // nothing loses its address rather than asking the network for it.
+      for (const picture of drawn.querySelectorAll('img')) {
+        const resolved = resolveImageSource(picture.getAttribute('src') ?? '', this.context());
+        if (resolved.kind === 'url') picture.setAttribute('src', resolved.url);
+        else picture.removeAttribute('src');
+      }
+      this.markup.replaceChildren(drawn);
+      if (!this.markup.isConnected) this.dom.append(this.markup);
+      this.dom.dataset.preview = 'markup';
+      return;
+    }
+    this.markup.remove();
+    this.dom.dataset.preview = 'none';
   }
 }
 
