@@ -294,6 +294,35 @@
    are the plugin's own. */
 .ProseMirror .noto-index-source { display: none; }
 
+/* `[TOC]` drawn as Typora draws it: the headings as a list, in the accent
+   like the links they are, stepped in by level. The marker's own paragraph
+   is hidden while the list stands in for it. */
+.ProseMirror .noto-toc-source { display: none; }
+.ProseMirror .noto-toc {
+  display: grid;
+  gap: 2px;
+  margin: 0.4em 0 1em;
+  padding: 0;
+}
+.ProseMirror .noto-toc-item {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  width: fit-content;
+  max-width: 100%;
+  padding: 1px 0;
+  margin-inline-start: calc(var(--toc-depth, 0) * 1.4em);
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.95em;
+  line-height: 1.5;
+  text-align: start;
+  cursor: pointer;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.ProseMirror .noto-toc-item.noto-toc-item:hover { border-bottom-color: var(--accent); background: transparent; }
+.ProseMirror .noto-toc-empty { margin: 0; color: var(--muted); font-style: italic; }
+
 .ProseMirror .noto-index {
   margin: 14px 0 18px;
   padding: 2px 0 0;

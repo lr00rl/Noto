@@ -25,6 +25,8 @@ export interface MenuActions {
   openFolder: () => void;
   /** Close whichever document is in front. */
   closeTab: () => void;
+  /** Open again the document closed most recently. */
+  reopenClosed: () => void;
   openDialog: () => void;
   openPath: (filePath: string) => void;
   /** Convert a document that is not markdown and open the result. */
@@ -114,6 +116,7 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       // documents are open, so asking the renderer which one is in front would
       // race against the tab list arriving there.
       { id: 'close-tab', label: 'Close Tab', accelerator: 'CmdOrCtrl+W', click: () => actions.closeTab() },
+      { id: 'reopen-closed', label: 'Reopen Closed File', accelerator: 'Shift+CmdOrCtrl+T', click: () => actions.reopenClosed() },
       recentSubmenu(recent, actions),
       command(
         mac ? 'Reveal in Finder' : platform === 'win32' ? 'Reveal in File Explorer' : 'Reveal in File Manager',

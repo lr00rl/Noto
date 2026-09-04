@@ -15,6 +15,8 @@
  *   is not committed yet, and saving it would write a half finished word.
  */
 
+import { droppedNote } from './dropped-note';
+import { tocBlockPlugin } from './toc-block';
 import { footnoteHoverPlugin } from './footnote-hover';
 import { sliceFromText } from './paste-text';
 import { EditorState, Selection, type Plugin, type Transaction } from 'prosemirror-state';
@@ -93,6 +95,8 @@ export interface NotoEditorOptions extends Omit<InputRuleOptions, 'smartQuotes' 
   readonly onActiveBlockChanged?: (index: number) => void;
   /** Cmd or Ctrl clicking an ordinary `[text](address)` link. */
   readonly onFollowLink?: (href: string) => void;
+  /** A markdown file dropped on the editor, which is a note to open rather than content. */
+  readonly onDropNote?: (file: File) => void;
   /** The document's size, after typing has stopped rather than during it. */
   readonly onCountChanged?: (count: DocumentCount) => void;
   /** Cmd or Ctrl clicking a `[[wiki link]]`. Absent means links stay inert. */
@@ -191,6 +195,12 @@ export class NotoEditor implements NotoEditorPort {
         return true;
       },
       handleDrop: (view, event) => {
+        const note = droppedNote((event as DragEvent).dataTransfer?.files);
+        if (note && this.options.onDropNote) {
+          event.preventDefault();
+          this.options.onDropNote(note);
+          return true;
+        }
         const at = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? null;
         return this.handleTransfer(view, (event as DragEvent).dataTransfer, at);
       },
@@ -235,6 +245,7 @@ export class NotoEditor implements NotoEditorPort {
       wikiLinkPlugin({ onFollow: (target) => this.options.onFollowWikiLink?.(target) }),
       indexBlockPlugin({ onFollow: (target) => this.options.onFollowWikiLink?.(target) }),
       footnoteHoverPlugin(),
+      tocBlockPlugin({ onGo: (blockIndex) => this.focusBlock(blockIndex) }),
       linkEditorPlugin(),
       followLinkPlugin({ onFollow: (href) => this.options.onFollowLink?.(href) }),
       mathEditingPlugin(),

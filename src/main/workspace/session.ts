@@ -14,7 +14,7 @@
 import { GraphCache, linksFor } from './note-graph';
 import type { SearchFlags } from '../../shared/search/pattern';
 import path from 'node:path';
-import { cp, mkdir, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { access, cp, mkdir, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { BrowserWindow, Menu, clipboard, dialog, shell, type MenuItemConstructorOptions } from 'electron';
@@ -91,6 +91,9 @@ export class WorkspaceSession {
   private activePath: string | null = null;
   /** The folder shown in the sidebar, and the boundary for every listing. */
   private folderRoot: string | null = null;
+
+  /** Paths closed in this session, most recent last. */
+  private closed: string[] = [];
 
   /** The vault's graph, read once per version of its file. */
   private readonly graphCache = new GraphCache();
@@ -259,6 +262,24 @@ export class WorkspaceSession {
    * does and what the eye expects. Closing the last tab leaves the empty state
    * rather than quitting, so an accidental close is not destructive.
    */
+  /**
+   * Open the file closed most recently that still exists, Typora's Reopen
+   * Closed File. Null when there is none, which the menu says nothing about:
+   * the item simply does nothing, as Typora's does.
+   */
+  async reopenClosed(): Promise<FileTruthOpenReplyV1 | null> {
+    while (this.closed.length > 0) {
+      const candidate = this.closed.pop()!;
+      try {
+        await access(candidate);
+      } catch {
+        continue;
+      }
+      return this.openPath(candidate);
+    }
+    return null;
+  }
+
   close(filePath: string): void {
     const resolved = path.resolve(filePath);
     const document = this.documents.get(resolved);
@@ -268,6 +289,8 @@ export class WorkspaceSession {
     const index = order.indexOf(resolved);
     document.store.close();
     this.documents.delete(resolved);
+    // Remembered for Reopen Closed File, most recent last, each path once.
+    this.closed = [...this.closed.filter((known) => known !== resolved), resolved].slice(-20);
 
     if (this.activePath === resolved) {
       const neighbour = order[index - 1] ?? order[index + 1] ?? null;

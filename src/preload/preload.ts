@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import {
   ASSET_CHANNELS,
   type AssetRequestV1,
@@ -383,6 +383,13 @@ const workspaceApi: NotoWorkspaceApiV1 = Object.freeze({
     subscribe(WORKSPACE_CHANNELS.menuCommand, isWorkspaceMenuEventV1, listener),
   onPasteText: (listener: (event: WorkspacePasteEventV1) => void) =>
     subscribe(WORKSPACE_CHANNELS.pasteText, isWorkspacePasteEventV1, listener),
+  pathForFile: (file: File) => {
+    try {
+      return file instanceof File ? webUtils.getPathForFile(file) : '';
+    } catch {
+      return '';
+    }
+  },
   noteLinks: (request: WorkspaceFolderRequestV1) => isWorkspaceFolderRequestV1(request)
     ? invokeWorkspace<WorkspaceLinksReplyV1>(WORKSPACE_CHANNELS.noteLinks, request, request.requestId, isWorkspaceLinksResultV1)
     : Promise.resolve(rejectedWorkspace<WorkspaceLinksReplyV1>('invalid', 'Invalid note links request')),

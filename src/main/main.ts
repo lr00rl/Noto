@@ -299,6 +299,9 @@ async function run(): Promise<void> {
       const current = session?.currentPath;
       if (current) session?.close(current);
     },
+    reopenClosed: () => {
+      void session?.reopenClosed().then(() => refreshMenu()).catch(reportOpenFailure);
+    },
     clearRecent: () => {
       void Promise.all(recent.list().map((file) => recent.forget(file.path))).then(refreshMenu);
     },
