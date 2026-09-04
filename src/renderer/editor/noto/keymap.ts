@@ -36,6 +36,7 @@ import {
 import { findWrapping } from 'prosemirror-transform';
 import type { ResolvedPos } from 'prosemirror-model';
 import { moveBlock, moveColumn } from './move-block';
+import { enterInTable, tableFromRows, unwrapAtStart } from './block-edges';
 import { openLinkEditor } from './link-plugin';
 import { TextSelection, type Command, type Plugin, type Transaction } from 'prosemirror-state';
 import { notoSchema } from '../../../shared/markdown/v3/pm/schema';
@@ -268,6 +269,8 @@ export const outdentEmptyListItem: Command = (state, dispatch) => {
 };
 
 const enter: Command = chainCommands(
+  tableFromRows,
+  enterInTable,
   newlineInCode,
   createParagraphNear,
   outdentEmptyListItem,
@@ -499,6 +502,8 @@ export function notoBindings({ mac, onWidthStep }: KeymapOptions): Record<string
     [`${mod}-y`]: redo,
 
     Enter: enter,
+    // Typora's Backspace at the head of a block, tried before the ordinary one.
+    Backspace: unwrapAtStart,
     'Shift-Enter': insertHardBreak,
     [`${mod}-Enter`]: insertHardBreak,
 
