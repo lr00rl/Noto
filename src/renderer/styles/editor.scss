@@ -354,33 +354,67 @@
   padding: 5px;
 }
 .format-menu button { width: 100%; text-align: left; }
-.noto-source-editor {
+/* Source Code Mode: the note as text, in the writing column's width. The
+   coloured copy sets the height and the textarea lies over it, its own text
+   invisible so only the caret and the selection show through. Both must
+   have the same font, padding and wrapping to the pixel, or the caret
+   drifts off the letters it is between. */
+.noto-source {
+  position: relative;
+  width: min(calc(100% - 40px), 920px);
+  min-height: calc(100vh - 120px);
+  margin: 12px auto 40px;
+}
+
+.noto-source-highlight,
+.noto-source-input {
   box-sizing: border-box;
   display: block;
-  width: min(calc(100% - 40px), 920px);
-  min-height: calc(100vh - 190px);
-  margin: 20px auto;
-  resize: vertical;
-  border: 1px solid var(--hairline);
-  border-radius: 4px;
-  outline: 0;
-  background: var(--paper);
-  color: var(--ink);
-  padding: 24px;
-  font: 14px/1.6 tokens.$mono;
+  width: 100%;
+  margin: 0;
+  padding: 28px 24px 120px;
+  border: 0;
+  font: 14px/1.7 tokens.$mono;
   tab-size: 2;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
-.noto-source-editor:focus-visible { border-color: var(--focus); outline: 2px solid var(--focus); outline-offset: 2px; }
-.source-mode-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: min(calc(100% - 40px), 920px);
-  margin: 20px auto -8px;
-  color: var(--muted);
-  font-family: tokens.$ui;
-  font-size: 12px;
+
+.noto-source-highlight {
+  min-height: calc(100vh - 120px);
+  background: transparent;
+  color: var(--ink);
+  pointer-events: none;
 }
+
+.noto-source-input {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  resize: none;
+  outline: 0;
+  overflow: hidden;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--ink);
+  -webkit-text-fill-color: transparent;
+
+  &::selection { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+}
+
+/* Markdown's own marks in the muted tier and its content in ink, so the
+   text reads as a document with its syntax showing rather than as code. */
+.noto-source-highlight .token.title { color: var(--ink); font-weight: 600; }
+.noto-source-highlight .token.punctuation,
+.noto-source-highlight .token.hr,
+.noto-source-highlight .token.list { color: var(--muted); }
+.noto-source-highlight .token.url,
+.noto-source-highlight .token.code { color: var(--accent); }
+.noto-source-highlight .token.bold { font-weight: 600; }
+.noto-source-highlight .token.italic { font-style: italic; }
+.noto-source-highlight .token.blockquote { color: var(--muted); }
+.noto-source-highlight .token.code-block { color: var(--muted); }
 
 @media (max-width: 520px) {
   .editor-surface-state { display: none; }

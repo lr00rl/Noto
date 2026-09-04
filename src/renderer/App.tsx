@@ -39,6 +39,7 @@ import type { DocumentCount } from './editor/noto/word-count';
 import { FindBar } from './FindBar';
 import { RecentStrip } from './RecentStrip';
 import { WorkspaceRail, type RailView } from './WorkspaceRail';
+import { SourceMode } from './SourceMode';
 import { RailFooter } from './RailFooter';
 import { Preferences, type PreferencesSection } from './Preferences';
 import { DEFAULT_SETTINGS, stepWidthMode, type NotoSettingsV1 } from '../shared/settings/v1/contracts';
@@ -224,6 +225,12 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const [themeReload, setThemeReload] = useState(0);
   const [themeProblem, setThemeProblem] = useState('');
   const [activeBlock, setActiveBlock] = useState(-1);
+  /** Source Code Mode, Typora's Command-slash: the note as text, for every tab. */
+  const [sourceMode, setSourceMode] = useState(false);
+  /** Pushes the source view's pending text into the document, before a save. */
+  const sourceFlushRef = useRef<(() => void) | null>(null);
+  /** Bumped when an editor is ready, so a source view can be given its editor. */
+  const [editorsReady, setEditorsReady] = useState(0);
   const [pluginSnapshots, setPluginSnapshots] = useState<PluginLifecycleSnapshot[]>([]);
   const pluginSnapshotsRef = useRef(pluginSnapshots);
   pluginSnapshotsRef.current = pluginSnapshots;
@@ -951,7 +958,12 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
 
   const save = async () => {
     const editor = editorRef.current;
-    if (!editor || !token || pending || !editorDirty) return;
+    // Text still settling in the source view goes into the document first,
+    // so a save a moment after typing there writes what is on screen.
+    sourceFlushRef.current?.();
+    // The editor's own word on being dirty, because the flush above may have
+    // just made it so and the state this closure holds is from before.
+    if (!editor || !token || pending || !(editorDirty || editor.isDirty)) return;
     let transaction: ReturnType<NotoEditor['capture']>;
     try {
       transaction = editor.capture();
@@ -1591,7 +1603,11 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       case 'toggle-outline':
         toggleRail('outline');
         break;
+      case 'source-code-mode':
+        if (editorRef.current) setSourceMode((current) => !current);
+        break;
       case 'toggle-source':
+        if (sourceMode) break;
         // Refusing means the hand-edited text no longer parses as one block.
         if (editorRef.current && !editorRef.current.toggleSourceAtSelection()) {
           setLocalMessage('That source edit is no longer a single block, so it cannot be rendered yet.');
@@ -1903,6 +1919,15 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
               hidden={doc.document.documentId !== activeId}
               aria-hidden={doc.document.documentId !== activeId}
             >
+              {sourceMode && doc.document.documentId === activeId && editorsRef.current.get(doc.document.documentId) && (
+                <SourceModeView
+                  key={`${doc.document.documentId}:${doc.document.revisionId}:${editorsReady}`}
+                  editor={editorsRef.current.get(doc.document.documentId)!}
+                  startBlock={activeBlock}
+                  registerFlush={(flush) => { sourceFlushRef.current = flush; }}
+                />
+              )}
+              <div hidden={sourceMode} className="canvas-rendered">
               <NotoCanvas
                 document={doc.document}
                 mac={platform === 'darwin'}
@@ -1926,6 +1951,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                 onWidthStep={(direction) => stepWidthRef.current(direction)}
                 onReady={(editor) => {
                   editorsRef.current.set(doc.document.documentId, editor);
+                  setEditorsReady((count) => count + 1);
                   if (doc.document.documentId === activeIdRef.current) {
                     editorRef.current = editor;
                     pluginClientRef.current?.attachAdapter(editor);
@@ -1955,6 +1981,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                   setState('Save failed');
                 }}
               />
+              </div>
             </div>
           ))}
           {document
@@ -2097,6 +2124,24 @@ export function BootstrapFailure({ message }: { message: string }) {
       <p>{actionable}</p>
       <p>No document was opened and no save was attempted.</p>
     </main>
+  );
+}
+
+/** The source view over one editor: reads its text once, writes back block-wise. */
+function SourceModeView({ editor, startBlock, registerFlush }: {
+  editor: NotoEditor;
+  startBlock: number;
+  registerFlush: (flush: (() => void) | null) => void;
+}) {
+  const initial = useMemo(() => editor.getMarkdown(), [editor]);
+  return (
+    <SourceMode
+      initialText={initial}
+      startBlock={Math.max(0, startBlock)}
+      apply={(markdown) => editor.replaceMarkdown(markdown)}
+      onLeave={(block) => editor.focusBlock(block)}
+      registerFlush={registerFlush}
+    />
   );
 }
 
