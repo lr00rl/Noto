@@ -13,30 +13,19 @@
  * and tested against a fragment.
  */
 
-/** Where the arm crosses a row, matching `--tree-arm` in the stylesheet. */
-export const TREE_ARM_OFFSET = 13;
-
-export interface TreeGuideOptions {
-  /**
-   * How far down the lit branch reaches, or null on a level that is not on the
-   * path to anything. The outline passes nothing: it has a current heading but
-   * no branch leading to it, since every level is visible at once.
-   */
-  readonly litChild?: (level: HTMLElement) => HTMLElement | null;
-  /** Where the lit stem stops within its child. Half a row, by default. */
-  readonly litOffset?: number;
-}
-
 /**
- * Measure every level under `container` and set the two lengths on it.
+ * Measure every level under `container` and set the stem's length on it.
  *
- * The quiet stem stops at the top of the last child rather than at the bottom
- * of the level. The last child draws a rounded corner that takes the line the
- * rest of the way and round the bend, and a stem running past that point would
- * be drawn straight over the curve. The extra pixel is the overlap that keeps
- * the join from showing a seam at a fractional scale factor.
+ * The stem stops at the top of the last child rather than at the bottom of the
+ * level. The last child draws a rounded corner that takes the line the rest of
+ * the way and round the bend, and a stem running past that point would be
+ * drawn straight over the curve. The extra pixel is the overlap that keeps the
+ * join from showing a seam at a fractional scale factor.
+ *
+ * Nothing is lit. The theme this tree imitates draws every connector in one
+ * colour and keeps the accent for the active row alone.
  */
-export function sizeTreeGuides(container: HTMLElement, options: TreeGuideOptions = {}): void {
+export function sizeTreeGuides(container: HTMLElement): void {
   for (const level of container.querySelectorAll<HTMLElement>('.tree-level')) {
     const last = level.lastElementChild as HTMLElement | null;
     if (last) {
@@ -44,20 +33,5 @@ export function sizeTreeGuides(container: HTMLElement, options: TreeGuideOptions
     } else {
       level.style.removeProperty('--stem-stop');
     }
-
-    const lit = options.litChild?.(level) ?? null;
-    if (!lit) {
-      level.style.removeProperty('--path-stop');
-      continue;
-    }
-    const offset = options.litOffset ?? TREE_ARM_OFFSET;
-    level.style.setProperty('--path-stop', `${lit.offsetTop - level.offsetTop + offset}px`);
   }
-}
-
-/** The child of `level` that leads to the file in front, if any. */
-export function branchToCurrentFile(level: HTMLElement): HTMLElement | null {
-  return level.querySelector<HTMLElement>(
-    ':scope > .tree-node-active, :scope > .tree-node:has(> .tree-on-path)',
-  );
 }

@@ -121,6 +121,7 @@ test.describe('the rail tree', () => {
         const last = level.lastElementChild as HTMLElement;
         return {
           stemX: level.getBoundingClientRect().left,
+          glyphLeft: glyphBox.left,
           glyphCentre: glyphBox.left + glyphBox.width / 2,
           // The stem stops at the last child's top so the corner can finish it.
           stemStop: level.style.getPropertyValue('--stem-stop'),
@@ -130,9 +131,11 @@ test.describe('the rail tree', () => {
         };
       });
 
-      // The line descends from the middle of the folder it belongs to, rather
-      // than from the blank column beside it.
-      expect(Math.abs(geometry.stemX - geometry.glyphCentre)).toBeLessThan(1);
+      // The line descends from inside the folder's icon, just in from its left
+      // edge, which is where the theme's own stem stands: 10px in against an
+      // icon that starts at 7px. Not from the blank column beside it.
+      expect(geometry.stemX).toBeGreaterThanOrEqual(geometry.glyphLeft);
+      expect(geometry.stemX).toBeLessThan(geometry.glyphCentre);
       // The last child turns a rounded corner, and the stem stops where that
       // corner starts rather than being drawn straight over the curve.
       expect(geometry.corner).not.toBe('0px');
@@ -178,31 +181,42 @@ test.describe('the rail tree', () => {
     }
   });
 
-  test('lights only the branch that leads to the note in front', async () => {
-    const { app, page } = await launch('lit-branch');
+  test('draws every connector in one colour, and keeps the accent for the active row', async () => {
+    const { app, page } = await launch('one-colour');
     try {
-      // Open a note, then expand a folder that has nothing to do with it.
       await page.getByTestId('tree-file').first().click();
       await page.waitForSelector('[data-testid="noto-editor"]', { state: 'visible' });
       await page.getByTestId('tree-directory').first().click();
       await expect(page.getByTestId('tree-directory')).not.toHaveCount(1);
 
-      const lit = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.tree-body .tree-level')]
-        .map((level) => ({
-          // The lit length is what the accent stem is drawn to.
-          lit: getComputedStyle(level).backgroundSize.split(',')[0].trim(),
-          onPath: Boolean(level.querySelector(
-            ':scope > .tree-node-active, :scope > .tree-node:has(> .tree-on-path)')),
-        })));
+      const drawn = await page.evaluate(() => {
+        const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+        const levels = [...document.querySelectorAll<HTMLElement>('.tree-body .tree-level')]
+          .map((level) => getComputedStyle(level).backgroundImage);
+        // Only the nodes that draw an arm. A node at the root level draws none,
+        // and asking an absent border for its colour answers with the text's.
+        const arms = [...document.querySelectorAll<HTMLElement>('.tree-body .tree-node')]
+          .map((node) => getComputedStyle(node, '::before'))
+          .filter((style) => parseFloat(style.borderBottomWidth) > 0)
+          .map((style) => style.borderBottomColor);
+        const active = document.querySelector<HTMLElement>('.tree-file-active');
+        return {
+          accent,
+          // One gradient per level, never two stacked.
+          gradientsPerLevel: levels.map((image) => (image.match(/linear-gradient/g) ?? []).length),
+          distinctArmColours: [...new Set(arms)],
+          activeBar: active ? getComputedStyle(active).boxShadow : null,
+        };
+      });
 
-      // These are custom properties, so a level nested inside a lit one used to
-      // inherit its length and draw a stub of accent against its own first
-      // child: a branch highlight pointing at a file nobody had opened.
-      expect(lit.length).toBeGreaterThan(1);
-      for (const level of lit) {
-        if (!level.onPath) expect(level.lit).toBe('1px 0px');
-      }
-      expect(lit.some((level) => level.onPath && level.lit !== '1px 0px')).toBe(true);
+      // The theme this imitates has never coloured a connector. Two colours of
+      // line made the tree read as pointing at something, and the corner at the
+      // active file came out as an orange hook.
+      expect(new Set(drawn.gradientsPerLevel)).toEqual(new Set([1]));
+      expect(drawn.distinctArmColours).toHaveLength(1);
+      // The accent has exactly one job here: the 2px bar inset on the active row.
+      expect(drawn.activeBar).toContain('inset');
+      expect(drawn.activeBar).toMatch(/2px 0px 0px/);
     } finally {
       await app.close();
     }
