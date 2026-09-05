@@ -38,6 +38,25 @@ unproven.
 The performance story is likewise mixed rather than a clean win, and the
 numbers are below.
 
+## Download
+
+Builds for macOS, Windows and Linux are on the
+[releases page](https://github.com/lr00rl/Noto/releases/latest). Take the
+installer for your system where there is one, or the archive, which needs no
+installing: unpack it and run what is inside.
+
+| Platform | Installer | Archive |
+| --- | --- | --- |
+| macOS, Apple silicon or Intel | | `Noto-<version>-macos-<arch>.zip` |
+| Windows, x64 | `NotoSetup-<version>.exe` | `Noto-<version>-windows-<arch>.zip` |
+| Linux, Debian and Ubuntu | `noto_<version>_amd64.deb` | `Noto-<version>-linux-<arch>.tar.gz` |
+| Linux, Fedora and openSUSE | `noto-<version>-1.x86_64.rpm` | `Noto-<version>-linux-<arch>.tar.gz` |
+
+Nothing is signed by a paid certificate, so each system says so once. On macOS
+the first open needs Control-click then Open, or
+`xattr -dr com.apple.quarantine /Applications/Noto.app`. On Windows, SmartScreen
+shows "Windows protected your PC": choose More info, then Run anyway.
+
 ## Getting started
 
 You need Node 22 and pnpm 11. Newer Node majors are rejected on purpose, since
