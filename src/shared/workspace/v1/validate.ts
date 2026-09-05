@@ -26,6 +26,8 @@ import {
   WorkspaceLinksReplyV1,
   WorkspaceRemoteEventV1,
   WorkspaceDirtyEventV1,
+  WorkspaceTextRequestV1,
+  WorkspaceTextReplyV1,
 } from './contracts';
 import type {
   RecentFileV1,
@@ -215,6 +217,17 @@ export const isWorkspaceLinksResultV1 = (
   value: unknown, id: string,
 ): value is WorkspaceResultV1<WorkspaceLinksReplyV1> => isResult(value, id, isWorkspaceLinksReplyV1);
 
+export function isWorkspaceTextRequestV1(value: unknown): value is WorkspaceTextRequestV1 {
+  return record(value) && exact(value, ['version', 'requestId']) && value.version === 1
+    && typeof value.requestId === 'string' && requestId.test(value.requestId);
+}
+
+export function isWorkspaceTextReplyV1(value: unknown): value is WorkspaceTextReplyV1 {
+  return record(value) && exact(value, ['version', 'requestId', 'markdown']) && value.version === 1
+    && typeof value.requestId === 'string' && requestId.test(value.requestId)
+    && (value.markdown === null || typeof value.markdown === 'string');
+}
+
 export function isWorkspaceDirtyEventV1(value: unknown): value is WorkspaceDirtyEventV1 {
   return record(value) && exact(value, ['version', 'dirty'])
     && value.version === 1 && typeof value.dirty === 'boolean';
@@ -227,8 +240,11 @@ export function isWorkspaceRemoteEventV1(value: unknown): value is WorkspaceRemo
 }
 
 export function isWorkspacePasteEventV1(value: unknown): value is WorkspacePasteEventV1 {
-  return record(value) && exact(value, ['version', 'text']) && value.version === 1
-    && typeof value.text === 'string' && value.text.length <= MAX_PASTE_TEXT;
+  return record(value)
+    && (exact(value, ['version', 'text']) || exact(value, ['version', 'text', 'at']))
+    && value.version === 1
+    && typeof value.text === 'string' && value.text.length <= MAX_PASTE_TEXT
+    && (value.at === undefined || value.at === 'caret' || value.at === 'end');
 }
 
 function isIndexEntryV1(value: unknown): value is WorkspaceIndexEntryV1 {

@@ -7,6 +7,7 @@
  * controls it hosted.
  */
 
+import { fromLf } from '../shared/markdown/v3/line-endings';
 import { PLAIN_FLAGS, type SearchFlags } from '../shared/search/pattern';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type {
@@ -1477,6 +1478,23 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
    * Menu commands arrive from main because only the renderer knows the editor's
    * contents. Keep this list aligned with `WorkspaceMenuCommandV1`.
    */
+  // Main asks for the note as the editor holds it, which is the only copy
+  // that includes unsaved changes.
+  useEffect(() => window.notoWorkspace.onTextRequest((event) => {
+    const editor = editorRef.current;
+    // What the file would hold if it were saved now, not what the editor
+    // holds internally: the same line endings and the same last line. A
+    // caller comparing this against the file when nothing is dirty must see
+    // no difference, or the two sources are not comparable at all.
+    const markdown = editor === null
+      ? null
+      : fromLf(
+        editor.getMarkdown() + (editor.envelope.hasFinalNewline ? '\n' : ''),
+        editor.envelope.lineEnding === 'crlf' ? 'crlf' : 'lf',
+      );
+    window.notoWorkspace.replyText({ version: 1, requestId: event.requestId, markdown });
+  }), []);
+
   useEffect(() => {
     const stop = window.notoWorkspace.onRemoteChanged((event) => {
       setRemote({ listening: event.listening, port: event.port });
@@ -1491,7 +1509,10 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   }, []);
 
   useEffect(() => window.notoWorkspace.onPasteText((event) => {
-    editorRef.current?.pasteText(event.text);
+    // A paste lands at the caret; an append becomes blocks of its own after
+    // the last one, which is what "add this to the note" means.
+    if (event.at === 'end') editorRef.current?.appendMarkdown(event.text);
+    else editorRef.current?.pasteText(event.text);
   }), []);
 
   useEffect(() => window.notoWorkspace.onMenuCommand((event) => {

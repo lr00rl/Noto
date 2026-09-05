@@ -94,6 +94,8 @@ import type {
   WorkspacePasteEventV1,
   WorkspaceRemoteEventV1,
   WorkspaceDirtyEventV1,
+  WorkspaceTextRequestV1,
+  WorkspaceTextReplyV1,
   WorkspaceLinksReplyV1,
   WorkspaceOpenPathRequestV1,
   WorkspaceTabRequestV1,
@@ -130,6 +132,8 @@ import {
   isWorkspacePasteEventV1,
   isWorkspaceRemoteEventV1,
   isWorkspaceDirtyEventV1,
+  isWorkspaceTextRequestV1,
+  isWorkspaceTextReplyV1,
   isWorkspaceLinksResultV1,
   isWorkspaceOpenPathRequestV1,
   isWorkspaceTabRequestV1,
@@ -407,6 +411,11 @@ const workspaceApi: NotoWorkspaceApiV1 = Object.freeze({
     subscribe(WORKSPACE_CHANNELS.remoteChanged, isWorkspaceRemoteEventV1, listener),
   reportDirty: (event: WorkspaceDirtyEventV1) => {
     if (isWorkspaceDirtyEventV1(event)) ipcRenderer.send(WORKSPACE_CHANNELS.dirtyChanged, event);
+  },
+  onTextRequest: (listener: (event: WorkspaceTextRequestV1) => void) =>
+    subscribe(WORKSPACE_CHANNELS.documentText, isWorkspaceTextRequestV1, listener),
+  replyText: (event: WorkspaceTextReplyV1) => {
+    if (isWorkspaceTextReplyV1(event)) ipcRenderer.send(WORKSPACE_CHANNELS.documentTextReply, event);
   },
   pathForFile: (file: File) => {
     try {

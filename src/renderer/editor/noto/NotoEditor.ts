@@ -19,7 +19,7 @@ import { droppedNote } from './dropped-note';
 import { tocBlockPlugin } from './toc-block';
 import { footnoteHoverPlugin } from './footnote-hover';
 import { sliceFromText } from './paste-text';
-import { EditorState, Selection, type Plugin, type Transaction } from 'prosemirror-state';
+import { EditorState, Selection, type Plugin, type Transaction, TextSelection } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import { history, redo, undo } from 'prosemirror-history';
 import { dropCursor } from 'prosemirror-dropcursor';
@@ -793,6 +793,25 @@ export class NotoEditor implements NotoEditorPort {
     const ran = insertTable(rows, columns)(view.state, view.dispatch, view);
     if (ran) view.focus();
     return ran;
+  }
+
+  /**
+   * Add markdown to the end of the note, as blocks of its own.
+   *
+   * Not a paste at the end: a paste joins the paragraph it lands in, which
+   * is right for a phrase and wrong for a line appended to a note, where
+   * what was meant is a new paragraph after the last one.
+   */
+  appendMarkdown(markdown: string): boolean {
+    const view = this.view;
+    if (!view || this.readOnly) return false;
+    const blocks = splitBlocks(toLf(markdown)).spans.map(blockFromSpan);
+    if (blocks.length === 0) return false;
+    const at = view.state.doc.content.size;
+    const tr = view.state.tr.insert(at, blocks);
+    tr.setSelection(TextSelection.near(tr.doc.resolve(tr.doc.content.size), -1));
+    view.dispatch(tr.scrollIntoView());
+    return true;
   }
 
   /** Paste text at the caret, read as markdown: Paste as Plain Text's half. */

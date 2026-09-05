@@ -1,6 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import { isTrustedRendererSender } from './ipc/trusted-renderer';
 import { ipcMain } from 'electron';
-import { isWorkspaceDirtyEventV1 } from '../shared/workspace/v1/validate';
+import { isWorkspaceDirtyEventV1, isWorkspaceTextReplyV1 } from '../shared/workspace/v1/validate';
 import {
   NOTO_WORKSPACE_VERSION, WORKSPACE_CHANNELS,
 } from '../shared/workspace/v1/contracts';
@@ -12,7 +13,7 @@ import {
 import { ensureThemeFolder, listThemes } from './workspace/themes';
 import path from 'node:path';
 import { statSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { app, BrowserWindow, dialog, shell } from 'electron';
 import { FileTruthStoreV1 } from './file-truth/v1/file-truth-store';
 import { registerFileTruthHandlers } from './file-truth/v1/register-file-truth-handlers';
@@ -440,6 +441,34 @@ async function run(): Promise<void> {
     documentDirty = value.dirty;
   });
 
+  /**
+   * Ask the window for the note as the editor holds it.
+   *
+   * Answered on its own channel with the id it was asked with, so two
+   * questions in flight cannot be confused for one another, and given up on
+   * after a moment: a window busy enough not to answer is one whose file on
+   * disk is the better answer anyway.
+   */
+  const askWindowForText = (): Promise<string | null> => {
+    const window = editorWindow;
+    if (!window || window.isDestroyed() || window.webContents.isDestroyed()) return Promise.resolve(null);
+    const requestId = `text:${randomUUID()}`;
+    return new Promise<string | null>((resolve) => {
+      const timer = setTimeout(() => { ipcMain.removeListener(WORKSPACE_CHANNELS.documentTextReply, listener); resolve(null); }, 700);
+      const listener = (event: Electron.IpcMainEvent, value: unknown) => {
+        if (!isTrustedRendererSender(editorWindow, event) || !isWorkspaceTextReplyV1(value)) return;
+        if (value.requestId !== requestId) return;
+        clearTimeout(timer);
+        ipcMain.removeListener(WORKSPACE_CHANNELS.documentTextReply, listener);
+        resolve(value.markdown);
+      };
+      ipcMain.on(WORKSPACE_CHANNELS.documentTextReply, listener);
+      window.webContents.send(WORKSPACE_CHANNELS.documentText, {
+        version: NOTO_WORKSPACE_VERSION, requestId,
+      });
+    });
+  };
+
   const tokens = new TokenStore(path.join(userData, 'remote-token'));
   let remote: RunningRemote | null = null;
   let remoteProblem = '';
@@ -452,12 +481,38 @@ async function run(): Promise<void> {
     problem: remoteProblem,
   });
 
+  /*
+   * Where it is listening, written beside the token.
+   *
+   * A caller has to find the port somehow, and reading it out of a
+   * preferences pane by eye is not something a script can do. The file says
+   * the port and the process it belongs to, is readable by this account
+   * alone like the token, and is removed the moment it stops listening so a
+   * stale one never points somewhere nothing is.
+   */
+  const addressFile = path.join(userData, 'remote.json');
+  const writeAddress = async (port: number | null): Promise<void> => {
+    try {
+      if (port === null) await rm(addressFile, { force: true });
+      else {
+        await writeFile(
+          addressFile,
+          `${JSON.stringify({ version: 1, port, pid: process.pid }, null, 2)}\n`,
+          { encoding: 'utf8', mode: 0o600 },
+        );
+      }
+    } catch {
+      // A file that cannot be written is not worth failing to listen over.
+    }
+  };
+
   const applyRemote = async (wanted: boolean): Promise<void> => {
     if (!wanted) {
       remoteProblem = '';
       const running = remote;
       remote = null;
       await running?.stop();
+      await writeAddress(null);
       editorWindow?.webContents.send(WORKSPACE_CHANNELS.remoteChanged, {
         version: NOTO_WORKSPACE_VERSION, listening: false, port: null,
       });
@@ -477,27 +532,65 @@ async function run(): Promise<void> {
           readCurrent: async () => {
             const target = session?.currentPath ?? null;
             if (target === null) return null;
-            return { path: target, markdown: await readFile(target, 'utf8') };
+            // The editor's own copy first, since that is the one with the
+            // unsaved changes in it; the file is the answer when there is no
+            // window to ask, or it does not answer in time.
+            const live = await askWindowForText();
+            if (live !== null) {
+              return { path: target, markdown: live, source: 'editor' as const, dirty: documentDirty };
+            }
+            return {
+              path: target,
+              markdown: await readFile(target, 'utf8'),
+              source: 'disk' as const,
+              dirty: documentDirty,
+            };
           },
           open: async (target) => {
+            // A path relative to the folder that is open, which is what a
+            // caller writes, as well as an absolute one.
+            const root = session?.folder ?? null;
+            const resolved = path.isAbsolute(target) || root === null
+              ? target
+              : path.resolve(root, target);
             try {
-              await session?.openPath(target);
+              await session?.openPath(resolved);
               refreshMenu();
               return { opened: true };
             } catch (error) {
+              const code = error instanceof Error ? error.message.split(':', 1)[0] : 'OPEN_FAILED';
               return {
                 opened: false,
-                reason: error instanceof Error ? error.message.split(':', 1)[0] : 'OPEN_FAILED',
+                code: code === 'ENOENT' ? 'no-such-note'
+                  : code.includes('OUTSIDE') ? 'outside-folder'
+                    : 'open-failed',
+                reason: code === 'ENOENT'
+                  ? 'There is no note at that path.'
+                  : 'That note could not be opened.',
               };
             }
           },
-          insert: (text) => {
+          insert: (text, at) => {
             const window = editorWindow;
             if (!window || window.isDestroyed()) return { inserted: false, reason: 'No window is open.' };
             window.webContents.send(WORKSPACE_CHANNELS.pasteText, {
-              version: NOTO_WORKSPACE_VERSION, text,
+              version: NOTO_WORKSPACE_VERSION, text, at,
             });
             return { inserted: true };
+          },
+          search: async (query, flags) => {
+            const found = await session?.searchContent(query, flags);
+            return {
+              matches: (found?.matches ?? []).map((match) => ({
+                path: match.path,
+                relativePath: match.relativePath,
+                occurrences: match.occurrences,
+                lines: match.lines,
+              })),
+              truncated: found?.truncated ?? false,
+              timedOut: found?.timedOut ?? false,
+              invalidPattern: found?.invalidPattern ?? false,
+            };
           },
           run: (command) => {
             const window = editorWindow;
@@ -511,8 +604,10 @@ async function run(): Promise<void> {
         log: (event, detail) => logger.log(event, detail),
       });
       remoteProblem = '';
+      await writeAddress(remote.port);
     } catch (error) {
       remote = null;
+      await writeAddress(null);
       remoteProblem = error instanceof Error && 'code' in error && error.code === 'EADDRINUSE'
         ? 'Something else is already listening on that port.'
         : 'The remote control could not start.';
