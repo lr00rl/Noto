@@ -163,3 +163,35 @@ describe('main-owned durable local plugin state store', () => {
     expect(await new LocalPluginStateStore(statePath, catalog).load()).toEqual(replacement);
   });
 });
+
+describe('durability where a directory cannot be opened', () => {
+  it('is healthy on Windows, which has no directory to sync', async () => {
+    // A directory cannot be opened for reading on Windows at all, and its
+    // rename is journalled by the file system rather than by the caller.
+    // Asking anyway fails every time, and a write that is durable was being
+    // reported as degraded for it, which put every plugin into "needs
+    // recovery" on that platform.
+    const { statePath } = await harness();
+    const windows = new LocalPluginStateStore(statePath, catalog, undefined, 'win32');
+    const outcome = await windows.save(createDefaultLocalPluginState(catalog));
+    expect(outcome.health).toBe('healthy');
+    expect(outcome.status).toBe('durable');
+  });
+
+  it('still syncs the directory everywhere else', async () => {
+    const { statePath } = await harness();
+    const opened: string[] = [];
+    const real = createNodeLocalPluginStateFileSystem();
+    const watched = {
+      ...real,
+      open: async (target: string, flags: string, mode?: number) => {
+        opened.push(`${target}:${flags}`);
+        return real.open(target, flags, mode);
+      },
+    };
+    const posix = new LocalPluginStateStore(statePath, catalog, watched, 'linux');
+    const outcome = await posix.save(createDefaultLocalPluginState(catalog));
+    expect(outcome.health).toBe('healthy');
+    expect(opened.some((entry) => entry.endsWith(':r'))).toBe(true);
+  });
+});

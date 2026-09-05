@@ -108,7 +108,12 @@ test.describe('code fences', () => {
       await first.hover();
       await first.locator('.noto-fence-copy').click();
       await expect(first.locator('.noto-fence-copy')).toHaveText('Copied');
-      await expect.poll(() => app.evaluate(({ clipboard }) => clipboard.readText())).toBe(TWELVE.join('\n'));
+      // Read back with the platform's own line endings folded away: Windows
+      // puts CRLF on the clipboard, which is right for pasting into anything
+      // else there and is not what this test is about.
+      await expect
+        .poll(async () => (await app.evaluate(({ clipboard }) => clipboard.readText())).replace(/\r\n/g, '\n'))
+        .toBe(TWELVE.join('\n'));
       // The button says so briefly, then goes back to being a button.
       await expect(first.locator('.noto-fence-copy')).toHaveText('Copy', { timeout: 5_000 });
     } finally {
