@@ -74,19 +74,38 @@ export const LINE_START = process.platform === 'darwin' ? 'Meta+ArrowLeft' : 'Ho
  * Click to place the caret, and wait until the editor knows where it is.
  *
  * A click lets the browser put the caret where it landed, and ProseMirror
- * learns of the new position from the `selectionchange` event, which the
- * browser delivers a moment later. A test can press a key inside that moment;
- * a person cannot. Keys pressed in it are handled against the selection the
- * editor still holds from before the click, at the top of the document, which
- * is where the intermittent failures of the constructs suite came from. So
- * the wait is for the event itself, with a short ceiling for the case where
- * the click lands where the caret already was and no event follows.
+ * learns of the new position a moment later. A test can press a key inside
+ * that moment; a person cannot. Keys pressed in it are handled against the
+ * selection the editor still holds from before the click, usually at the top
+ * of the document, and the test fails for a reason that has nothing to do
+ * with what it is testing.
+ *
+ * The wait used to be for the browser's own `selectionchange`, which is the
+ * wrong signal: it fires when the browser moves the caret, not when the
+ * editor has taken it, and on a slower machine the gap between those two is
+ * wide enough to lose a keystroke in. Twenty-five tests failed that way on
+ * the Linux runner while passing on the machine they were written on.
+ *
+ * The editor says where it thinks the caret is, on its host, and marks the
+ * block holding it. This waits for the block that was clicked to be that
+ * block, which is true whether or not the position changed, and gives up
+ * after a moment rather than failing here: a test that then fails should say
+ * what it was actually asserting.
  */
 export async function placeCaret(page: Page, target: Locator): Promise<void> {
-  const settled = page.evaluate(() => new Promise<void>((resolve) => {
-    document.addEventListener('selectionchange', () => resolve(), { once: true });
-    setTimeout(resolve, 400);
-  }));
   await target.click();
-  await settled;
+  try {
+    await target.evaluate((node) => new Promise<void>((resolve, reject) => {
+      const block = node.closest('.ProseMirror > *') ?? node;
+      const settled = () => block.classList.contains('noto-active-block')
+        || block.querySelector('.noto-active-block') !== null
+        || node.closest('.noto-active-block') !== null;
+      if (settled()) { resolve(); return; }
+      const observer = new MutationObserver(() => { if (settled()) { observer.disconnect(); resolve(); } });
+      observer.observe(node.ownerDocument.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+      setTimeout(() => { observer.disconnect(); reject(new Error('caret did not settle')); }, 2000);
+    }));
+  } catch {
+    // The editor never marked it. The assertions that follow are what say so.
+  }
 }
