@@ -54,6 +54,11 @@ export interface QuickOpenProps {
   readonly truncated: boolean;
   /** Null when no document is open, which is when linking makes no sense. */
   readonly canInsertLink: boolean;
+  /**
+   * Opened by typing `[[`, so choosing a note writes a link rather than
+   * opening it, and the footer says so.
+   */
+  readonly linking?: boolean;
   readonly onOpenFile: (path: string) => void;
   readonly onInsertLink: (entry: WorkspaceIndexEntryV1) => void;
   readonly onClose: () => void;
@@ -78,7 +83,7 @@ function Highlighted({ text, query }: { text: string; query: string }) {
 
 export function QuickOpen({
   open, mode, onMode, onSearchContent, onOpenMatch,
-  entries, frecency, truncated, canInsertLink, onOpenFile, onInsertLink, onClose,
+  entries, frecency, truncated, canInsertLink, linking = false, onOpenFile, onInsertLink, onClose,
 }: QuickOpenProps) {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
@@ -171,10 +176,10 @@ export function QuickOpen({
 
   const choose = useCallback((candidate: Candidate | undefined, asLink: boolean) => {
     if (!candidate) return;
-    if (asLink && canInsertLink) onInsertLink(candidate.entry);
+    if ((asLink || linking) && canInsertLink) onInsertLink(candidate.entry);
     else onOpenFile(candidate.entry.path);
     onClose();
-  }, [canInsertLink, onClose, onInsertLink, onOpenFile]);
+  }, [canInsertLink, linking, onClose, onInsertLink, onOpenFile]);
 
   const chooseMatch = useCallback((match: WorkspaceContentMatchV1 | undefined) => {
     if (!match) return;
@@ -242,9 +247,11 @@ export function QuickOpen({
           spellCheck={false}
           placeholder={entries.length === 0
             ? 'Open a folder to search it'
-            : mode === 'content'
-              ? `Search inside ${entries.length} notes`
-              : `Search ${entries.length} notes`}
+            : linking
+              ? `Link to one of ${entries.length} notes`
+              : mode === 'content'
+                ? `Search inside ${entries.length} notes`
+                : `Search ${entries.length} notes`}
           aria-label="Search notes"
           role="combobox"
           aria-expanded
@@ -338,9 +345,13 @@ export function QuickOpen({
         </div>
 
         <footer className="quick-hints">
-          <span><kbd>↩</kbd> open</span>
-          {mode === 'name' && canInsertLink && <span><kbd>⌥↩</kbd> insert link</span>}
-          <span><kbd>tab</kbd> {mode === 'name' ? 'search in notes' : 'search names'}</span>
+          {/* While the brackets are waiting to be filled, Enter puts the link
+              in; saying it opens the note as well would be two answers to
+              one key, and only one of them true. */}
+          {!linking && <span><kbd>↩</kbd> open</span>}
+          {mode === 'name' && canInsertLink && !linking && <span><kbd>⌥↩</kbd> insert link</span>}
+          {linking && <span data-testid="quick-linking"><kbd>↩</kbd> insert the link</span>}
+          {!linking && <span><kbd>tab</kbd> {mode === 'name' ? 'search in notes' : 'search names'}</span>}
           <span><kbd>esc</kbd> close</span>
           {mode === 'content' && content.truncated && (
             <span className="quick-truncated">Showing the first {content.matches.length}.</span>

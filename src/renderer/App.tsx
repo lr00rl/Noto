@@ -351,7 +351,14 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       if (timer) clearTimeout(timer);
     };
   }, []);
-  const [quickOpen, setQuickOpen] = useState<{ open: boolean; mode: QuickOpenMode }>(
+  /**
+   * Quick open, and whether it was opened by typing two brackets.
+   *
+   * When it was, choosing a note writes the link where the brackets are
+   * rather than at the caret, and Escape leaves the brackets alone: the
+   * reader may have meant to type them.
+   */
+  const [quickOpen, setQuickOpen] = useState<{ open: boolean; mode: QuickOpenMode; linking?: boolean }>(
     { open: false, mode: 'name' },
   );
   const [recentFolders, setRecentFolders] = useState<readonly RecentFileV1[]>([]);
@@ -1265,7 +1272,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   }, [openPath]);
 
   /** The link text for a note, relative to the one being edited. */
-  const insertWikiLink = useCallback((entry: WorkspaceIndexEntryV1) => {
+  const insertWikiLink = useCallback((entry: WorkspaceIndexEntryV1, atTrigger = false) => {
     const editor = editorRef.current;
     if (!editor) return;
     // The bare name when it is unambiguous in the folder, the relative path
@@ -1276,6 +1283,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       (candidate) => candidate.name.replace(/\.md$/i, '') === base,
     );
     const target = sameName.length > 1 ? entry.relativePath.replace(/\.md$/i, '') : base;
+    // Typed brackets are replaced by the link; a link asked for from quick
+    // open goes in at the caret, where there are no brackets to replace.
+    if (atTrigger && editor.replaceWikiTrigger(target)) return;
     editor.insertText(`[[${target}]]`);
   }, [fileIndex.entries]);
 
@@ -2078,6 +2088,12 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                   if (doc.document.documentId === activeIdRef.current) bumpTyping();
                 }}
                 onFollowWikiLink={(target) => followWikiLinkRef.current(target)}
+                onWikiTrigger={() => {
+                  // Only where there is something to choose from: an empty
+                  // index would open a palette with nothing in it.
+                  void ensureFileIndex();
+                  setQuickOpen({ open: true, mode: 'name', linking: true });
+                }}
                 onFollowLink={(href) => followLinkRef.current(href)}
                 onDropNote={(file) => {
                   // The renderer never names a path itself; the bridge reads
@@ -2165,7 +2181,8 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         truncated={fileIndex.truncated}
         canInsertLink={document !== null}
         onOpenFile={(filePath) => void openPath(filePath)}
-        onInsertLink={insertWikiLink}
+        onInsertLink={(entry) => insertWikiLink(entry, quickOpen.linking === true)}
+        linking={quickOpen.linking === true}
         onClose={() => { setQuickOpen((current) => ({ ...current, open: false })); editorRef.current?.focus(); }}
       />
 
