@@ -673,8 +673,12 @@ export function notoBindings({ mac, onWidthStep }: KeymapOptions): Record<string
     // itself, depending on what the caret is in. Columns get their own.
     'Alt-ArrowUp': moveBlock(true),
     'Alt-ArrowDown': moveBlock(false),
-    [`${mod}-Ctrl-ArrowLeft`]: moveColumn(true),
-    [`${mod}-Ctrl-ArrowRight`]: moveColumn(false),
+    // A column moves on the same key its row does, with Shift for the other
+    // axis. It used to be Command with Control, which off macOS resolved to
+    // Control with Control: a chord that cannot be pressed, so moving a
+    // column had no key at all on Windows or Linux.
+    'Alt-Shift-ArrowLeft': moveColumn(true),
+    'Alt-Shift-ArrowRight': moveColumn(false),
 
     // Typora's own chord for it.
     'Ctrl-x': toggleTaskStatus(),

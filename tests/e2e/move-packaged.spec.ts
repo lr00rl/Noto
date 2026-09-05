@@ -92,7 +92,9 @@ test.describe('moving what the caret is in', () => {
     const { app, page } = await launch('column');
     try {
       await placeCaret(page, page.locator('.ProseMirror th', { hasText: 'head b' }));
-      await page.keyboard.press('Meta+Control+ArrowLeft');
+      // The same key everywhere: the old chord was Command with Control,
+      // which off macOS is Control with Control and cannot be pressed.
+      await page.keyboard.press('Alt+Shift+ArrowLeft');
       await expect(page.locator('.ProseMirror th').first()).toHaveText('head b');
       await expect(page.locator('.ProseMirror tr').nth(1).locator('td').first()).toHaveText('two');
     } finally {

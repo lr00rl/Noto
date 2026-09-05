@@ -71,13 +71,32 @@ test.describe('diagrams', () => {
       // a press there: an arrow key sent right after the click that entered the
       // fence is lost to the editor's own selection sync.
       const code = fence.locator('.noto-fence-code');
-      const box = (await code.boundingBox())!;
-      const settled = page.evaluate(() => new Promise<void>((resolve) => {
-        document.addEventListener('selectionchange', () => resolve(), { once: true });
-        setTimeout(resolve, 400);
-      }));
-      await code.click({ position: { x: box.width - 6, y: box.height - 8 } });
-      await settled;
+      // The caret goes to the end of the source through the selection itself.
+      // Clicking at the corner of the box lands wherever the last line
+      // happens to end, which differs with the font the platform has, and
+      // typing from the wrong place makes a diagram that cannot be drawn: the
+      // failure then reads as a drawing that collapsed rather than as a caret
+      // that missed.
+      await placeCaret(page, code);
+      const host = page.locator('.canvas-slot:not([hidden]) [data-testid="noto-editor"]');
+      const entered = await host.getAttribute('data-caret');
+      // The end of the last line of code, found as the last text there rather
+      // than as the end of the element: the element's own end maps back to the
+      // head of the fence, and typing from there writes the new lines in front
+      // of `graph TD`, which is a diagram nothing can draw.
+      await code.evaluate((element) => {
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        let last: Node | null = null;
+        while (walker.nextNode()) last = walker.currentNode;
+        const range = document.createRange();
+        if (last) range.setStart(last, last.nodeValue?.length ?? 0);
+        else range.selectNodeContents(element);
+        range.collapse(true);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      });
+      await expect(host).not.toHaveAttribute('data-caret', entered ?? '');
       await page.keyboard.type('\n  B --> C[Then]\n  C --> D[Last]');
       await expect(diagram).toHaveAttribute('data-state', 'rendered');
       await expect.poll(async () => frame.evaluate((element) => element.getBoundingClientRect().height), { timeout: 10_000 })
