@@ -151,11 +151,13 @@ test.describe('searching inside notes', () => {
     const { app, page } = await launch('content');
     try {
       // The chord for searching notes opens the rail's search now, as Typora's
-      // does; quick open still searches inside notes one Tab away.
+      // does; quick open still searches inside notes, two tabs along the ring
+      // of files, folders and content.
       await invokeMenu(app, 'quick-open');
       await expect(page.getByTestId('quick-open')).toBeVisible();
       await page.getByTestId('quick-input').press('Tab');
-      await expect(page.getByTestId('quick-mode')).toHaveText('In notes');
+      await page.getByTestId('quick-input').press('Tab');
+      await expect(page.getByTestId('quick-tab-content')).toHaveAttribute('aria-selected', 'true');
 
       // A word that appears in one note's body and in no note's name.
       await page.getByTestId('quick-input').fill('Detail');
@@ -181,13 +183,15 @@ test.describe('searching inside notes', () => {
     const { app, page } = await launch('content-tab');
     try {
       await invokeMenu(app, 'quick-open');
-      await expect(page.getByTestId('quick-mode')).toHaveText('Names');
+      await expect(page.getByTestId('quick-tab-files')).toHaveAttribute('aria-selected', 'true');
       await page.getByTestId('quick-input').fill('Detail');
       // Nothing is named that, so the name search finds nothing.
       await expect(page.getByTestId('quick-result')).toHaveCount(0);
 
       await page.keyboard.press('Tab');
-      await expect(page.getByTestId('quick-mode')).toHaveText('In notes');
+      await expect(page.getByTestId('quick-tab-folders')).toHaveAttribute('aria-selected', 'true');
+      await page.keyboard.press('Tab');
+      await expect(page.getByTestId('quick-tab-content')).toHaveAttribute('aria-selected', 'true');
       await expect(page.getByTestId('quick-match')).toHaveCount(1);
     } finally {
       await app.close();
@@ -198,6 +202,7 @@ test.describe('searching inside notes', () => {
     const { app, page } = await launch('content-empty');
     try {
       await invokeMenu(app, 'quick-open');
+      await page.getByTestId('quick-input').press('Tab');
       await page.getByTestId('quick-input').press('Tab');
       await page.getByTestId('quick-input').fill('zzzznothinghere');
       await expect(page.getByTestId('quick-open')).toContainText('No note contains that.');

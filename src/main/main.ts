@@ -579,7 +579,7 @@ async function run(): Promise<void> {
             return { inserted: true };
           },
           search: async (query, flags) => {
-            const found = await session?.searchContent(query, flags);
+            const found = await session?.searchContent(query, flags, '');
             return {
               matches: (found?.matches ?? []).map((match) => ({
                 path: match.path,

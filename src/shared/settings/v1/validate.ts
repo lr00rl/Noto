@@ -94,6 +94,7 @@ export function coerceSettings(value: unknown): NotoSettingsV1 {
     treeSort: TREE_SORTS.includes(value.treeSort as TreeSortV1)
       ? value.treeSort as TreeSortV1
       : DEFAULT_SETTINGS.treeSort,
+    quickOpenWidth: value.quickOpenWidth === 'wide' ? 'wide' : DEFAULT_SETTINGS.quickOpenWidth,
     remoteControl: typeof value.remoteControl === 'boolean'
       ? value.remoteControl
       : DEFAULT_SETTINGS.remoteControl,
@@ -172,6 +173,7 @@ export function isSettingsWriteRequestV1(value: unknown): value is SettingsWrite
     if (key === 'widthMode') return isWidthMode(patch.widthMode);
     if (key === 'proseFace') return PROSE_FACES.includes(patch.proseFace as ProseFaceV1);
     if (key === 'treeSort') return TREE_SORTS.includes(patch.treeSort as TreeSortV1);
+    if (key === 'quickOpenWidth') return patch.quickOpenWidth === 'default' || patch.quickOpenWidth === 'wide';
     if (key === 'customCssPath') return isCssPath(patch.customCssPath);
     if (key === 'imageDestination') return IMAGE_DESTINATIONS.includes(patch.imageDestination as ImageDestinationV1);
     if (key === 'imageCustomFolder') return isImageFolder(patch.imageCustomFolder);

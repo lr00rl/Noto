@@ -359,7 +359,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
    * reader may have meant to type them.
    */
   const [quickOpen, setQuickOpen] = useState<{ open: boolean; mode: QuickOpenMode; linking?: boolean }>(
-    { open: false, mode: 'name' },
+    { open: false, mode: 'files' },
   );
   const [recentFolders, setRecentFolders] = useState<readonly RecentFileV1[]>([]);
   const [folderMenu, setFolderMenu] = useState(false);
@@ -1240,9 +1240,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
     return result.ok ? { reply: result.value } : { error: result.error.message };
   }, []);
 
-  const searchContent = useCallback(async (query: string, flags: SearchFlags = PLAIN_FLAGS) => {
+  const searchContent = useCallback(async (query: string, flags: SearchFlags = PLAIN_FLAGS, scope = '') => {
     const result = await window.notoWorkspace.searchContent({
-      version: 1, requestId: rid('search-content'), query, ...flags,
+      version: 1, requestId: rid('search-content'), query, scope, ...flags,
     });
     return result.ok
       ? {
@@ -1549,7 +1549,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         // command palette dismisses it.
         setPrefs((current) => ({ ...current, open: false }));
         void ensureFileIndex();
-        setQuickOpen((current) => ({ open: !(current.open && current.mode === 'name'), mode: 'name' }));
+        setQuickOpen((current) => ({ open: !(current.open && current.mode === 'files'), mode: 'files' }));
         break;
       case 'search-content':
         // Typora's chord opens the sidebar's search, which stays open while
@@ -2092,7 +2092,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
                   // Only where there is something to choose from: an empty
                   // index would open a palette with nothing in it.
                   void ensureFileIndex();
-                  setQuickOpen({ open: true, mode: 'name', linking: true });
+                  setQuickOpen({ open: true, mode: 'files', linking: true });
                 }}
                 onFollowLink={(href) => followLinkRef.current(href)}
                 onDropNote={(file) => {
@@ -2174,8 +2174,10 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         open={quickOpen.open}
         mode={quickOpen.mode}
         onMode={(mode) => setQuickOpen({ open: true, mode })}
-        onSearchContent={searchContent}
+        onSearchContent={(query, scope) => searchContent(query, PLAIN_FLAGS, scope)}
         onOpenMatch={openMatch}
+        width={settings.quickOpenWidth}
+        onWidth={(quickOpenWidth) => changeSettings({ quickOpenWidth })}
         entries={fileIndex.entries}
         frecency={frecency}
         truncated={fileIndex.truncated}

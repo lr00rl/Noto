@@ -998,9 +998,12 @@ export class WorkspaceSession {
    * Scans the same index quick open ranks, so the two agree about which files
    * exist and neither can find something the other cannot.
    */
-  async searchContent(query: string, flags: SearchFlags): Promise<WorkspaceContentReplyV1> {
+  async searchContent(query: string, flags: SearchFlags, scope = ''): Promise<WorkspaceContentReplyV1> {
     const index = await this.fileIndex();
-    return searchContent(index.entries, query, flags);
+    const within = scope.length === 0
+      ? index.entries
+      : index.entries.filter((entry) => entry.relativePath.startsWith(`${scope}/`));
+    return searchContent(within, query, flags);
   }
 
   /** Entries inside a directory of the chosen folder. */

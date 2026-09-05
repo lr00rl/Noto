@@ -123,6 +123,8 @@ describe('the menu and the renderer agree on commands', () => {
     const mainOnly = new Set([
       'open-dialog', 'open-folder', 'close-tab', 'import-document', 'print', 'paste-plain',
       'reopen-closed', 'theme-none',
+      // A second chord for a command the menu already names once.
+      'quick-open-period',
     ]);
     const sent = ids.filter((id) => !mainOnly.has(id));
     for (const id of sent) {
@@ -174,6 +176,17 @@ describe('everything the shell needs is reachable', () => {
       'toggle-outline', 'toggle-sidebar', 'settings', 'close-tab']) {
       expect(present.has(id)).toBe(true);
     }
+  });
+});
+
+describe("the author's own chord", () => {
+  it('opens quick open on Command-period, without showing a second item', () => {
+    const file = menu(template('darwin'), '&File');
+    const second = file.find((item) => item.id === 'quick-open-period');
+    expect(second?.accelerator).toBe('CmdOrCtrl+.');
+    expect(second?.visible).toBe(false);
+    // And the item people read still carries the ordinary chord.
+    expect(file.find((item) => item.id === 'quick-open')?.accelerator).toBe('CmdOrCtrl+P');
   });
 });
 
