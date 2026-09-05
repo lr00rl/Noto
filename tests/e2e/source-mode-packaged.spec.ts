@@ -50,6 +50,11 @@ test('Source Code Mode shows the note as text, takes edits, and hands the caret 
     await expect(input).toBeFocused();
     await expect(input).toHaveValue(NOTE.trimEnd());
     await expect(rendered).toBeHidden();
+    // The text keeps the column the document had, whatever it was set to.
+    const columnOf = (selector: string) => page.locator(selector).evaluate(
+      (node) => Math.round(node.getBoundingClientRect().width),
+    );
+    const wide = await columnOf('.noto-source');
     expect(await input.evaluate((node) => (node as HTMLTextAreaElement).selectionStart)).toBe(NOTE.indexOf('Last words.'));
     // The marks are coloured underneath.
     await expect(page.locator('.noto-source-highlight .token.title').first()).toContainText('# Title');
@@ -67,6 +72,10 @@ test('Source Code Mode shows the note as text, takes edits, and hands the caret 
     await expect(rendered.locator('p').last()).toHaveText('Final words.');
     await expect(rendered.locator('.noto-active-block')).toHaveText('Final words.');
     await expect(page.getByTestId('source-input')).toHaveCount(0);
+
+    // The rendered column and the text's are the same width, so Command-slash
+    // changes what is shown and not how wide it is.
+    expect(await columnOf('.canvas-slot:not([hidden]) [data-testid="noto-editor"]')).toBe(wide);
 
     // Saved, the untouched paragraph keeps its odd spacing byte for byte.
     await invokeMenu(app, 'save');

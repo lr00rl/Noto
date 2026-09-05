@@ -39,11 +39,24 @@ export interface TreeGuideOptions {
  * The lit stem, where there is one, stops exactly at the arm of the child on
  * the path, so the arm's own lit colour carries on from where it ends.
  */
+/**
+ * How far down the level a child sits.
+ *
+ * The level is the positioned ancestor of its own children, so their offsets
+ * are already measured from it; a level whose stylesheet has not made it one
+ * needs its own offset taken off. Getting this wrong is silent and looks like
+ * a stem of the right length in the wrong place, which is how the lit branch
+ * came to be measured at a negative height.
+ */
+function offsetIn(level: HTMLElement, child: HTMLElement): number {
+  return child.offsetParent === level ? child.offsetTop : child.offsetTop - level.offsetTop;
+}
+
 export function sizeTreeGuides(container: HTMLElement, options: TreeGuideOptions = {}): void {
   for (const level of container.querySelectorAll<HTMLElement>('.tree-level')) {
     const last = level.lastElementChild as HTMLElement | null;
     if (last) {
-      level.style.setProperty('--stem-stop', `${Math.max(0, last.offsetTop - level.offsetTop + 1)}px`);
+      level.style.setProperty('--stem-stop', `${Math.max(0, offsetIn(level, last) + 1)}px`);
     } else {
       level.style.removeProperty('--stem-stop');
     }
@@ -53,7 +66,42 @@ export function sizeTreeGuides(container: HTMLElement, options: TreeGuideOptions
       level.style.removeProperty('--path-stop');
       continue;
     }
-    level.style.setProperty('--path-stop', `${lit.offsetTop - level.offsetTop + TREE_ARM}px`);
+    // The lit stem ends where the quiet one would: at the arm of the child on
+    // the path, or, when that child is the last of its level, at its top,
+    // because from there the child's own corner draws the line and the curve.
+    // Running the straight stem down through the curve drew two lines over
+    // each other at the join, and the corner that is smooth unlit came out
+    // ragged the moment it was lit.
+    const stop = lit === last
+      ? Math.max(0, offsetIn(level, lit) + 1)
+      : offsetIn(level, lit) + TREE_ARM;
+    level.style.setProperty('--path-stop', `${stop}px`);
+  }
+}
+
+/**
+ * Where each level's stems begin, once the rail has been scrolled.
+ *
+ * A folder on the path to the open file holds its row at the top of the rail
+ * while its contents scroll past. The level under that row keeps its own top
+ * far above, so its stem was drawn from there: straight up through the held
+ * row and every row held above it, which is a line where the tree has no
+ * line, and a lit branch that ran the height of the rail.
+ *
+ * The author's own tree-guides plugin answers this by starting each group at
+ * its parent row's current bottom rather than at the group's top, and that is
+ * what this measures. Read on scroll, since it is the scroll that moves it.
+ */
+export function startTreeGuides(container: HTMLElement): void {
+  for (const level of container.querySelectorAll<HTMLElement>('.tree-level:not(.is-root)')) {
+    const row = level.parentElement?.querySelector<HTMLElement>(':scope > .tree-row');
+    if (!row) {
+      level.style.removeProperty('--stem-start');
+      continue;
+    }
+    const start = row.getBoundingClientRect().bottom - level.getBoundingClientRect().top;
+    if (start > 0.5) level.style.setProperty('--stem-start', `${Math.round(start)}px`);
+    else level.style.removeProperty('--stem-start');
   }
 }
 

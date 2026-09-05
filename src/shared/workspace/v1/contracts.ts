@@ -189,6 +189,7 @@ export const WORKSPACE_MENU_COMMANDS = [
   'tree-sort-modified',
   'tree-sort-modified-old',
   'tree-collapse-all',
+  'shortcuts',
   'insert-comment',
   'indent-more',
   'indent-less',

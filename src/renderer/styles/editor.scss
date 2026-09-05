@@ -361,7 +361,14 @@
    drifts off the letters it is between. */
 .noto-source {
   position: relative;
-  width: min(calc(100% - 40px), 920px);
+  /* The same column the drawn document has, so Command-slash changes what is
+     shown and not how wide it is. It had a width of its own, and a note read
+     at the full width of the window snapped back to a reading column the
+     moment its source was opened, which is a jolt in the middle of a thought.
+     Typora does not carry the width across either; this is the one place the
+     author asked for better rather than the same. */
+  width: var(--measure);
+  max-width: 100%;
   min-height: calc(100vh - 120px);
   margin: 12px auto 40px;
 }

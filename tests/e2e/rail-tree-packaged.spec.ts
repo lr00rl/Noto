@@ -125,7 +125,9 @@ test.describe('the rail tree', () => {
           glyphCentre: glyphBox.left + glyphBox.width / 2,
           // The stem stops at the last child's top so the corner can finish it.
           stemStop: level.style.getPropertyValue('--stem-stop'),
-          lastTop: last.offsetTop - level.offsetTop,
+          // The level is the positioned ancestor of its own children, so a
+          // child's offset is already measured from it.
+          lastTop: last.offsetParent === level ? last.offsetTop : last.offsetTop - level.offsetTop,
           corner: getComputedStyle(last, '::before').borderBottomLeftRadius,
           cornerLeft: getComputedStyle(last, '::before').borderLeftWidth,
         };
