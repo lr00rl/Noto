@@ -117,7 +117,21 @@ async function verifyAsar(packageDirectory, platform) {
 async function verifyFuses(executable, variant) {
   let output;
   try {
-    const result = await run('npx', ['--yes', '@electron/fuses', 'read', '--app', executable]);
+    /*
+     * The tool is run through this Node rather than through `npx`.
+     *
+     * `npx` is a shell script on Unix and a `.cmd` on Windows, and `spawn`
+     * without a shell cannot start the second: on a Windows runner this failed
+     * with `spawn npx ENOENT` after the installer had already been built
+     * successfully, which is a verification step failing for a reason that has
+     * nothing to do with what it verifies. The package is a dependency here,
+     * so its own entry point is a path this can resolve.
+     */
+    // Found from the package's entry point, since its `exports` map names
+    // neither the binary nor the manifest and both are ordinary files inside
+    // the directory the entry point sits in.
+    const tool = path.join(path.dirname(require.resolve('@electron/fuses')), 'bin.js');
+    const result = await run(process.execPath, [tool, 'read', '--app', executable]);
     output = result.stdout;
   } catch (error) {
     check('fuses are readable', false, error.message);

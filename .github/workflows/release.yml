@@ -81,8 +81,10 @@ jobs:
             node scripts/verify-package.mjs "$directory"
           done
 
-      # Named by platform and architecture on the way out, because Forge names
-      # several of them the same thing on different runners.
+      # Named the way the release page names things: the product, the version,
+      # the platform and the architecture. Forge names its zip after the
+      # platform triple and its installers after the product, so left alone a
+      # release page would carry three naming schemes.
       - name: Name the artifacts for a release page
         shell: bash
         run: |
@@ -92,15 +94,29 @@ jobs:
             while IFS= read -r -d '' file; do
               base=$(basename "$file")
               case "$base" in
-                *"$version"*) cp "$file" "upload/$base" ;;
-                *) cp "$file" "upload/${base%.*}-$version-${{ matrix.os }}.${base##*.}" ;;
+                Noto-darwin-arm64-*.zip) name="Noto-$version-macos-arm64.zip" ;;
+                Noto-darwin-x64-*.zip) name="Noto-$version-macos-x64.zip" ;;
+                *"$version"*) name="$base" ;;
+                *) name="${base%.*}-$version.${base##*.}" ;;
               esac
+              cp "$file" "upload/$name"
             done
           ls -l upload
 
+      # One at a time, and never over something already there. The archives on
+      # a release may have been built where the tag was made; replacing one
+      # would leave the checksums beside it describing a file that is no longer
+      # the file, which is worse than a duplicate.
       - name: Attach them to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
         shell: bash
-        run: gh release upload "$TAG" upload/* --clobber
+        run: |
+          for file in upload/*; do
+            if gh release upload "$TAG" "$file"; then
+              echo "attached $(basename "$file")"
+            else
+              echo "left the one already there: $(basename "$file")"
+            fi
+          done
