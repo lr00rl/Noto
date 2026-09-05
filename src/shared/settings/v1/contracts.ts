@@ -18,6 +18,9 @@ export const SETTINGS_CHANNELS = {
   /** Reads the stylesheet at `customCssPath`. Main owns the path; the renderer
    *  never names a file, so this cannot be pointed at anything else. */
   themeCss: 'noto:v1:settings:theme-css',
+  /** What the remote control is doing, and a way to ask for a new token. */
+  remoteStatus: 'noto:v1:settings:remote-status',
+  remoteRegenerate: 'noto:v1:settings:remote-regenerate',
 } as const;
 
 /** `system` follows the operating system, which is the honest default. */
@@ -129,6 +132,13 @@ export interface NotoSettingsV1 {
    * file names or maths is better off with them read as the characters they
    * are. Typora's Markdown pane offers the same three.
    */
+  /**
+   * Whether the editor can be driven from outside it.
+   *
+   * Off until it is switched on, and the status line says while it is on.
+   * The port and the token live in main, which is what listens.
+   */
+  readonly remoteControl: boolean;
   readonly markHighlight: boolean;
   readonly markSuperscript: boolean;
   readonly markSubscript: boolean;
@@ -249,6 +259,7 @@ export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   // to his eye. The leading is the theme's.
   proseFace: 'serif',
   treeSort: 'name',
+  remoteControl: false,
   markHighlight: true,
   markSuperscript: true,
   markSubscript: true,
@@ -322,9 +333,27 @@ export interface ThemeCssReplyV1 {
 /** Past this, a stylesheet is a mistake rather than a theme. */
 export const THEME_CSS_MAX_BYTES = 512 * 1024;
 
+/**
+ * What the remote control is doing right now.
+ *
+ * The token is here because the reader has to be able to give it to whatever
+ * they are driving the editor from, and it is only ever sent to this app's
+ * own window over the channel the preload defines.
+ */
+export interface RemoteStatusReplyV1 {
+  readonly version: typeof NOTO_SETTINGS_VERSION;
+  readonly listening: boolean;
+  readonly port: number | null;
+  readonly token: string;
+  /** Empty unless it could not start, in which case this says why. */
+  readonly problem: string;
+}
+
 export interface NotoSettingsApiV1 {
   read(request: SettingsRequestV1): Promise<SettingsResultV1<SettingsReplyV1>>;
   write(request: SettingsWriteRequestV1): Promise<SettingsResultV1<SettingsReplyV1>>;
   readThemeCss(request: SettingsRequestV1): Promise<SettingsResultV1<ThemeCssReplyV1>>;
+  remoteStatus(request: SettingsRequestV1): Promise<SettingsResultV1<RemoteStatusReplyV1>>;
+  regenerateRemoteToken(request: SettingsRequestV1): Promise<SettingsResultV1<RemoteStatusReplyV1>>;
   onChanged(listener: (event: SettingsReplyV1) => void): () => void;
 }

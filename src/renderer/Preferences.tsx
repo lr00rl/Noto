@@ -13,7 +13,8 @@
  * which is the whole reason these are visible settings and not a config file.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { copyThroughSelection } from './editor/noto/clipboard';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   SETTING_RANGES,
   type ImageDestinationV1,
@@ -22,9 +23,10 @@ import {
   type NotoTheme,
   type WidthModeV1,
   type ProseFaceV1,
+  type RemoteStatusReplyV1,
 } from '../shared/settings/v1/contracts';
 
-export type PreferencesSection = 'appearance' | 'editor' | 'markdown' | 'images' | 'plugins';
+export type PreferencesSection = 'appearance' | 'editor' | 'markdown' | 'images' | 'remote' | 'plugins';
 
 export interface PreferencesProps {
   readonly open: boolean;
@@ -56,6 +58,7 @@ function SectionGlyph({ name }: { name: PreferencesSection }) {
     editor: 'M2.5 12.5h11 M4 9.8 10.2 3.6a1.4 1.4 0 0 1 2 2L6 11.8l-2.6.6Z',
     markdown: 'M2.5 4.5h11v7h-11z M4.5 10V6.5l2 2 2-2V10 M11 6.5V10 M9.8 8.6 11 10l1.2-1.4',
     images: 'M2.5 3.5h11v9h-11z M2.5 10.2 5.9 7.4l2.4 2 2-1.7 3.2 2.7 M10.4 5.9h.01',
+    remote: 'M2.5 4.5h11v7h-11z M5.5 13.5h5 M8 11.5v2',
     plugins: 'M6 2.5v2.2a1.3 1.3 0 1 1-2.6 0V2.5 M2.5 6h11v7.5h-11z M2.5 6V3.4h1',
   };
   return (
@@ -71,6 +74,7 @@ const SECTIONS: readonly { value: PreferencesSection; label: string; keywords: s
   { value: 'editor', label: 'Editor', keywords: 'spell check images brackets pairs focus typewriter save autosave line numbers guides reload external disk sync watch' },
   { value: 'markdown', label: 'Markdown', keywords: 'smart quotes dashes ellipsis punctuation typography syntax' },
   { value: 'images', label: 'Images', keywords: 'image picture paste drop screenshot assets folder copy relative path escape url upload picgo bucket' },
+  { value: 'remote', label: 'Remote', keywords: 'remote control api token port script agent automation' },
   { value: 'plugins', label: 'Plugins', keywords: 'plugin extension enable disable palette' },
 ];
 
@@ -82,6 +86,107 @@ const THEMES: readonly { value: NotoTheme; label: string }[] = [
 
 /* The numbers are in the hints rather than the labels: the labels are what
    the reader chooses between, the numbers are how the choice is kept honest. */
+/**
+ * The remote control's own pane: the switch is in the settings above it, and
+ * this is where it lives, what it is doing, and the token it takes.
+ *
+ * The token is the whole of the security, so it is shown only when asked for
+ * and copied with one press rather than selected by hand. What is listening
+ * is read from main rather than inferred from the switch: a port already in
+ * use is the case where the two disagree, and that is exactly when a reader
+ * needs to be told.
+ */
+function RemotePane({ on, onChange }: { on: boolean; onChange: (value: boolean) => void }) {
+  const [status, setStatus] = useState<RemoteStatusReplyV1 | null>(null);
+  const [shown, setShown] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const read = useCallback(() => {
+    void window.notoSettings.remoteStatus({ version: 1, requestId: `remote:${crypto.randomUUID()}` })
+      .then((result) => { if (result.ok) setStatus(result.value); });
+  }, []);
+
+  useEffect(() => {
+    read();
+    return window.notoWorkspace.onRemoteChanged(() => read());
+  }, [read, on]);
+
+  const address = typeof status?.port === 'number' ? `http://127.0.0.1:${status.port}` : 'http://127.0.0.1';
+
+  return (
+    <div className="remote-pane" data-testid="remote-pane">
+      <Switch
+        label="Let a script drive this editor"
+        hint="A program on this machine can ask what note is open, read it, open another, put text in, and run a few commands."
+        checked={on}
+        onChange={onChange}
+        testId="setting-remote-control"
+      />
+      <p className="pref-note">
+        Nothing outside this machine can reach it. It listens on the loopback address alone, every
+        request carries the token below, and a request from a page in a browser is refused.
+      </p>
+      <p className="pref-status" data-testid="remote-state">
+        {status?.listening
+          ? `Listening on ${address}`
+          : status?.problem
+            ? status.problem
+            : 'Not listening.'}
+      </p>
+      {status?.listening && (
+        <>
+          <div className="remote-token">
+            <label htmlFor="remote-token-field">Token</label>
+            <input
+              id="remote-token-field"
+              data-testid="remote-token"
+              type={shown ? 'text' : 'password'}
+              value={status.token}
+              readOnly
+              spellCheck={false}
+            />
+            <button type="button" data-testid="remote-reveal" onClick={() => setShown((was) => !was)}>
+              {shown ? 'Hide' : 'Show'}
+            </button>
+            <button
+              type="button"
+              data-testid="remote-copy"
+              onClick={() => {
+                copyThroughSelection(status.token);
+                setCopied(true);
+                window.setTimeout(() => setCopied(false), 1500);
+              }}
+            >
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+          <p className="pref-note">
+            <code>{`curl -H "Authorization: Bearer TOKEN" ${address}/v1/status`}</code>
+            {' '}and then <code>/v1/document</code>, <code>/v1/open</code>, <code>/v1/insert</code>
+            {' '}and <code>/v1/command</code>.
+          </p>
+          <button
+            type="button"
+            className="remote-regenerate"
+            data-testid="remote-regenerate"
+            onClick={() => {
+              void window.notoSettings.regenerateRemoteToken({
+                version: 1, requestId: `remote:${crypto.randomUUID()}`,
+              }).then((result) => { if (result.ok) { setStatus(result.value); setShown(true); } });
+            }}
+          >
+            Give me a new token
+          </button>
+          <p className="pref-note">
+            A new token stops everything holding the old one, which is what to do if it has been
+            somewhere it should not have been.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 const FACES: readonly { value: ProseFaceV1; label: string; hint: string }[] = [
   { value: 'serif', label: 'Serif', hint: 'Songti SC, as Typora sets Chinese prose.' },
   { value: 'sans', label: 'Sans', hint: 'PingFang SC, for reading on a screen.' },
@@ -652,6 +757,9 @@ export function Preferences({
               </>
             )}
 
+            {section === 'remote' && (
+              <RemotePane on={settings.remoteControl} onChange={(value) => onChange({ remoteControl: value })} />
+            )}
             {section === 'plugins' && plugins}
           </div>
 

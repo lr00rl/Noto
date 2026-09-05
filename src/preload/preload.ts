@@ -31,6 +31,7 @@ import {
   type SettingsRequestV1,
   type SettingsResultV1,
   type SettingsWriteRequestV1,
+  type RemoteStatusReplyV1,
 } from '../shared/settings/v1/contracts';
 import {
   isSettingsReplyV1,
@@ -38,6 +39,7 @@ import {
   isSettingsResultV1,
   isThemeCssResultV1,
   isSettingsWriteRequestV1,
+  isRemoteStatusResultV1,
 } from '../shared/settings/v1/validate';
 import type {
   FileTruthBootstrapReplyV1,
@@ -90,6 +92,8 @@ import type {
   WorkspaceDocumentEventV1,
   WorkspaceMenuEventV1,
   WorkspacePasteEventV1,
+  WorkspaceRemoteEventV1,
+  WorkspaceDirtyEventV1,
   WorkspaceLinksReplyV1,
   WorkspaceOpenPathRequestV1,
   WorkspaceTabRequestV1,
@@ -124,6 +128,8 @@ import {
   isWorkspaceDocumentEventV1,
   isWorkspaceMenuEventV1,
   isWorkspacePasteEventV1,
+  isWorkspaceRemoteEventV1,
+  isWorkspaceDirtyEventV1,
   isWorkspaceLinksResultV1,
   isWorkspaceOpenPathRequestV1,
   isWorkspaceTabRequestV1,
@@ -312,6 +318,20 @@ function rejectedSettings(requestId: string, message: string): SettingsResultV1<
   return { ok: false, requestId, error: { code: 'BAD_REQUEST', message } };
 }
 
+/** The two remote-control questions, which answer with their own reply shape. */
+async function askRemote(
+  channel: string,
+  request: SettingsRequestV1,
+): Promise<SettingsResultV1<RemoteStatusReplyV1>> {
+  const bad = (requestId: string, message: string): SettingsResultV1<RemoteStatusReplyV1> =>
+    ({ ok: false, requestId, error: { code: 'BAD_REQUEST', message } });
+  if (!isSettingsRequestV1(request)) return bad('invalid', 'Invalid remote control request');
+  const value: unknown = await ipcRenderer.invoke(channel, request);
+  return isRemoteStatusResultV1(value, request.requestId)
+    ? value
+    : bad(request.requestId, 'Main returned an invalid remote control response');
+}
+
 async function invokeSettings(channel: string, request: unknown, requestId: string): Promise<SettingsResultV1<SettingsReplyV1>> {
   const value: unknown = await ipcRenderer.invoke(channel, request);
   return isSettingsResultV1(value, requestId)
@@ -383,6 +403,11 @@ const workspaceApi: NotoWorkspaceApiV1 = Object.freeze({
     subscribe(WORKSPACE_CHANNELS.menuCommand, isWorkspaceMenuEventV1, listener),
   onPasteText: (listener: (event: WorkspacePasteEventV1) => void) =>
     subscribe(WORKSPACE_CHANNELS.pasteText, isWorkspacePasteEventV1, listener),
+  onRemoteChanged: (listener: (event: WorkspaceRemoteEventV1) => void) =>
+    subscribe(WORKSPACE_CHANNELS.remoteChanged, isWorkspaceRemoteEventV1, listener),
+  reportDirty: (event: WorkspaceDirtyEventV1) => {
+    if (isWorkspaceDirtyEventV1(event)) ipcRenderer.send(WORKSPACE_CHANNELS.dirtyChanged, event);
+  },
   pathForFile: (file: File) => {
     try {
       return file instanceof File ? webUtils.getPathForFile(file) : '';
@@ -431,6 +456,8 @@ const settingsApi: NotoSettingsApiV1 = Object.freeze({
       : { ok: false as const, requestId: request.requestId,
         error: { code: 'BAD_REQUEST', message: 'Main returned an invalid theme stylesheet response' } };
   },
+  remoteStatus: (request: SettingsRequestV1) => askRemote(SETTINGS_CHANNELS.remoteStatus, request),
+  regenerateRemoteToken: (request: SettingsRequestV1) => askRemote(SETTINGS_CHANNELS.remoteRegenerate, request),
   onChanged: (listener: (event: SettingsReplyV1) => void) =>
     subscribe(SETTINGS_CHANNELS.changed, isSettingsReplyV1, listener),
 });

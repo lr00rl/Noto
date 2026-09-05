@@ -34,6 +34,10 @@ export const WORKSPACE_CHANNELS = {
   menuCommand: 'noto:v1:workspace:menu-command',
   pasteText: 'noto:v1:workspace:paste-text',
   noteLinks: 'noto:v1:workspace:note-links',
+  /** Says whether the remote control is listening, so the window can show it. */
+  remoteChanged: 'noto:v1:workspace:remote-changed',
+  /** The renderer saying whether the note in front has unsaved changes. */
+  dirtyChanged: 'noto:v1:workspace:dirty-changed',
   /** The whole openable file list for the current folder, sent once per
    *  folder so ranking can happen in the renderer without a round trip. */
   fileIndex: 'noto:v1:workspace:file-index',
@@ -558,6 +562,25 @@ export interface WorkspacePasteEventV1 {
   readonly text: string;
 }
 
+/**
+ * Whether the note in front has changes that are not on disk.
+ *
+ * Sent by the renderer, which is the only side that knows: main holds the
+ * file and the renderer holds the edits. The remote control reports it, so a
+ * caller reading the file knows whether it is reading what is on screen.
+ */
+export interface WorkspaceDirtyEventV1 {
+  readonly version: typeof NOTO_WORKSPACE_VERSION;
+  readonly dirty: boolean;
+}
+
+/** Whether the editor can be driven from outside, and where from. */
+export interface WorkspaceRemoteEventV1 {
+  readonly version: typeof NOTO_WORKSPACE_VERSION;
+  readonly listening: boolean;
+  readonly port: number | null;
+}
+
 /** The most text a paste carries; past this it is a file, not a paste. */
 export const MAX_PASTE_TEXT = 8 * 1024 * 1024;
 
@@ -613,6 +636,8 @@ export interface NotoWorkspaceApiV1 {
   onTabsChanged(listener: (event: WorkspaceTabsEventV1) => void): () => void;
   onMenuCommand(listener: (event: WorkspaceMenuEventV1) => void): () => void;
   onPasteText(listener: (event: WorkspacePasteEventV1) => void): () => void;
+  onRemoteChanged(listener: (event: WorkspaceRemoteEventV1) => void): () => void;
+  reportDirty(event: WorkspaceDirtyEventV1): void;
   /**
    * The path of a file the reader dropped in, which the renderer may not
    * work out for itself. Empty when the browser has no file behind it.

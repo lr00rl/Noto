@@ -15,6 +15,7 @@ import {
   type SettingsResultV1,
   type SettingsWriteRequestV1,
   type ThemeCssReplyV1,
+  type RemoteStatusReplyV1,
 } from '../../shared/settings/v1/contracts';
 import {
   isSettingsRequestV1,
@@ -30,6 +31,11 @@ export function registerSettingsHandlers(deps: {
   logger: StructuredLogger;
   /** Called after a successful write, so main can react to a changed setting. */
   onChanged: (settings: SettingsReplyV1) => void;
+  /** What the remote control is doing, and how to give it a new token. */
+  remote?: {
+    status: () => Promise<RemoteStatusReplyV1>;
+    regenerate: () => Promise<RemoteStatusReplyV1>;
+  };
 }): void {
   const register = <TRequest extends { requestId: string }, TReply>(
     channel: string,
@@ -111,5 +117,27 @@ export function registerSettingsHandlers(deps: {
         return { ...empty, problem: 'Stylesheet could not be read.' };
       }
     },
+  );
+
+  const remoteReply = async (kind: 'status' | 'regenerate'): Promise<RemoteStatusReplyV1> => {
+    const off = {
+      version: NOTO_SETTINGS_VERSION, listening: false, port: null, token: '', problem: '',
+    } as const;
+    if (!deps.remote) return off;
+    return kind === 'status' ? deps.remote.status() : deps.remote.regenerate();
+  };
+
+  register<{ requestId: string }, RemoteStatusReplyV1>(
+    SETTINGS_CHANNELS.remoteStatus,
+    isSettingsRequestV1,
+    () => remoteReply('status'),
+  );
+
+  // A new token is a change the reader asked for, and everything holding the
+  // old one stops working the moment it is made, which is the point of it.
+  register<{ requestId: string }, RemoteStatusReplyV1>(
+    SETTINGS_CHANNELS.remoteRegenerate,
+    isSettingsRequestV1,
+    () => remoteReply('regenerate'),
   );
 }

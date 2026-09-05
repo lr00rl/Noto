@@ -1172,8 +1172,24 @@
   left: 0;
   top: var(--stem-start);
   width: 1px;
-  z-index: 3;
   pointer-events: none;
+}
+
+/*
+ * Only the branch to the note in front is drawn over the held rows.
+ *
+ * A held row carries an opaque band to hide everything sliding under it, and
+ * the lines that must survive it are the ones that lead to the row itself:
+ * the levels its own path hangs from. A level off that path is behind the
+ * band where it belongs. Drawn over it, the stem of some unrelated folder
+ * whose rows happen to be on screen appeared across the held stack for as
+ * long as it took the next frame to move it.
+ */
+.tree-vault > .tree-level::before,
+.tree-vault > .tree-level::after,
+.tree-node:has(> .tree-directory.tree-on-path) > .tree-level::before,
+.tree-node:has(> .tree-directory.tree-on-path) > .tree-level::after {
+  z-index: 3;
 }
 
 .tree-level:not(.is-root)::before {
@@ -1310,6 +1326,13 @@
    stuck row is by definition on the path to the file in front. The geometry is
    the node's own corner to the pixel: it used to sit a pixel up and left with
    a smaller radius, and where the two overlapped they drew as one thick hook. */
+/*
+ * The arm alone, or the corner, exactly as the row would draw it standing
+ * still. A row that is not the last of its level meets its stem at a right
+ * angle; only the last one turns. Held rows all drew the corner, so a row in
+ * the middle of a folder grew a curve on the way up and lost it on the way
+ * down, which is the tree changing shape under the reader.
+ */
 .tree-directory[data-stuck]::after,
 .tree-node-active[data-stuck]::after {
   content: '';
@@ -1320,10 +1343,18 @@
   width: var(--tree-indent);
   height: var(--tree-arm);
   background: none;
-  border-left: 1px solid var(--tree-lit);
+  border-left: 0;
   border-bottom: 1px solid var(--tree-lit);
-  border-bottom-left-radius: 7px;
+  border-bottom-left-radius: 0;
   pointer-events: none;
+}
+
+/* The last row of its level keeps the corner it has when it is standing
+   still, drawn to the same geometry as the node's own. */
+.tree-node:last-child > .tree-directory[data-stuck]::after,
+.tree-node-active[data-stuck]:last-child::after {
+  border-left: 1px solid var(--tree-lit);
+  border-bottom-left-radius: 7px;
 }
 
 .tree-root.is-empty {

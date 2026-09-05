@@ -28,6 +28,7 @@ import {
   type ProseFaceV1,
   TREE_SORTS,
   type TreeSortV1,
+  type RemoteStatusReplyV1,
 } from './contracts';
 
 const requestId = /^[A-Za-z0-9._:-]{1,96}$/;
@@ -93,6 +94,9 @@ export function coerceSettings(value: unknown): NotoSettingsV1 {
     treeSort: TREE_SORTS.includes(value.treeSort as TreeSortV1)
       ? value.treeSort as TreeSortV1
       : DEFAULT_SETTINGS.treeSort,
+    remoteControl: typeof value.remoteControl === 'boolean'
+      ? value.remoteControl
+      : DEFAULT_SETTINGS.remoteControl,
     markHighlight: typeof value.markHighlight === 'boolean' ? value.markHighlight : DEFAULT_SETTINGS.markHighlight,
     markSuperscript: typeof value.markSuperscript === 'boolean'
       ? value.markSuperscript
@@ -182,6 +186,25 @@ export function isSettingsWriteRequestV1(value: unknown): value is SettingsWrite
     }
     return typeof patch[key] === 'boolean';
   });
+}
+
+export function isRemoteStatusReplyV1(value: unknown): value is RemoteStatusReplyV1 {
+  return record(value) && Object.keys(value).length === 5
+    && value.version === NOTO_SETTINGS_VERSION
+    && typeof value.listening === 'boolean'
+    && (value.port === null || (typeof value.port === 'number' && Number.isSafeInteger(value.port)))
+    && typeof value.token === 'string' && value.token.length <= 256
+    && typeof value.problem === 'string' && value.problem.length <= 512;
+}
+
+export function isRemoteStatusResultV1(
+  value: unknown,
+  expectedRequestId: string,
+): value is SettingsResultV1<RemoteStatusReplyV1> {
+  if (!record(value) || value.requestId !== expectedRequestId) return false;
+  if (value.ok === true) return isRemoteStatusReplyV1(value.value);
+  return value.ok === false && record(value.error)
+    && typeof value.error.code === 'string' && typeof value.error.message === 'string';
 }
 
 export function isSettingsRequestV1(value: unknown): value is SettingsRequestV1 {

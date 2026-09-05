@@ -29,6 +29,13 @@ async function launch(name: string): Promise<{ app: ElectronApplication; page: P
   for (let index = 1; index <= 30; index += 1) {
     await writeFile(path.join(deep, `note_${String(index).padStart(2, '0')}.md`), `# ${index}\n`, 'utf8');
   }
+  // A folder beside the one on the path, open, with rows of its own on
+  // screen: the shape that put a stray line across the held rows.
+  const aside = path.join(vault, 'works', 'jobs', 'aside');
+  await mkdir(aside, { recursive: true });
+  for (let index = 1; index <= 12; index += 1) {
+    await writeFile(path.join(aside, `other_${String(index).padStart(2, '0')}.md`), `# a${index}\n`, 'utf8');
+  }
   const app = await electron.launch({
     executablePath: packagedExecutable(),
     args: [`--user-data-dir=${path.join(workspace, 'user-data')}`, vault],
@@ -43,7 +50,9 @@ test.describe('the guide lines under a held row', () => {
   test('begin below the row that holds them, and are drawn over the stack', async () => {
     const { app, page } = await launch('stems');
     try {
-      for (const name of ['works', 'jobs', 'data']) {
+      // The folder beside the path is opened too, so its own level exists and
+      // its rows are on screen while the path's rows are held.
+      for (const name of ['works', 'jobs', 'aside', 'data']) {
         await page.getByTestId('tree-directory').filter({ hasText: name }).first().click();
       }
       await page.getByTestId('tree-file').filter({ hasText: 'note_28' }).click();
@@ -77,6 +86,17 @@ test.describe('the guide lines under a held row', () => {
         return { stem, row: row ? getComputedStyle(row).zIndex : '' };
       });
       expect(Number(order.stem)).toBeGreaterThan(Number(order.row));
+
+      // And only the branch to the note in front is drawn over them. A folder
+      // beside it, open and on screen, keeps its stem behind the band.
+      const aside = await page.evaluate(() => {
+        const row = Array.from(document.querySelectorAll<HTMLElement>('.tree-directory'))
+          .find((candidate) => candidate.textContent?.includes('aside'));
+        const level = row?.parentElement?.querySelector<HTMLElement>(':scope > .tree-level');
+        return level ? getComputedStyle(level, '::before').zIndex : 'missing';
+      });
+      expect(aside).not.toBe('missing');
+      expect(Number(aside)).not.toBeGreaterThan(Number(order.row));
     } finally {
       await app.close();
     }
@@ -110,6 +130,40 @@ test.describe('the guide lines under a held row', () => {
       await app.close();
     }
   });
+});
+
+test('a held row keeps the shape it has standing still', async () => {
+  const { app, page } = await launch('corner');
+  try {
+    for (const name of ['works', 'jobs', 'data']) {
+      await page.getByTestId('tree-directory').filter({ hasText: name }).first().click();
+    }
+    await page.getByTestId('tree-file').filter({ hasText: 'note_28' }).click();
+    await expect(page.locator('.tree-directory[data-stuck]').first()).toBeVisible();
+
+    // `data` is the last row of its level and turns a corner; `jobs` is not
+    // and meets its stem at a right angle. Held, each keeps its own shape.
+    const shapes = await page.evaluate(() => Array.from(
+      document.querySelectorAll<HTMLElement>('.tree-directory[data-stuck]'),
+    ).map((row) => ({
+      name: row.textContent ?? '',
+      last: row.parentElement?.matches(':last-child') ?? false,
+      radius: getComputedStyle(row, '::after').borderBottomLeftRadius,
+      left: getComputedStyle(row, '::after').borderLeftWidth,
+    })));
+    expect(shapes.length).toBeGreaterThan(1);
+    for (const shape of shapes) {
+      if (shape.last) {
+        expect(shape.radius).not.toBe('0px');
+        expect(shape.left).toBe('1px');
+      } else {
+        expect(shape.radius).toBe('0px');
+        expect(shape.left).toBe('0px');
+      }
+    }
+  } finally {
+    await app.close();
+  }
 });
 
 test('the Help menu says what the app can do', async () => {

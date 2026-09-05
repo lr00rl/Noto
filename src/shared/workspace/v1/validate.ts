@@ -24,6 +24,8 @@ import {
   MAX_PASTE_TEXT,
   WorkspaceLinkV1,
   WorkspaceLinksReplyV1,
+  WorkspaceRemoteEventV1,
+  WorkspaceDirtyEventV1,
 } from './contracts';
 import type {
   RecentFileV1,
@@ -212,6 +214,17 @@ export function isWorkspaceLinksReplyV1(value: unknown): value is WorkspaceLinks
 export const isWorkspaceLinksResultV1 = (
   value: unknown, id: string,
 ): value is WorkspaceResultV1<WorkspaceLinksReplyV1> => isResult(value, id, isWorkspaceLinksReplyV1);
+
+export function isWorkspaceDirtyEventV1(value: unknown): value is WorkspaceDirtyEventV1 {
+  return record(value) && exact(value, ['version', 'dirty'])
+    && value.version === 1 && typeof value.dirty === 'boolean';
+}
+
+export function isWorkspaceRemoteEventV1(value: unknown): value is WorkspaceRemoteEventV1 {
+  return record(value) && exact(value, ['version', 'listening', 'port']) && value.version === 1
+    && typeof value.listening === 'boolean'
+    && (value.port === null || (typeof value.port === 'number' && Number.isSafeInteger(value.port)));
+}
 
 export function isWorkspacePasteEventV1(value: unknown): value is WorkspacePasteEventV1 {
   return record(value) && exact(value, ['version', 'text']) && value.version === 1
