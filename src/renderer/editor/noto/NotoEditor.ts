@@ -222,6 +222,11 @@ export class NotoEditor implements NotoEditorPort {
       },
       nodeViews: this.nodeViews(),
     });
+    // Where the caret starts, said once, so the marker is there before any
+    // key is pressed. Without it the attribute exists only after something
+    // has moved, and "the caret has not moved yet" reads as "there is no
+    // editor" to anything waiting on it.
+    this.host.dataset.caret = String(this.view.state.selection.from);
     // The first count is for the document as opened, not for a change to it.
     this.scheduleCount();
   }

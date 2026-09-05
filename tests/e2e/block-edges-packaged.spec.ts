@@ -54,13 +54,26 @@ test.describe("Typora's keys at the edges of a block", () => {
       // key that moves it. The caret moves a moment after, and Backspace has
       // to find it at the start of the line rather than wherever the click
       // left it.
-      await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowLeft' : 'Home');
-      await page.waitForFunction(() => {
+      // The caret is put at the head of the heading through the selection
+      // itself rather than by a chord. Which key moves to the start of a line
+      // differs by platform and does not always reach a packaged window, and
+      // this test is about what Backspace does when the caret is there, not
+      // about how it got there. Position 1 is the first character of the
+      // first block, and the editor says where it thinks the caret is.
+      const host = page.locator('.canvas-slot:not([hidden]) [data-testid="noto-editor"]');
+      await page.evaluate(() => {
+        const heading = document.querySelector('.canvas-slot:not([hidden]) .ProseMirror h1');
+        const text = heading?.firstChild;
+        if (!text) throw new Error('no heading to put the caret in');
+        const range = document.createRange();
+        range.setStart(text, 0);
+        range.collapse(true);
         const selection = window.getSelection();
-        const node = selection?.anchorNode;
-        const element = node instanceof Element ? node : node?.parentElement;
-        return selection?.anchorOffset === 0 && element?.closest('h1') != null;
+        selection?.removeAllRanges();
+        selection?.addRange(range);
       });
+      await expect(host).toHaveAttribute('data-caret', '1');
+      await expect(editor(page).locator('.noto-active-block')).toHaveText('Head');
       await page.keyboard.press('Backspace');
       await expect(editor(page).locator('h1')).toHaveCount(0);
       await expect(editor(page).locator('p').first()).toHaveText('Head');
