@@ -21,9 +21,9 @@ React and ProseMirror.
 
 ## Project status
 
-Noto is usable and under active development. Version 0.1.0 is a first public
-release, and the honest summary of where it stands is worth reading before you
-depend on it.
+Noto is usable and under active development. Version 0.0.1 is the first
+release with downloadable builds, and the honest summary of where it stands is
+worth reading before you depend on it.
 
 What has been verified end to end is macOS, where the packaged application is
 driven through its real interface by a Playwright suite on every change. Linux
