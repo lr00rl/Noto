@@ -25,15 +25,19 @@ Noto is usable and under active development. Version 0.0.1 is the first
 release with downloadable builds, and the honest summary of where it stands is
 worth reading before you depend on it.
 
-What has been verified end to end is macOS, where the packaged application is
-driven through its real interface by a Playwright suite on every change. Linux
-has been verified once in a clean `node:22` container: install, typecheck, the
-unit suite, packaging, and 45 of the packaged tests under `xvfb-run`, which
-covers the file identity layer, the workspace, tabs, find and replace, the file
-tree, settings, math and the plugin tier. Windows is configured and packages,
-and its menu template and platform capabilities are covered by unit tests, but
-no packaged Windows build has actually been launched. Treat Windows as
-unproven.
+All three platforms are now verified the same way: the packaged application is
+built and then driven through its real interface, and the whole suite of 237
+packaged tests passes on macOS, Windows and Linux on every change, alongside
+about 1,200 unit tests. Windows was unproven until the run that proved it,
+which is also the run that found two faults nobody could have read out of the
+code: every plugin came up needing recovery because a durability step that
+only POSIX has was being treated as a failure, and the remote control refused
+the token its own preferences pane had shown, because the file's permissions
+mean nothing there and the token was being replaced on every read.
+
+Which is the honest summary: it is exercised most on macOS, where it is used
+daily against a vault of about seven thousand notes, and the other two are
+proven by machine rather than by living in them.
 
 The performance story is likewise mixed rather than a clean win, and the
 numbers are below.
