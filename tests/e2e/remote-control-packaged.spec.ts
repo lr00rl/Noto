@@ -87,8 +87,21 @@ test.describe('driving Noto from outside it', () => {
       expect(status.status).toBe(200);
       expect(status.json).toMatchObject({ vault, note: path.join(vault, 'first.md'), dirty: false });
 
+      expect(status.json).toMatchObject({ protocol: 1 });
+
       const document = await ask(port, '/v1/document', token);
-      expect(document.json).toMatchObject({ markdown: '# First\n\nThe first note.\n' });
+      expect(document.json).toMatchObject({
+        markdown: '# First\n\nThe first note.\n', source: 'editor', dirty: false,
+      });
+
+      // It says what it can do, so a caller need not read a page first.
+      const commands = await ask(port, '/v1/commands', token);
+      expect(commands.json.commands).toContain('save');
+      expect(commands.json.insertPlaces).toEqual(['caret', 'end']);
+
+      // A path relative to the folder that is open, which is what a caller writes.
+      expect((await ask(port, '/v1/open', token, { path: 'second.md' })).status).toBe(200);
+      await expect(page.locator('.canvas-slot:not([hidden]) .ProseMirror')).toContainText('The second note.');
 
       const opened = await ask(port, '/v1/open', token, { path: path.join(vault, 'second.md') });
       expect(opened.status).toBe(200);
@@ -102,11 +115,29 @@ test.describe('driving Noto from outside it', () => {
       await expect(page.locator('.canvas-slot:not([hidden]) .ProseMirror')).toContainText('Added from outside.');
       await expect.poll(async () => (await ask(port, '/v1/status', token)).json.dirty).toBe(true);
 
+      // While it is unsaved, reading gives the editor's own copy rather than
+      // the file, which is the whole reason the source is named.
+      const live = await ask(port, '/v1/document', token);
+      expect(live.json).toMatchObject({ source: 'editor', dirty: true });
+      expect(String(live.json.markdown)).toContain('Added from outside.');
+
       // And a command it allows: saving, which puts the insert on disk.
       expect((await ask(port, '/v1/command', token, { command: 'save' })).status).toBe(200);
       await expect.poll(() => readFile(path.join(vault, 'second.md'), 'utf8'))
         .toContain('Added from outside.');
       await expect.poll(async () => (await ask(port, '/v1/status', token)).json.dirty).toBe(false);
+
+      // Appending puts a block of its own after the last one, rather than
+      // joining the paragraph the caret happened to be in.
+      expect((await ask(port, '/v1/insert', token, { text: 'A line of its own.', at: 'end' })).status).toBe(200);
+      expect((await ask(port, '/v1/command', token, { command: 'save' })).status).toBe(200);
+      await expect.poll(() => readFile(path.join(vault, 'second.md'), 'utf8'))
+        .toMatch(/\n\nA line of its own\.\n$/);
+
+      // And it can search the vault it has open.
+      const found = await ask(port, '/v1/search', token, { query: 'second note' });
+      expect(found.status).toBe(200);
+      expect((found.json.matches as { relativePath: string }[])[0].relativePath).toBe('second.md');
     } finally {
       await app.close();
     }
@@ -144,7 +175,9 @@ test.describe('driving Noto from outside it', () => {
       ])).toContain('200');
 
       // A menu command that is not on the remote's own list.
-      expect((await ask(port, '/v1/command', token, { command: 'export-pdf' })).status).toBe(400);
+      const unknown = await ask(port, '/v1/command', token, { command: 'export-pdf' });
+      expect(unknown.status).toBe(400);
+      expect(unknown.json.code).toBe('unknown-command');
       // And a path outside the folder that is open.
       const outside = await ask(port, '/v1/open', token, { path: '/etc/hosts' });
       expect(outside.status).toBe(404);
@@ -162,10 +195,14 @@ test.describe('driving Noto from outside it', () => {
       const { port, token } = await turnOn(page);
       expect((await ask(port, '/v1/status', token)).status).toBe(200);
 
-      // The token is on disk where only this account can read it.
+      // The token is on disk where only this account can read it, and beside
+      // it the port, so a script can find both without opening a window.
       const tokenFile = path.join(userData, 'remote-token');
       expect((await stat(tokenFile)).mode & 0o777).toBe(0o600);
       expect((await readFile(tokenFile, 'utf8')).trim()).toBe(token);
+      const addressFile = path.join(userData, 'remote.json');
+      expect((await stat(addressFile)).mode & 0o777).toBe(0o600);
+      expect(JSON.parse(await readFile(addressFile, 'utf8'))).toMatchObject({ port });
 
       // A new token turns the old one away.
       await page.getByTestId('settings-toggle').click();
@@ -182,6 +219,16 @@ test.describe('driving Noto from outside it', () => {
       await expect(page.getByTestId('remote-state')).toContainText('Not listening', { timeout: 15_000 });
       await page.getByTestId('settings-close').click();
       await expect(page.getByTestId('remote-flag')).toHaveCount(0);
+      // The file that said where it was listening goes with it, so nothing is
+      // left pointing at a port with nothing on it.
+      await expect.poll(async () => {
+        try {
+          await stat(path.join(userData, 'remote.json'));
+          return 'there';
+        } catch {
+          return 'gone';
+        }
+      }, { timeout: 15_000 }).toBe('gone');
       await expect.poll(async () => {
         try {
           await ask(freshPort, '/v1/status', fresh);

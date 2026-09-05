@@ -26,6 +26,7 @@
  */
 
 import { timingSafeEqual } from 'node:crypto';
+import type { SearchFlags } from '../../shared/search/pattern';
 
 /** The commands a remote caller may run, and nothing else. */
 export const REMOTE_COMMANDS = [
@@ -63,6 +64,9 @@ export interface RemoteReply {
   readonly body: unknown;
 }
 
+/** The protocol's own version, so a caller can tell what it is talking to. */
+export const REMOTE_PROTOCOL = 1;
+
 export interface RemoteStatus {
   readonly version: string;
   readonly vault: string | null;
@@ -70,22 +74,70 @@ export interface RemoteStatus {
   readonly dirty: boolean;
 }
 
+/** Where a note's text came from, which matters while there are unsaved changes. */
+export type TextSource = 'editor' | 'disk';
+
+export interface RemoteDocument {
+  readonly path: string;
+  readonly markdown: string;
+  readonly source: TextSource;
+  readonly dirty: boolean;
+}
+
+/** Where inserted text goes. The caret is where a person is; the end is where a log grows. */
+export const INSERT_PLACES = ['caret', 'end'] as const;
+
+export type InsertPlace = (typeof INSERT_PLACES)[number];
+
+export interface RemoteMatchLine {
+  readonly line: string;
+  readonly lineNumber: number;
+  readonly column: number;
+  readonly length: number;
+}
+
+export interface RemoteMatch {
+  readonly path: string;
+  readonly relativePath: string;
+  readonly occurrences: number;
+  readonly lines: readonly RemoteMatchLine[];
+}
+
 export interface RemoteDeps {
   readonly token: string;
   /** The port it is listening on, so the `Host` header can be checked against it. */
   readonly port: number;
   readonly status: () => RemoteStatus;
-  /** The note in front as it is on disk, or null when none is open. */
-  readonly readCurrent: () => Promise<{ path: string; markdown: string } | null>;
+  /**
+   * The note in front, from the editor when there is one and from the disk
+   * otherwise. Null when no note is open.
+   */
+  readonly readCurrent: () => Promise<RemoteDocument | null>;
   /** Open a path; main resolves it and refuses anything outside the folder. */
-  readonly open: (target: string) => Promise<{ opened: boolean; reason?: string }>;
-  /** Put text at the caret in the note in front. */
-  readonly insert: (text: string) => { inserted: boolean; reason?: string };
+  readonly open: (target: string) => Promise<{ opened: boolean; code?: string; reason?: string }>;
+  /** Put text where the caller asked for it. */
+  readonly insert: (text: string, at: InsertPlace) => { inserted: boolean; reason?: string };
   readonly run: (command: RemoteCommand) => { ran: boolean; reason?: string };
+  /** Search the vault, the same search the rail does. */
+  readonly search: (query: string, flags: SearchFlags) => Promise<{
+    matches: readonly RemoteMatch[];
+    truncated: boolean;
+    timedOut: boolean;
+    invalidPattern: boolean;
+  }>;
 }
 
 const ok = (body: unknown): RemoteReply => ({ status: 200, body });
-const refuse = (status: number, error: string): RemoteReply => ({ status, body: { error } });
+
+/**
+ * A refusal a program can branch on.
+ *
+ * The sentence is for a person reading a log; the code is for the caller,
+ * which should never have to match on English. An early version answered a
+ * failed open with the operating system's own `ENOENT`, which is neither.
+ */
+const refuse = (status: number, code: string, error: string): RemoteReply =>
+  ({ status, body: { error, code } });
 
 /** Constant time, and false for a length that does not match rather than throwing. */
 export function tokenMatches(given: string, expected: string): boolean {
@@ -148,53 +200,108 @@ function parseBody(body: string): Record<string, unknown> | null {
 
 /** Answer one request. Every refusal says which rule refused it. */
 export async function handleRemote(request: RemoteRequest, deps: RemoteDeps): Promise<RemoteReply> {
-  if (looksLikeBrowser(request.headers)) return refuse(403, 'A browser cannot drive this editor.');
+  if (looksLikeBrowser(request.headers)) {
+    return refuse(403, 'browser', 'A browser cannot drive this editor.');
+  }
   if (!hostAllowed(request.headers.host, deps.port)) {
-    return refuse(403, 'That request did not come to the loopback address.');
+    return refuse(403, 'host', 'That request did not come to the loopback address.');
   }
 
   const given = bearerOf(request.headers);
-  if (given === null || !tokenMatches(given, deps.token)) return refuse(401, 'Bad or missing token.');
-  if (Buffer.byteLength(request.body, 'utf8') > MAX_BODY_BYTES) return refuse(413, 'That request is too large.');
-
-  const path = request.path.split('?')[0].replace(/\/+$/, '') || '/';
-
-  if (request.method === 'GET' && path === '/v1/status') return ok(deps.status());
-
-  if (request.method === 'GET' && path === '/v1/document') {
-    const current = await deps.readCurrent();
-    return current === null ? refuse(404, 'No note is open.') : ok(current);
+  if (given === null || !tokenMatches(given, deps.token)) {
+    return refuse(401, 'unauthorized', 'Bad or missing token.');
+  }
+  if (Buffer.byteLength(request.body, 'utf8') > MAX_BODY_BYTES) {
+    return refuse(413, 'too-large', 'That request is too large.');
   }
 
-  if (request.method !== 'POST') return refuse(404, 'No such request.');
+  const path = request.path.split('?')[0].replace(/\/+$/, '') || '/';
+  // HEAD is GET without the body, which is what a caller checking that
+  // something is listening reaches for first.
+  const reading = request.method === 'GET' || request.method === 'HEAD';
+
+  if (reading && path === '/v1/status') return ok({ protocol: REMOTE_PROTOCOL, ...deps.status() });
+
+  // What there is, said by the thing itself, so a caller need not read a page
+  // to find out what it may ask for.
+  if (reading && path === '/v1/commands') {
+    return ok({
+      protocol: REMOTE_PROTOCOL,
+      commands: REMOTE_COMMANDS,
+      routes: [
+        { method: 'GET', path: '/v1/status' },
+        { method: 'GET', path: '/v1/commands' },
+        { method: 'GET', path: '/v1/document' },
+        { method: 'POST', path: '/v1/open', body: { path: 'a note, absolute or relative to the folder' } },
+        { method: 'POST', path: '/v1/insert', body: { text: 'the text', at: INSERT_PLACES } },
+        { method: 'POST', path: '/v1/command', body: { command: 'one of commands' } },
+        { method: 'POST', path: '/v1/search', body: { query: 'what to look for' } },
+      ],
+      insertPlaces: INSERT_PLACES,
+    });
+  }
+
+  if (reading && path === '/v1/document') {
+    const current = await deps.readCurrent();
+    return current === null ? refuse(404, 'no-document', 'No note is open.') : ok(current);
+  }
+
+  if (request.method !== 'POST') return refuse(404, 'no-route', 'No such request.');
 
   const body = parseBody(request.body);
-  if (body === null) return refuse(400, 'That body is not a JSON object.');
+  if (body === null) return refuse(400, 'bad-body', 'That body is not a JSON object.');
 
   if (path === '/v1/open') {
     const target = body.path;
-    if (typeof target !== 'string' || target.length === 0) return refuse(400, 'Give a path to open.');
+    if (typeof target !== 'string' || target.length === 0) {
+      return refuse(400, 'bad-path', 'Give a path to open.');
+    }
     const outcome = await deps.open(target);
-    return outcome.opened ? ok({ opened: true }) : refuse(404, outcome.reason ?? 'That note could not be opened.');
+    return outcome.opened
+      ? ok({ opened: true })
+      : refuse(404, outcome.code ?? 'open-failed', outcome.reason ?? 'That note could not be opened.');
   }
 
   if (path === '/v1/insert') {
     const text = body.text;
-    if (typeof text !== 'string') return refuse(400, 'Give the text to insert.');
-    if (Buffer.byteLength(text, 'utf8') > MAX_INSERT_BYTES) return refuse(413, 'That text is too long to insert.');
-    const outcome = deps.insert(text);
-    return outcome.inserted ? ok({ inserted: true }) : refuse(409, outcome.reason ?? 'Nothing to insert into.');
+    if (typeof text !== 'string') return refuse(400, 'bad-text', 'Give the text to insert.');
+    if (Buffer.byteLength(text, 'utf8') > MAX_INSERT_BYTES) {
+      return refuse(413, 'too-large', 'That text is too long to insert.');
+    }
+    const at = body.at ?? 'caret';
+    if (typeof at !== 'string' || !INSERT_PLACES.includes(at as InsertPlace)) {
+      return refuse(400, 'bad-place', `Insert at one of: ${INSERT_PLACES.join(', ')}.`);
+    }
+    const outcome = deps.insert(text, at as InsertPlace);
+    return outcome.inserted
+      ? ok({ inserted: true, at })
+      : refuse(409, 'no-document', outcome.reason ?? 'Nothing to insert into.');
   }
 
   if (path === '/v1/command') {
     const command = body.command;
-    if (typeof command !== 'string') return refuse(400, 'Give a command to run.');
+    if (typeof command !== 'string') return refuse(400, 'bad-command', 'Give a command to run.');
     if (!REMOTE_COMMANDS.includes(command as RemoteCommand)) {
-      return refuse(400, `That command is not one this accepts: ${REMOTE_COMMANDS.join(', ')}.`);
+      return refuse(400, 'unknown-command', `That command is not one this accepts: ${REMOTE_COMMANDS.join(', ')}.`);
     }
     const outcome = deps.run(command as RemoteCommand);
-    return outcome.ran ? ok({ ran: true }) : refuse(409, outcome.reason ?? 'That command did nothing.');
+    return outcome.ran ? ok({ ran: true }) : refuse(409, 'no-window', outcome.reason ?? 'That command did nothing.');
   }
 
-  return refuse(404, 'No such request.');
+  if (path === '/v1/search') {
+    const query = body.query;
+    if (typeof query !== 'string' || query.trim().length === 0) {
+      return refuse(400, 'bad-query', 'Give something to search for.');
+    }
+    const flags = {
+      caseSensitive: body.caseSensitive === true,
+      wholeWord: body.wholeWord === true,
+      regex: body.regex === true,
+    };
+    const found = await deps.search(query, flags);
+    if (found.invalidPattern) return refuse(400, 'bad-pattern', 'That expression does not parse.');
+    return ok(found);
+  }
+
+  return refuse(404, 'no-route', 'No such request.');
 }

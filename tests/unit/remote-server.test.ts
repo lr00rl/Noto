@@ -13,6 +13,7 @@ const deps: Omit<RemoteDeps, 'port'> = {
   open: async () => ({ opened: true }),
   insert: () => ({ inserted: true }),
   run: () => ({ ran: true }),
+  search: async () => ({ matches: [], truncated: false, timedOut: false, invalidPattern: false }),
 };
 
 async function start(): Promise<RunningRemote> {

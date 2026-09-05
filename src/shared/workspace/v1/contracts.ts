@@ -38,6 +38,9 @@ export const WORKSPACE_CHANNELS = {
   remoteChanged: 'noto:v1:workspace:remote-changed',
   /** The renderer saying whether the note in front has unsaved changes. */
   dirtyChanged: 'noto:v1:workspace:dirty-changed',
+  /** Main asking the window for the note's text as the editor holds it. */
+  documentText: 'noto:v1:workspace:document-text',
+  documentTextReply: 'noto:v1:workspace:document-text-reply',
   /** The whole openable file list for the current folder, sent once per
    *  folder so ranking can happen in the renderer without a round trip. */
   fileIndex: 'noto:v1:workspace:file-index',
@@ -560,6 +563,12 @@ export interface WorkspaceMenuEventV1 {
 export interface WorkspacePasteEventV1 {
   readonly version: typeof NOTO_WORKSPACE_VERSION;
   readonly text: string;
+  /**
+   * Where it goes: at the caret, as a paste does, or as blocks after the last
+   * one, which is what appending to a note means. Absent is the caret, so the
+   * menu's own Paste as Plain Text needs to say nothing.
+   */
+  readonly at?: 'caret' | 'end';
 }
 
 /**
@@ -572,6 +581,24 @@ export interface WorkspacePasteEventV1 {
 export interface WorkspaceDirtyEventV1 {
   readonly version: typeof NOTO_WORKSPACE_VERSION;
   readonly dirty: boolean;
+}
+
+/**
+ * The note in front as the editor holds it, unsaved changes and all.
+ *
+ * Asked for by main, answered by the window, and carried by its own pair of
+ * channels because it is the one thing main cannot work out for itself: the
+ * file on disk is main's, and the edits are the renderer's.
+ */
+export interface WorkspaceTextRequestV1 {
+  readonly version: typeof NOTO_WORKSPACE_VERSION;
+  readonly requestId: string;
+}
+
+export interface WorkspaceTextReplyV1 {
+  readonly version: typeof NOTO_WORKSPACE_VERSION;
+  readonly requestId: string;
+  readonly markdown: string | null;
 }
 
 /** Whether the editor can be driven from outside, and where from. */
@@ -638,6 +665,8 @@ export interface NotoWorkspaceApiV1 {
   onPasteText(listener: (event: WorkspacePasteEventV1) => void): () => void;
   onRemoteChanged(listener: (event: WorkspaceRemoteEventV1) => void): () => void;
   reportDirty(event: WorkspaceDirtyEventV1): void;
+  onTextRequest(listener: (event: WorkspaceTextRequestV1) => void): () => void;
+  replyText(event: WorkspaceTextReplyV1): void;
   /**
    * The path of a file the reader dropped in, which the renderer may not
    * work out for itself. Empty when the browser has no file behind it.

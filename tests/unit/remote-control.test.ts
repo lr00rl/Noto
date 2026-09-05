@@ -10,10 +10,11 @@ const deps = (patch: Partial<RemoteDeps> = {}): RemoteDeps => ({
   token: TOKEN,
   port: 37610,
   status: () => ({ version: '1.2.3', vault: '/vault', note: '/vault/a.md', dirty: false }),
-  readCurrent: async () => ({ path: '/vault/a.md', markdown: '# A\n' }),
+  readCurrent: async () => ({ path: '/vault/a.md', markdown: '# A\n', source: 'editor' as const, dirty: false }),
   open: async () => ({ opened: true }),
   insert: () => ({ inserted: true }),
   run: () => ({ ran: true }),
+  search: async () => ({ matches: [], truncated: false, timedOut: false, invalidPattern: false }),
   ...patch,
 });
 
@@ -77,7 +78,7 @@ describe('what it will do', () => {
 
   it('reads the note in front, and says when there is none', async () => {
     expect((await handleRemote(request({ path: '/v1/document' }), deps())).body)
-      .toEqual({ path: '/vault/a.md', markdown: '# A\n' });
+      .toEqual({ path: '/vault/a.md', markdown: '# A\n', source: 'editor', dirty: false });
     const empty = await handleRemote(request({ path: '/v1/document' }), deps({ readCurrent: async () => null }));
     expect(empty.status).toBe(404);
   });
@@ -92,9 +93,12 @@ describe('what it will do', () => {
     expect(open).toHaveBeenCalledWith('/vault/b.md');
     const refused = await handleRemote(
       request({ method: 'POST', path: '/v1/open', body: JSON.stringify({ path: '/etc/passwd' }) }),
-      deps({ open: async () => ({ opened: false, reason: 'That is not in this folder.' }) }),
+      deps({ open: async () => ({ opened: false, code: 'outside-folder', reason: 'That is not in this folder.' }) }),
     );
-    expect(refused).toEqual({ status: 404, body: { error: 'That is not in this folder.' } });
+    expect(refused).toEqual({
+      status: 404,
+      body: { error: 'That is not in this folder.', code: 'outside-folder' },
+    });
   });
 
   it('inserts text, within a limit', async () => {
@@ -103,7 +107,7 @@ describe('what it will do', () => {
       request({ method: 'POST', path: '/v1/insert', body: JSON.stringify({ text: 'hello' }) }),
       deps({ insert }),
     );
-    expect(insert).toHaveBeenCalledWith('hello');
+    expect(insert).toHaveBeenCalledWith('hello', 'caret');
     const huge = await handleRemote(
       request({ method: 'POST', path: '/v1/insert', body: JSON.stringify({ text: 'x'.repeat(MAX_INSERT_BYTES + 1) }) }),
       deps(),
@@ -128,6 +132,73 @@ describe('what it will do', () => {
     );
     expect(refused.status).toBe(400);
     expect(run).toHaveBeenCalledTimes(REMOTE_COMMANDS.length);
+  });
+
+  it('says what it can do when asked, so a caller need not read a page', async () => {
+    const reply = await handleRemote(request({ path: '/v1/commands' }), deps());
+    expect(reply.status).toBe(200);
+    const body = reply.body as { commands: string[]; routes: { path: string }[]; insertPlaces: string[] };
+    expect(body.commands).toEqual([...REMOTE_COMMANDS]);
+    expect(body.routes.map((route) => route.path)).toContain('/v1/search');
+    expect(body.insertPlaces).toEqual(['caret', 'end']);
+  });
+
+  it('carries the protocol version in its status, and answers a HEAD', async () => {
+    expect((await handleRemote(request(), deps())).body).toMatchObject({ protocol: 1 });
+    expect((await handleRemote(request({ method: 'HEAD' }), deps())).status).toBe(200);
+  });
+
+  it('appends at the end when asked to, and refuses a place it does not know', async () => {
+    const insert = vi.fn(() => ({ inserted: true }));
+    const reply = await handleRemote(
+      request({ method: 'POST', path: '/v1/insert', body: JSON.stringify({ text: 'x', at: 'end' }) }),
+      deps({ insert }),
+    );
+    expect(reply.status).toBe(200);
+    expect(insert).toHaveBeenCalledWith('x', 'end');
+    const wrong = await handleRemote(
+      request({ method: 'POST', path: '/v1/insert', body: JSON.stringify({ text: 'x', at: 'middle' }) }),
+      deps({ insert }),
+    );
+    expect(wrong.status).toBe(400);
+    expect(wrong.body).toMatchObject({ code: 'bad-place' });
+  });
+
+  it('searches the vault, and says when the expression does not parse', async () => {
+    const search = vi.fn(async () => ({
+      matches: [{ path: '/vault/a.md', relativePath: 'a.md', occurrences: 2, lines: [] }],
+      truncated: false,
+      timedOut: false,
+      invalidPattern: false,
+    }));
+    const reply = await handleRemote(
+      request({ method: 'POST', path: '/v1/search', body: JSON.stringify({ query: 'term', regex: true }) }),
+      deps({ search }),
+    );
+    expect(reply.status).toBe(200);
+    expect(search).toHaveBeenCalledWith('term', { caseSensitive: false, wholeWord: false, regex: true });
+    const bad = await handleRemote(
+      request({ method: 'POST', path: '/v1/search', body: JSON.stringify({ query: '(' }) }),
+      deps({
+        search: async () => ({ matches: [], truncated: false, timedOut: false, invalidPattern: true }),
+      }),
+    );
+    expect(bad.status).toBe(400);
+    expect(bad.body).toMatchObject({ code: 'bad-pattern' });
+    const empty = await handleRemote(
+      request({ method: 'POST', path: '/v1/search', body: JSON.stringify({ query: '  ' }) }),
+      deps(),
+    );
+    expect(empty.status).toBe(400);
+  });
+
+  it('gives every refusal a code a program can read', async () => {
+    const codes = async (patch: Partial<Parameters<typeof request>[0]>) =>
+      ((await handleRemote(request(patch), deps())).body as { code?: string }).code;
+    expect(await codes({ headers: { host: '127.0.0.1' } })).toBe('unauthorized');
+    expect(await codes({ headers: { authorization: `Bearer ${TOKEN}`, host: 'evil.example.com' } })).toBe('host');
+    expect(await codes({ path: '/v1/nothing' })).toBe('no-route');
+    expect(await codes({ method: 'POST', path: '/v1/open', body: 'not json' })).toBe('bad-body');
   });
 
   it('refuses what it does not understand', async () => {
