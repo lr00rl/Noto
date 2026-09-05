@@ -196,12 +196,16 @@ test.describe('driving Noto from outside it', () => {
       expect((await ask(port, '/v1/status', token)).status).toBe(200);
 
       // The token is on disk where only this account can read it, and beside
-      // it the port, so a script can find both without opening a window.
+      // it the port, so a script can find both without opening a window. The
+      // mode is only asked about where a mode means something: Windows keeps
+      // its access rules elsewhere and reports every file as world readable.
       const tokenFile = path.join(userData, 'remote-token');
-      expect((await stat(tokenFile)).mode & 0o777).toBe(0o600);
-      expect((await readFile(tokenFile, 'utf8')).trim()).toBe(token);
       const addressFile = path.join(userData, 'remote.json');
-      expect((await stat(addressFile)).mode & 0o777).toBe(0o600);
+      if (process.platform !== 'win32') {
+        expect((await stat(tokenFile)).mode & 0o777).toBe(0o600);
+        expect((await stat(addressFile)).mode & 0o777).toBe(0o600);
+      }
+      expect((await readFile(tokenFile, 'utf8')).trim()).toBe(token);
       expect(JSON.parse(await readFile(addressFile, 'utf8'))).toMatchObject({ port });
 
       // A new token turns the old one away.

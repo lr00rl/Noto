@@ -92,6 +92,14 @@ export class LocalPluginStateStore {
     private readonly statePath: string,
     private readonly catalog: PluginCatalog,
     private readonly fileSystem: LocalPluginStateFileSystem = createNodeLocalPluginStateFileSystem(),
+    /**
+     * Which platform's durability rules apply.
+     *
+     * Injected so the two answers can both be tested from one machine. The
+     * only thing it decides is whether the directory is synced after the
+     * rename, which is a POSIX step with no equivalent on Windows.
+     */
+    private readonly platform: NodeJS.Platform = process.platform,
   ) {
     if (!path.isAbsolute(statePath) || statePath.includes('\0')) {
       throw new LocalPluginStateStoreError(
@@ -212,11 +220,21 @@ export class LocalPluginStateStore {
     }
 
     if (published) {
+      /*
+       * The directory is synced so the rename itself survives a power cut,
+       * which is a POSIX step: a directory cannot be opened for reading on
+       * Windows at all, and its rename is journalled by the file system
+       * rather than by the caller. Asking there fails every time, and a
+       * write that is durable was being reported as degraded for it, which
+       * is what put every plugin into "needs recovery" on Windows.
+       */
       let directorySyncFailed = false;
       let directoryHandle: LocalPluginStateFileHandle | null = null;
       try {
-        directoryHandle = await this.fileSystem.open(directory, 'r');
-        await directoryHandle.sync();
+        if (this.platform !== 'win32') {
+          directoryHandle = await this.fileSystem.open(directory, 'r');
+          await directoryHandle.sync();
+        }
       } catch {
         directorySyncFailed = true;
       } finally {

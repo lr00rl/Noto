@@ -29,6 +29,18 @@ describe("the remote control's token", () => {
     expect((await stat(file)).mode & 0o777).toBe(0o600);
   });
 
+  it('is the same token for the life of the store, whatever the file says after', async () => {
+    // The socket takes the token it started with, so a second reader must be
+    // handed that one and not a fresh one, however the file looks by then.
+    const file = path.join(await folder(), 'remote-token');
+    const store = new TokenStore(file);
+    const first = await store.current();
+    await chmod(file, 0o644);
+    await expect(store.current()).resolves.toBe(first);
+    await writeFile(file, 'something else entirely\n', 'utf8');
+    await expect(store.current()).resolves.toBe(first);
+  });
+
   it('is replaced when the file it was in could be read by anyone', async () => {
     const file = path.join(await folder(), 'remote-token');
     await writeFile(file, 'a-token-somebody-else-could-read\n', 'utf8');
