@@ -1586,8 +1586,9 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   translate: -50% 0;
   display: flex;
   flex-direction: column;
-  width: min(620px, calc(100vw - 48px));
+  width: min(740px, calc(100vw - 48px));
   max-height: 62vh;
+  transition: width var(--motion-default) var(--ease-out);
   overflow: hidden;
   border: 1px solid var(--hairline);
   border-radius: 10px;
@@ -2277,4 +2278,53 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   border: 0;
   cursor: pointer;
   font: inherit;
+}
+
+/* Quick open's three tabs, its scope chip, and the two widths. The author's
+   own palette is 740px, and 1000 wide; the same numbers, capped to the
+   window so a narrow one never has a panel wider than itself. */
+.quick-open[data-width='wide'] { width: min(1000px, calc(100vw - 32px)); }
+
+.quick-tabs {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  padding-right: 8px;
+  margin-right: 2px;
+  border-right: 1px solid var(--hairline);
+}
+
+.quick-tab {
+  appearance: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  padding: 4px 7px 3px;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1;
+  cursor: pointer;
+
+  &.quick-tab:hover { color: var(--ink); background: transparent; }
+  &.is-current { color: var(--accent); border-bottom-color: var(--accent); }
+}
+
+/* The folder the search is narrowed to, which is left by pressing it or by
+   backspacing out of an empty box. */
+.quick-scope {
+  flex: 0 0 auto;
+  max-width: 220px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  padding: 2px 9px;
+  color: var(--accent);
+  font-size: 11.5px;
+  line-height: 1.4;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
 }

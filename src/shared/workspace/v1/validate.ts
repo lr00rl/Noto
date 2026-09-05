@@ -366,12 +366,14 @@ export const isWorkspaceRevealResultV1 = (
 ): value is WorkspaceResultV1<WorkspaceRevealReplyV1> => isResult(value, id, isWorkspaceRevealReplyV1);
 
 export function isWorkspaceContentRequestV1(value: unknown): value is WorkspaceContentRequestV1 {
-  return record(value) && exact(value, ['version', 'requestId', 'query', 'caseSensitive', 'wholeWord', 'regex'])
+  return record(value)
+    && exact(value, ['version', 'requestId', 'query', 'scope', 'caseSensitive', 'wholeWord', 'regex'])
     && value.version === 1
     && typeof value.requestId === 'string' && requestId.test(value.requestId)
     && typeof value.query === 'string' && value.query.length <= MAX_CONTENT_QUERY
     && typeof value.caseSensitive === 'boolean' && typeof value.wholeWord === 'boolean'
-    && typeof value.regex === 'boolean';
+    && typeof value.regex === 'boolean'
+    && typeof value.scope === 'string' && value.scope.length <= 1024 && !value.scope.startsWith('/');
 }
 
 function isContentLineV1(value: unknown): value is WorkspaceContentLineV1 {

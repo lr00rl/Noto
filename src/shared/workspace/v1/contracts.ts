@@ -510,6 +510,14 @@ export interface WorkspaceContentMatchV1 {
 
 export interface WorkspaceContentRequestV1 extends WorkspaceRequestV1 {
   readonly query: string;
+  /**
+   * A folder to search inside, vault-relative, or empty for the whole vault.
+   *
+   * Quick open's folders tab narrows the other two to a corner of the vault,
+   * and the narrowing has to happen where the scanning does: filtering sixty
+   * results afterwards would search the wrong sixty.
+   */
+  readonly scope: string;
   /** The find bar's three switches, meaning the same thing here. */
   readonly caseSensitive: boolean;
   readonly wholeWord: boolean;

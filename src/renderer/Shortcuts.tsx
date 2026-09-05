@@ -34,7 +34,9 @@ export function shortcutGroups(mac: boolean): Group[] {
     {
       title: 'Finding your way',
       entries: [
-        { keys: [mod('P', mac)], what: 'Quick open, by name. Tab switches it to searching inside notes.' },
+        { keys: [mod('P', mac), mod('.', mac)], what: 'Quick open. Tab cycles files, folders and the text inside notes.' },
+        { keys: ['Folders'], what: 'Choosing a folder narrows the other two tabs to it. Backspace on an empty box leaves it.' },
+        { keys: [mod('[', mac), mod(']', mac)], what: 'Narrow or widen quick open, which it remembers.' },
         { keys: ['[['], what: 'Typing two brackets asks which note you mean, and writes the link where they are.' },
         { keys: [shift(mac) + mod('F', mac)], what: 'Search the whole vault from the rail, and keep the results while you read.' },
         { keys: [mod('[', mac), mod(']', mac)], what: 'Back and forward along the notes you have read.' },

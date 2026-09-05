@@ -138,6 +138,12 @@ export interface NotoSettingsV1 {
    * Off until it is switched on, and the status line says while it is on.
    * The port and the token live in main, which is what listens.
    */
+  /**
+   * How wide quick open is drawn, which the bracket keys change while it is
+   * open. A preference because a reader who wants the wide one wants it every
+   * time, as they do for the document's own column.
+   */
+  readonly quickOpenWidth: 'default' | 'wide';
   readonly remoteControl: boolean;
   readonly markHighlight: boolean;
   readonly markSuperscript: boolean;
@@ -259,6 +265,7 @@ export const DEFAULT_SETTINGS: NotoSettingsV1 = Object.freeze({
   // to his eye. The leading is the theme's.
   proseFace: 'serif',
   treeSort: 'name',
+  quickOpenWidth: 'default',
   remoteControl: false,
   markHighlight: true,
   markSuperscript: true,

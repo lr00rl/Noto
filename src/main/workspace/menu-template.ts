@@ -125,6 +125,16 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
       // The fastest way into a vault of a few thousand notes, so it sits with
       // the other ways of opening one rather than under a search menu.
       command('Quick Open…', 'CmdOrCtrl+P', 'quick-open'),
+      // The author's own palette answers to Command-period, and a hand that
+      // has learned it should not have to learn another. Hidden from the menu
+      // so the item shows one chord rather than two, and bound all the same.
+      {
+        id: 'quick-open-period',
+        label: 'Quick Open',
+        accelerator: 'CmdOrCtrl+.',
+        visible: false,
+        click: () => sendCommand('quick-open'),
+      },
       // Closed in main rather than sent to the renderer: main owns which
       // documents are open, so asking the renderer which one is in front would
       // race against the tab list arriving there.
