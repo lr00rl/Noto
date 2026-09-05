@@ -34,6 +34,7 @@ export interface NotoCanvasProps {
   readonly onDirtyChange: (dirty: boolean) => void;
   readonly onDocumentChanged?: () => void;
   readonly onFollowWikiLink?: (target: string) => void;
+  readonly onWikiTrigger?: () => void;
   readonly onFollowLink?: (href: string) => void;
   readonly onDropNote?: (file: File) => void;
   readonly onCountChanged?: (count: DocumentCount) => void;
@@ -64,6 +65,7 @@ export function NotoCanvas({
   onDirtyChange,
   onDocumentChanged,
   onFollowWikiLink,
+  onWikiTrigger,
   onFollowLink,
   onDropNote,
   onCountChanged,
@@ -93,6 +95,7 @@ export function NotoCanvas({
         onDirtyChange,
         onDocumentChanged,
         onFollowWikiLink,
+        onWikiTrigger,
         onFollowLink,
         onDropNote,
         onCountChanged,

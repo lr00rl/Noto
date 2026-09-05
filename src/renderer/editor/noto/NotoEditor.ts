@@ -15,6 +15,7 @@
  *   is not committed yet, and saving it would write a half finished word.
  */
 
+import { triggerRange, wikiLinkText } from './wiki-trigger';
 import { droppedNote } from './dropped-note';
 import { tocBlockPlugin } from './toc-block';
 import { footnoteHoverPlugin } from './footnote-hover';
@@ -102,6 +103,8 @@ export interface NotoEditorOptions extends Omit<InputRuleOptions, 'smartQuotes' 
   readonly onCountChanged?: (count: DocumentCount) => void;
   /** Cmd or Ctrl clicking a `[[wiki link]]`. Absent means links stay inert. */
   readonly onFollowWikiLink?: (target: string) => void;
+  /** Two brackets were typed, which is a reader asking which note they mean. */
+  readonly onWikiTrigger?: () => void;
   /** Where relative images resolve from, and whether web images load. */
   readonly images?: ImageContext;
   readonly smartQuotes?: boolean;
@@ -184,6 +187,15 @@ export class NotoEditor implements NotoEditorPort {
       // What leaves on the clipboard is the markdown, not the words without it.
       clipboardTextSerializer: (slice) => sliceToMarkdown(slice),
       clipboardTextParser: (text, $context) => sliceFromText(text, $context),
+      handleTextInput: (view, from, _to, text) => {
+        // The second of two brackets: asked after the transaction, since the
+        // question is about the document the keystroke is making, not the one
+        // it is leaving. Never handled here, so typing is untouched either way.
+        if (text === '[' && view.state.doc.textBetween(Math.max(0, from - 1), from) === '[') {
+          queueMicrotask(() => this.options.onWikiTrigger?.());
+        }
+        return false;
+      },
       handlePaste: (view, event) => {
         if (this.handleTransfer(view, event.clipboardData, null)) return true;
         // Text with no richer form is markdown and is read as such here,
@@ -811,6 +823,30 @@ export class NotoEditor implements NotoEditorPort {
     const tr = view.state.tr.insert(at, blocks);
     tr.setSelection(TextSelection.near(tr.doc.resolve(tr.doc.content.size), -1));
     view.dispatch(tr.scrollIntoView());
+    return true;
+  }
+
+  /**
+   * Put a wiki link where the brackets were typed.
+   *
+   * The brackets go with it, and so does the pair auto-pairing added, so what
+   * is left is the link and nothing around it. False when the caret has moved
+   * off the brackets since, which is the reader having gone elsewhere and is
+   * not a failure worth saying anything about.
+   */
+  replaceWikiTrigger(target: string, title?: string): boolean {
+    const view = this.view;
+    if (!view || this.readOnly) return false;
+    const { $from, empty } = view.state.selection;
+    if (!empty || !$from.parent.isTextblock) return false;
+    const before = $from.parent.textBetween(0, $from.parentOffset);
+    const after = $from.parent.textBetween($from.parentOffset, $from.parent.content.size);
+    const range = triggerRange(before, after);
+    if (range === null) return false;
+    const text = wikiLinkText(target, title);
+    const tr = view.state.tr.insertText(text, $from.pos + range.from, $from.pos + range.to);
+    view.dispatch(tr.scrollIntoView());
+    view.focus();
     return true;
   }
 
