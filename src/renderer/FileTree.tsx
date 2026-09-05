@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { WorkspaceEntryV1 } from '../shared/workspace/v1/contracts';
-import { branchToCurrentFile, sizeTreeGuides } from './tree-guides';
+import { branchToCurrentFile, sizeTreeGuides, startTreeGuides } from './tree-guides';
 
 export interface FileTreeProps {
   readonly root: string | null;
@@ -242,6 +242,9 @@ export function FileTree({
           : node.parentElement?.getBoundingClientRect().top ?? 0;
         node.toggleAttribute('data-stuck', node.getBoundingClientRect().top - resting > 0.5);
       }
+      // A held row is where the level under it begins, so the stems are
+      // measured in the same frame the holding is.
+      startTreeGuides(body);
     };
     const onScroll = () => { if (frame === 0) frame = requestAnimationFrame(mark); };
     scroller.addEventListener('scroll', onScroll, { passive: true });

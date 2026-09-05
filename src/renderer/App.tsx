@@ -41,6 +41,7 @@ import { RecentStrip } from './RecentStrip';
 import { WorkspaceRail, type RailView } from './WorkspaceRail';
 import { SourceMode } from './SourceMode';
 import { TableDialog } from './TableDialog';
+import { Shortcuts } from './Shortcuts';
 import { RailFooter } from './RailFooter';
 import { Preferences, type PreferencesSection } from './Preferences';
 import {
@@ -50,6 +51,7 @@ import type { AssetRefusalV1 } from '../shared/assets/v1/contracts';
 import { copyThroughSelection } from './editor/noto/clipboard';
 import type { WorkspaceEntryRefusalV1, WorkspaceExportKindV1 } from '../shared/workspace/v1/contracts';
 import { EMPTY_TRAIL, forget as forgetTrail, record as recordTrail, stepBack, stepForward, type Trail } from './trail';
+import { wikiCandidates } from './wiki-target';
 import type { NotoEditor } from './editor/noto/NotoEditor';
 import {
   acceptedSaveOutcome,
@@ -228,6 +230,8 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const [themeReload, setThemeReload] = useState(0);
   const [themeProblem, setThemeProblem] = useState('');
   const [activeBlock, setActiveBlock] = useState(-1);
+  /** The sheet of what the app can do, on the Help menu. */
+  const [shortcuts, setShortcuts] = useState(false);
   /** Typora's Insert Table dialog, open or not. */
   const [tableDialog, setTableDialog] = useState(false);
   /** Source Code Mode, Typora's Command-slash: the note as text, for every tab. */
@@ -1144,22 +1148,29 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
    * meant.
    */
   const followWikiLink = useCallback((target: string) => {
-    const wanted = target.replace(/\.md$/i, '').toLowerCase();
-    const matches = fileIndex.entries.filter((entry) => {
-      const relative = entry.relativePath.replace(/\.md$/i, '').toLowerCase();
-      const name = entry.name.replace(/\.md$/i, '').toLowerCase();
-      return relative === wanted || name === wanted;
-    });
+    const here = active?.opened.path ?? null;
+    const root = folder.root;
+    const fromRelative = here !== null && root !== null && here.startsWith(root)
+      ? here.slice(root.length).replace(/^[\\/]+/, '')
+      : null;
+    const matches = wikiCandidates(target, fromRelative, fileIndex.entries);
     if (matches.length === 0) {
       setLocalMessage(`No note in this folder is called “${target}”.`);
       return;
     }
+    // The first is the one the path points at, which is not a matter of
+    // taste. Only a bare name that several notes answer to is decided by
+    // frecency, on the grounds that the one you keep opening is the one you
+    // meant, and the resolver has already put the nearest of them first.
     const now = Date.now();
-    const best = matches.reduce((chosen, entry) => (
+    const best = matches.length === 1 ? matches[0] : matches.slice(0, 1).concat(
+      matches.slice(1).filter((entry) =>
+        searchBoost(frecency, entry.path, now) > searchBoost(frecency, matches[0].path, now)),
+    ).reduce((chosen, entry) => (
       searchBoost(frecency, entry.path, now) > searchBoost(frecency, chosen.path, now) ? entry : chosen
     ));
     void openPath(best.path);
-  }, [fileIndex.entries, frecency, openPath]);
+  }, [active, folder.root, fileIndex.entries, frecency, openPath]);
   followWikiLinkRef.current = followWikiLink;
 
   /**
@@ -1648,6 +1659,9 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
         // The order is main's, so the tree has to ask again to see it.
         setTreeVersion((current) => current + 1);
         break;
+      case 'shortcuts':
+        setShortcuts((open) => !open);
+        break;
       case 'tree-collapse-all':
         setRail((current) => ({ ...current, open: true, view: 'files' }));
         setTreeCollapse((current) => current + 1);
@@ -1945,6 +1959,7 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
       />
 
       <div className={`workspace-layout ${rail.open ? 'has-rail' : ''}`}>
+        {shortcuts && <Shortcuts mac={platform === 'darwin'} onClose={() => setShortcuts(false)} />}
         {tableDialog && (
           <TableDialog
             onClose={() => { setTableDialog(false); editorRef.current?.focus(); }}

@@ -1136,6 +1136,9 @@
      never inherits its parent's lengths. */
   --stem-stop: 100%;
   --path-stop: 0px;
+  /* Where both stems begin, which is the level's own top until a held row
+     above it says otherwise. Declared here so a level never inherits it. */
+  --stem-start: 0px;
   /*
    * The colour of the lit branch, from the author's tree-guides plugin for
    * Typora and not from the theme, which has no lit branch at all: the accent
@@ -1147,23 +1150,46 @@
   --tree-lit: color-mix(in srgb, color-mix(in srgb, var(--accent) 55%, var(--muted)) 42%, transparent);
   padding-left: var(--tree-indent);
   margin-left: 10px;
-  /* Two stems on top of each other: the branch to the file in front in the
-     lit colour, down to that child's arm, over the quiet stem the whole way.
-     This is V2 of the author's four guide-line schemes, "one stroke with the
-     current branch lit". */
-  background-image:
-    linear-gradient(var(--tree-lit), var(--tree-lit)),
-    linear-gradient(var(--tree-line), var(--tree-line));
-  background-size: 1px var(--path-stop), 1px var(--stem-stop);
-  background-repeat: no-repeat;
-  background-position: left top, left top;
+  position: relative;
+}
+
+/*
+ * Two stems on top of each other: the branch to the file in front in the lit
+ * colour, over the quiet stem the whole way. This is V2 of the author's four
+ * guide-line schemes, "one stroke with the current branch lit".
+ *
+ * Drawn as elements of the level rather than as its background, and above the
+ * rows that hold at the top of the rail rather than behind them. A held row
+ * carries an opaque band to hide the rows sliding under it, and that band was
+ * hiding the guides of every level to its left: the stack read as a lid over
+ * the tree, where Typora's keeps the lines running through it. They begin
+ * below their own held row, so no line crosses the row it hangs from.
+ */
+.tree-level:not(.is-root)::before,
+.tree-level:not(.is-root)::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: var(--stem-start);
+  width: 1px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.tree-level:not(.is-root)::before {
+  height: max(0px, calc(var(--stem-stop) - var(--stem-start)));
+  background: var(--tree-line);
+}
+
+.tree-level:not(.is-root)::after {
+  height: max(0px, calc(var(--path-stop) - var(--stem-start)));
+  background: var(--tree-lit);
 }
 
 /* The outermost level has nothing to its left to connect to. */
 .tree-level.is-root {
   padding-left: 0;
   margin-left: 0;
-  background-image: none;
 }
 
 .tree-node { position: relative; }

@@ -2138,3 +2138,88 @@ button:disabled { color: var(--muted); opacity: 0.7; }
   .is-primary { background: var(--accent); color: var(--paper); border-color: transparent; }
   .is-primary.is-primary:hover { background: color-mix(in srgb, var(--accent) 88%, var(--ink)); }
 }
+
+/* What Noto can do: one sheet, searchable, on the Help menu. Built out of
+   the preferences panel's own furniture so it reads as the same product. */
+.shortcuts {
+  animation: noto-arrive var(--motion-default) var(--ease-out);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(760px, 92vw);
+  max-height: min(680px, 86vh);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow: 0 18px 48px -12px color-mix(in srgb, var(--ink) 34%, transparent);
+  font-family: tokens.$ui;
+  overflow: hidden;
+}
+
+.shortcuts-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--hairline);
+
+  h2 { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink); }
+}
+
+.shortcuts-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+
+  &:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  &::-webkit-search-cancel-button { appearance: none; }
+}
+
+.shortcuts-body {
+  overflow: auto;
+  padding: 6px 16px 20px;
+}
+
+.shortcuts-group {
+  h3 {
+    margin: 16px 0 6px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  dl { margin: 0; }
+}
+
+.shortcuts-row {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  padding: 5px 0;
+  border-top: 1px solid color-mix(in srgb, var(--hairline) 60%, transparent);
+
+  &:first-child { border-top: 0; }
+
+  dt { display: flex; flex-wrap: wrap; gap: 4px; }
+  dd { margin: 0; color: var(--ink); font-size: 13px; line-height: 1.5; }
+
+  kbd {
+    padding: 1px 6px;
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    background: var(--raised);
+    color: var(--muted);
+    font-family: tokens.$mono;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+}

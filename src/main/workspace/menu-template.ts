@@ -491,6 +491,10 @@ export function buildMenuTemplate(options: MenuTemplateOptions): MenuItemConstru
   const helpMenu: MenuItemConstructorOptions = {
     role: 'help',
     submenu: [
+      // A reader who does not know a feature exists never opens the menu it
+      // lives on, so the list of what there is has a place of its own.
+      command('What Noto Can Do', 'CmdOrCtrl+Shift+/', 'shortcuts'),
+      { type: 'separator' },
       {
         label: 'Noto on the web',
         click: () => openExternal('https://github.com'),
