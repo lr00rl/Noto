@@ -1,0 +1,106 @@
+# Native installers for a tagged version.
+#
+# The archives on a release are built wherever the tag was made; these are the
+# installers, and each one has to be built on the platform it installs on:
+# Squirrel needs Windows, `dpkg` and `rpmbuild` need Linux. They are attached
+# to the release the tag already carries rather than replacing it, so a release
+# gains its installers a few minutes after it is published.
+#
+# Unsigned unless the signing secrets are set on the repository. What that
+# means for somebody downloading is written on the release itself.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The existing tag to build installers for
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  installers:
+    name: Installers (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # macos-14 is Apple silicon and macos-13 is Intel, so the release
+        # carries a build for each rather than one that runs translated.
+        os: [macos-14, macos-13, windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.18.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.19.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+
+      # The copy of electron pnpm installs has no `scripts` field, so its
+      # postinstall never runs and the binary is never fetched.
+      - name: Ensure the Electron binary
+        run: node node_modules/electron/install.js
+
+      - name: Install Linux packaging tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fakeroot dpkg rpm
+
+      - name: Build installers
+        env:
+          NTO_PACKAGE_VARIANT: release
+          NOTO_APPLE_SIGNING_IDENTITY: ${{ secrets.NOTO_APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          WINDOWS_CERTIFICATE_FILE: ${{ secrets.WINDOWS_CERTIFICATE_FILE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: pnpm make:release
+
+      # The same static check CI runs: the fuses, the asar, and the platform's
+      # own metadata, read from the tree that became the installer.
+      - name: Verify the packaged release tree
+        shell: bash
+        run: |
+          for directory in out/Noto-*; do
+            node scripts/verify-package.mjs "$directory"
+          done
+
+      # Named by platform and architecture on the way out, because Forge names
+      # several of them the same thing on different runners.
+      - name: Name the artifacts for a release page
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          mkdir -p upload
+          find out/make -type f \( -name '*.zip' -o -name '*.exe' -o -name '*.deb' -o -name '*.rpm' -o -name '*.nupkg' \) -print0 |
+            while IFS= read -r -d '' file; do
+              base=$(basename "$file")
+              case "$base" in
+                *"$version"*) cp "$file" "upload/$base" ;;
+                *) cp "$file" "upload/${base%.*}-$version-${{ matrix.os }}.${base##*.}" ;;
+              esac
+            done
+          ls -l upload
+
+      - name: Attach them to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        shell: bash
+        run: gh release upload "$TAG" upload/* --clobber
