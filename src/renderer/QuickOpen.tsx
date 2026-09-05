@@ -27,6 +27,7 @@ import {
 import { searchBoost, type FrecencyStoreV1 } from '../shared/search/v1/frecency';
 import { pathContext } from './quick-open-path';
 import { foldersOf, withinScope } from './quick-open-folders';
+import { completeQuery, parseQuery, removeToken, type Completion } from './quick-open-query';
 
 /** How many results are drawn. Beyond this nobody is reading, they are retyping. */
 const LIMIT = 12;
@@ -112,6 +113,8 @@ export function QuickOpen({
   const [selected, setSelected] = useState(0);
   /** The folder the other two tabs are narrowed to, or the whole vault. */
   const [scope, setScope] = useState('');
+  /** Where the caret is in the box, which is what the completion is for. */
+  const [caret, setCaret] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -122,6 +125,19 @@ export function QuickOpen({
     setScope('');
     queueMicrotask(() => inputRef.current?.focus({ preventScroll: true }));
   }, [open]);
+
+  /*
+   * The box is a small language: `type:` says what to search and `scope:`
+   * says where, and what is left is what to look for. The tab is the default
+   * and the token is the statement, so a query that says `type:content`
+   * searches contents whichever tab is showing.
+   */
+  const parsed = useMemo(() => parseQuery(query), [query]);
+  const effectiveMode: QuickOpenMode = parsed.type === null
+    ? mode
+    : parsed.type === 'file' ? 'files' : parsed.type === 'folder' ? 'folders' : 'content';
+  const effectiveScope = parsed.scope ?? scope;
+  const terms = parsed.terms;
 
   const [content, setContent] = useState<{
     matches: readonly WorkspaceContentMatchV1[]; truncated: boolean; timedOut: boolean;
@@ -137,8 +153,8 @@ export function QuickOpen({
    * so only the last one asked is ever shown.
    */
   useEffect(() => {
-    if (!open || mode !== 'content') return;
-    const trimmed = query.trim();
+    if (!open || effectiveMode !== 'content') return;
+    const trimmed = terms.trim();
     if (trimmed.length === 0) {
       setContent({ matches: [], truncated: false, timedOut: false });
       setSearching(false);
@@ -147,29 +163,29 @@ export function QuickOpen({
     let current = true;
     setSearching(true);
     const timer = setTimeout(() => {
-      void onSearchContent(trimmed, scope).then((reply) => {
+      void onSearchContent(trimmed, effectiveScope).then((reply) => {
         if (!current) return;
         setSearching(false);
         if (reply) setContent(reply);
       });
     }, contentDebounceMs(trimmed));
     return () => { current = false; clearTimeout(timer); };
-  }, [open, mode, query, scope, onSearchContent]);
+  }, [open, effectiveMode, terms, effectiveScope, onSearchContent]);
 
-  useEffect(() => { setSelected(0); }, [mode]);
+  useEffect(() => { setSelected(0); }, [effectiveMode]);
 
-  const candidates = useMemo<Candidate[]>(() => withinScope(entries, scope).map((entry) => ({
+  const candidates = useMemo<Candidate[]>(() => withinScope(entries, effectiveScope).map((entry) => ({
     entry,
     nameKey: entry.name.toLowerCase(),
     pathKey: entry.relativePath.toLowerCase(),
-  })), [entries, scope]);
+  })), [entries, effectiveScope]);
 
   /** The folders tab's own rows, ranked by the same fuzzy match. */
   const folders = useMemo(() => foldersOf(entries), [entries]);
   const folderResults = useMemo(() => {
-    const within = folders.filter((folder) => folder.relativePath !== scope
-      && (scope.length === 0 || folder.relativePath.startsWith(`${scope}/`)));
-    const trimmed = query.trim();
+    const within = folders.filter((folder) => folder.relativePath !== effectiveScope
+      && (effectiveScope.length === 0 || folder.relativePath.startsWith(`${effectiveScope}/`)));
+    const trimmed = terms.trim();
     if (trimmed.length === 0) return within.slice(0, LIMIT);
     return rankCandidates(
       within.map((folder) => ({
@@ -181,11 +197,11 @@ export function QuickOpen({
       () => ({ pathQuery: isPathQuery(trimmed), frecencyBoost: 0 }),
       LIMIT,
     ).map((scored) => scored.folder);
-  }, [folders, query, scope]);
+  }, [folders, terms, effectiveScope]);
 
   const results = useMemo(() => {
     const now = Date.now();
-    const trimmed = query.trim();
+    const trimmed = terms.trim();
     if (trimmed.length === 0) {
       // No query, so nothing is being matched: order by history alone and take
       // the same number the ranked list would have shown.
@@ -210,7 +226,7 @@ export function QuickOpen({
       }),
       LIMIT,
     );
-  }, [candidates, frecency, query]);
+  }, [candidates, frecency, terms]);
 
   useEffect(() => { setSelected(0); }, [query]);
 
@@ -228,13 +244,38 @@ export function QuickOpen({
 
   const chooseMatch = useCallback((match: WorkspaceContentMatchV1 | undefined) => {
     if (!match) return;
-    onOpenMatch(match.path, query.trim());
+    onOpenMatch(match.path, terms.trim());
     onClose();
-  }, [onClose, onOpenMatch, query]);
+  }, [onClose, onOpenMatch, terms]);
 
-  const rowCount = mode === 'content'
+  const rowCount = effectiveMode === 'content'
     ? content.matches.length
-    : mode === 'folders' ? folderResults.length : results.length;
+    : effectiveMode === 'folders' ? folderResults.length : results.length;
+
+  /*
+   * What the token under the caret could become.
+   *
+   * Offered rather than applied: a box that rewrites what is being typed is
+   * a box people stop trusting. Tab takes the first one, and does its usual
+   * job of moving along the tabs when there is nothing to take.
+   */
+  const completions = useMemo(
+    () => completeQuery(query, caret, folders),
+    [query, caret, folders],
+  );
+
+  const takeCompletion = useCallback((completion: Completion | undefined) => {
+    if (!completion) return false;
+    setQuery(completion.insert);
+    queueMicrotask(() => {
+      const input = inputRef.current;
+      if (!input) return;
+      input.focus();
+      input.setSelectionRange(completion.cursor, completion.cursor);
+      setCaret(completion.cursor);
+    });
+    return true;
+  }, []);
 
   /** Narrow to a folder and go back to looking for notes inside it. */
   const enterFolder = useCallback((folder: { relativePath: string } | undefined) => {
@@ -253,8 +294,14 @@ export function QuickOpen({
     // into "search inside them then".
     if (event.key === 'Tab') {
       event.preventDefault();
+      // Finishing what is being typed comes first; the tabs are what Tab
+      // does when there is nothing to finish.
+      if (takeCompletion(completions.candidates[0])) return;
       const step = event.shiftKey ? -1 : 1;
-      const at = QUICK_TABS.indexOf(mode);
+      const at = QUICK_TABS.indexOf(effectiveMode);
+      // A written `type:` outranks the tab, so cycling takes it out rather
+      // than leaving the box saying one thing and the tabs another.
+      setQuery((current) => removeToken(current, 'type'));
       onMode(QUICK_TABS[(at + step + QUICK_TABS.length) % QUICK_TABS.length]);
       return;
     }
@@ -284,8 +331,11 @@ export function QuickOpen({
     }
     if (event.key === 'Enter') {
       event.preventDefault();
-      if (mode === 'content') chooseMatch(content.matches[selected]);
-      else if (mode === 'folders') enterFolder(folderResults[selected]);
+      // A half-written operator is finished rather than searched for.
+      if (/^(?:type|scope):/i.test(query.slice(0, caret).split(/\s/).at(-1) ?? '')
+        && takeCompletion(completions.candidates[0])) return;
+      if (effectiveMode === 'content') chooseMatch(content.matches[selected]);
+      else if (effectiveMode === 'folders') enterFolder(folderResults[selected]);
       else choose(results[selected], event.altKey);
     }
   };
@@ -315,27 +365,33 @@ export function QuickOpen({
               type="button"
               role="tab"
               tabIndex={-1}
-              aria-selected={tab === mode}
-              className={tab === mode ? 'quick-tab is-current' : 'quick-tab'}
+              aria-selected={tab === effectiveMode}
+              className={tab === effectiveMode ? 'quick-tab is-current' : 'quick-tab'}
               data-testid={`quick-tab-${tab}`}
               title="Tab"
               onMouseDown={(event) => event.preventDefault()}
-              onClick={() => onMode(tab)}
+              onClick={() => { setQuery((current) => removeToken(current, 'type')); onMode(tab); }}
             >
               {QUICK_TAB_LABELS[tab]}
             </button>
           ))}
         </div>
-        {scope.length > 0 && (
+        {effectiveScope.length > 0 && (
           <button
             type="button"
             className="quick-scope"
             data-testid="quick-scope"
             title="Backspace on an empty box steps back out"
             onMouseDown={(event) => event.preventDefault()}
-            onClick={() => { setScope((current) => current.split('/').slice(0, -1).join('/')); inputRef.current?.focus(); }}
+            onClick={() => {
+              // Whichever put the scope there is what is taken away: the
+              // written token, or the folder that was chosen.
+              if (parsed.scope !== null) setQuery((current) => removeToken(current, 'scope'));
+              else setScope((current) => current.split('/').slice(0, -1).join('/'));
+              inputRef.current?.focus();
+            }}
           >
-            {scope}
+            {effectiveScope}
           </button>
         )}
         <input
@@ -348,9 +404,9 @@ export function QuickOpen({
             ? 'Open a folder to search it'
             : linking
               ? `Link to one of ${candidates.length} notes`
-              : mode === 'content'
+              : effectiveMode === 'content'
                 ? `Search inside ${candidates.length} notes`
-                : mode === 'folders'
+                : effectiveMode === 'folders'
                   ? `Search ${folders.length} folders`
                   : `Search ${candidates.length} notes`}
           aria-label="Search notes"
@@ -359,13 +415,32 @@ export function QuickOpen({
           aria-controls="quick-open-results"
           aria-activedescendant={results[selected] ? `quick-result-${selected}` : undefined}
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => { setQuery(event.target.value); setCaret(event.target.selectionStart ?? event.target.value.length); }}
+          onSelect={(event) => setCaret((event.target as HTMLInputElement).selectionStart ?? 0)}
           onKeyDown={onKeyDown}
         />
         </div>
 
+        {completions.candidates.length > 0 && (
+          <div className="quick-complete" data-testid="quick-complete">
+            {completions.candidates.map((completion, index) => (
+              <button
+                key={completion.label}
+                type="button"
+                className={index === 0 ? 'quick-complete-row is-first' : 'quick-complete-row'}
+                data-testid="quick-complete-row"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => takeCompletion(completion)}
+              >
+                <span className="quick-complete-label">{completion.label}</span>
+                {completion.hint !== undefined && <span className="quick-complete-hint">{completion.hint}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="quick-results" id="quick-open-results" role="listbox" ref={listRef}>
-          {mode === 'folders' ? (
+          {effectiveMode === 'folders' ? (
             folderResults.length === 0
               ? (
                 <p className="quick-empty">
@@ -388,19 +463,19 @@ export function QuickOpen({
                   onClick={() => enterFolder(folder)}
                 >
                   <span className="quick-name">
-                    <Highlighted text={folder.name} query={query.trim()} />
+                    <Highlighted text={folder.name} query={terms.trim()} />
                     <span className="quick-count">{folder.notes}</span>
                   </span>
                   <span className="quick-path">
-                    <Highlighted text={folder.relativePath} query={query.trim()} />
+                    <Highlighted text={folder.relativePath} query={terms.trim()} />
                   </span>
                 </button>
               ))
-          ) : mode === 'content' ? (
+          ) : effectiveMode === 'content' ? (
             content.matches.length === 0
               ? (
                 <p className="quick-empty">
-                  {query.trim().length === 0
+                  {terms.trim().length === 0
                     ? 'Type to search inside every note in this folder.'
                     : searching
                       ? 'Searching…'
@@ -446,7 +521,7 @@ export function QuickOpen({
               <p className="quick-empty">
                 {entries.length === 0
                   ? 'No folder is open, so there is nothing to search yet.'
-                  : query.trim().length === 0
+                  : terms.trim().length === 0
                     ? 'Nothing opened yet. Type to search.'
                     : 'No note matches that.'}
               </p>
@@ -467,10 +542,10 @@ export function QuickOpen({
                 onClick={(event) => choose(candidate, event.altKey)}
               >
                 <span className="quick-name">
-                  <Highlighted text={candidate.entry.name} query={query.trim()} />
+                  <Highlighted text={candidate.entry.name} query={terms.trim()} />
                 </span>
                 <span className="quick-path">
-                  <Highlighted text={pathContext(candidate.entry.relativePath)} query={query.trim()} />
+                  <Highlighted text={pathContext(candidate.entry.relativePath)} query={terms.trim()} />
                 </span>
               </button>
             ))}
@@ -480,18 +555,21 @@ export function QuickOpen({
           {/* While the brackets are waiting to be filled, Enter puts the link
               in; saying it opens the note as well would be two answers to
               one key, and only one of them true. */}
-          {!linking && mode !== 'folders' && <span><kbd>↩</kbd> open</span>}
-          {mode === 'files' && canInsertLink && !linking && <span><kbd>⌥↩</kbd> insert link</span>}
-          {mode === 'folders' && <span><kbd>↩</kbd> search inside it</span>}
+          {!linking && effectiveMode !== 'folders' && <span><kbd>↩</kbd> open</span>}
+          {effectiveMode === 'files' && canInsertLink && !linking && <span><kbd>⌥↩</kbd> insert link</span>}
+          {effectiveMode === 'folders' && <span><kbd>↩</kbd> search inside it</span>}
           {linking && <span data-testid="quick-linking"><kbd>↩</kbd> insert the link</span>}
-          {!linking && <span><kbd>tab</kbd> {QUICK_TAB_LABELS[QUICK_TABS[(QUICK_TABS.indexOf(mode) + 1) % QUICK_TABS.length]].toLowerCase()}</span>}
+          {!linking && completions.candidates.length === 0 && (
+            <span><kbd>tab</kbd> {QUICK_TAB_LABELS[QUICK_TABS[(QUICK_TABS.indexOf(effectiveMode) + 1) % QUICK_TABS.length]].toLowerCase()}</span>
+          )}
+          {completions.candidates.length > 0 && <span><kbd>tab</kbd> finish this</span>}
           {scope.length > 0 && <span><kbd>⌫</kbd> leave the folder</span>}
           <span><kbd>{'⌘[ ⌘]'}</kbd> width</span>
           <span><kbd>esc</kbd> close</span>
-          {mode === 'content' && content.truncated && (
+          {effectiveMode === 'content' && content.truncated && (
             <span className="quick-truncated">Showing the first {content.matches.length}.</span>
           )}
-          {mode === 'files' && truncated && (
+          {effectiveMode === 'files' && truncated && (
             <span className="quick-truncated">
               Index is partial: this folder is larger than the ceiling.
             </span>
