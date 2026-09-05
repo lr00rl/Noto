@@ -2223,3 +2223,58 @@ button:disabled { color: var(--muted); opacity: 0.7; }
     white-space: nowrap;
   }
 }
+
+/* The remote control's pane, and the word in the status line while it is on. */
+.remote-pane { display: grid; gap: 10px; }
+
+.pref-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+
+  code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--raised);
+    font-family: tokens.$mono;
+    font-size: 11px;
+  }
+}
+
+.pref-status {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.remote-token {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+
+  label { color: var(--muted); font-size: 12px; }
+
+  input {
+    min-width: 0;
+    padding: 4px 8px;
+    border: 1px solid var(--hairline);
+    border-radius: 5px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: tokens.$mono;
+    font-size: 12px;
+  }
+}
+
+.remote-regenerate { justify-self: start; }
+
+/* A press on it opens the pane that turns it off, because the first question
+   somebody asks on seeing it is how to stop it. */
+.status-remote {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}

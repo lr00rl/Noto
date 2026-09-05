@@ -1,5 +1,13 @@
+import { isTrustedRendererSender } from './ipc/trusted-renderer';
+import { ipcMain } from 'electron';
+import { isWorkspaceDirtyEventV1 } from '../shared/workspace/v1/validate';
 import {
-  NOTO_SETTINGS_VERSION, SETTINGS_CHANNELS, type NotoSettingsV1,
+  NOTO_WORKSPACE_VERSION, WORKSPACE_CHANNELS,
+} from '../shared/workspace/v1/contracts';
+import { startRemoteServer, type RunningRemote } from './remote/server';
+import { TokenStore } from './remote/token-store';
+import {
+  NOTO_SETTINGS_VERSION, SETTINGS_CHANNELS, type NotoSettingsV1, type RemoteStatusReplyV1,
 } from '../shared/settings/v1/contracts';
 import { ensureThemeFolder, listThemes } from './workspace/themes';
 import path from 'node:path';
@@ -416,10 +424,123 @@ async function run(): Promise<void> {
     getWindow: () => editorWindow,
     logger,
   });
+  /*
+   * The remote control: off until the setting says otherwise.
+   *
+   * Built in rather than a plugin because what it does is drive the
+   * workspace, which is exactly what a plugin is kept away from. It listens
+   * on the loopback interface, takes a token from a file only this account
+   * can read, and the window says while it is on.
+   */
+  // What the renderer last said about unsaved changes, which is the only
+  // side that knows and the one thing a remote reader needs told.
+  let documentDirty = false;
+  ipcMain.on(WORKSPACE_CHANNELS.dirtyChanged, (event, value: unknown) => {
+    if (!isTrustedRendererSender(editorWindow, event) || !isWorkspaceDirtyEventV1(value)) return;
+    documentDirty = value.dirty;
+  });
+
+  const tokens = new TokenStore(path.join(userData, 'remote-token'));
+  let remote: RunningRemote | null = null;
+  let remoteProblem = '';
+
+  const remoteStatus = async (): Promise<RemoteStatusReplyV1> => ({
+    version: NOTO_SETTINGS_VERSION,
+    listening: remote !== null,
+    port: remote?.port ?? null,
+    token: settings.current().remoteControl ? await tokens.current() : '',
+    problem: remoteProblem,
+  });
+
+  const applyRemote = async (wanted: boolean): Promise<void> => {
+    if (!wanted) {
+      remoteProblem = '';
+      const running = remote;
+      remote = null;
+      await running?.stop();
+      editorWindow?.webContents.send(WORKSPACE_CHANNELS.remoteChanged, {
+        version: NOTO_WORKSPACE_VERSION, listening: false, port: null,
+      });
+      return;
+    }
+    if (remote) return;
+    try {
+      remote = await startRemoteServer({
+        deps: {
+          token: await tokens.current(),
+          status: () => ({
+            version: app.getVersion(),
+            vault: session?.folder ?? null,
+            note: session?.currentPath ?? null,
+            dirty: documentDirty,
+          }),
+          readCurrent: async () => {
+            const target = session?.currentPath ?? null;
+            if (target === null) return null;
+            return { path: target, markdown: await readFile(target, 'utf8') };
+          },
+          open: async (target) => {
+            try {
+              await session?.openPath(target);
+              refreshMenu();
+              return { opened: true };
+            } catch (error) {
+              return {
+                opened: false,
+                reason: error instanceof Error ? error.message.split(':', 1)[0] : 'OPEN_FAILED',
+              };
+            }
+          },
+          insert: (text) => {
+            const window = editorWindow;
+            if (!window || window.isDestroyed()) return { inserted: false, reason: 'No window is open.' };
+            window.webContents.send(WORKSPACE_CHANNELS.pasteText, {
+              version: NOTO_WORKSPACE_VERSION, text,
+            });
+            return { inserted: true };
+          },
+          run: (command) => {
+            const window = editorWindow;
+            if (!window || window.isDestroyed()) return { ran: false, reason: 'No window is open.' };
+            window.webContents.send(WORKSPACE_CHANNELS.menuCommand, {
+              version: NOTO_WORKSPACE_VERSION, command,
+            });
+            return { ran: true };
+          },
+        },
+        log: (event, detail) => logger.log(event, detail),
+      });
+      remoteProblem = '';
+    } catch (error) {
+      remote = null;
+      remoteProblem = error instanceof Error && 'code' in error && error.code === 'EADDRINUSE'
+        ? 'Something else is already listening on that port.'
+        : 'The remote control could not start.';
+      logger.log('remote_failed', { problem: remoteProblem });
+    }
+    editorWindow?.webContents.send(WORKSPACE_CHANNELS.remoteChanged, {
+      version: NOTO_WORKSPACE_VERSION,
+      listening: remote !== null,
+      port: remote?.port ?? null,
+    });
+  };
+
+  if (settings.current().remoteControl) await applyRemote(true);
+  app.once('before-quit', () => { void applyRemote(false); });
+
   registerSettingsHandlers({
     settings,
     getWindow: () => editorWindow,
     logger,
+    remote: {
+      status: remoteStatus,
+      regenerate: async () => {
+        await tokens.regenerate();
+        // The socket holds the token it started with, so it is restarted.
+        if (remote) { await applyRemote(false); await applyRemote(true); }
+        return remoteStatus();
+      },
+    },
     onChanged: (reply) => {
       logger.log('settings_changed', { theme: reply.settings.theme });
       // The window has to be told, and the menu's tick has to follow, or the
@@ -432,6 +553,7 @@ async function run(): Promise<void> {
       }
       // The tree's order shows as a tick in the View menu, and the tree
       // itself is listed again when it changes.
+      if (reply.settings.remoteControl !== (remote !== null)) void applyRemote(reply.settings.remoteControl);
       if (reply.settings.customCssPath !== menuState.themePath) {
         menuState.themePath = reply.settings.customCssPath;
         refreshMenu();

@@ -230,6 +230,10 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   const [themeReload, setThemeReload] = useState(0);
   const [themeProblem, setThemeProblem] = useState('');
   const [activeBlock, setActiveBlock] = useState(-1);
+  /** Whether something outside the window can drive it, as main reports it. */
+  const [remote, setRemote] = useState<{ listening: boolean; port: number | null }>({
+    listening: false, port: null,
+  });
   /** The sheet of what the app can do, on the Help menu. */
   const [shortcuts, setShortcuts] = useState(false);
   /** Typora's Insert Table dialog, open or not. */
@@ -1437,6 +1441,11 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
   }, []);
 
   const onDocumentDirtyChange = useCallback((documentId: string, dirty: boolean) => {
+    // Main is told too: it holds the file, the renderer holds the edits, and
+    // the remote control has to be able to say which is ahead.
+    if (documentId === activeIdRef.current) {
+      window.notoWorkspace.reportDirty({ version: 1, dirty });
+    }
     setDocs((current) => {
       const existing = current.get(documentId);
       if (!existing || existing.dirty === dirty) return current;
@@ -1468,6 +1477,19 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
    * Menu commands arrive from main because only the renderer knows the editor's
    * contents. Keep this list aligned with `WorkspaceMenuCommandV1`.
    */
+  useEffect(() => {
+    const stop = window.notoWorkspace.onRemoteChanged((event) => {
+      setRemote({ listening: event.listening, port: event.port });
+    });
+    // Asked once as well as listened for, since it may already be on when
+    // this window opens.
+    void window.notoSettings.remoteStatus({ version: 1, requestId: rid('remote-status') })
+      .then((result) => {
+        if (result.ok) setRemote({ listening: result.value.listening, port: result.value.port });
+      });
+    return stop;
+  }, []);
+
   useEffect(() => window.notoWorkspace.onPasteText((event) => {
     editorRef.current?.pasteText(event.text);
   }), []);
@@ -2193,6 +2215,19 @@ function NotoWorkspace({ platform }: { platform: NotoPlatform }) {
               whose typing does nothing needs to be told why rather than
               concluding the app is broken. */}
           {readOnly && <span className="status-flag" data-testid="read-only-flag">Read-only</span>}
+          {/* Something outside this window can drive it, and a reader must
+              never have to wonder whether that is so. */}
+          {remote.listening && (
+            <button
+              type="button"
+              className="status-flag status-remote"
+              data-testid="remote-flag"
+              title={`Listening on http://127.0.0.1:${remote.port ?? ''}. Press to open the Remote settings.`}
+              onClick={() => openPreferences('remote')}
+            >
+              Remote
+            </button>
+          )}
           <span key={notice ?? state} className={notice ? 'status-message is-notice' : 'status-message'}
             data-testid={notice ? 'status-notice' : undefined} aria-live="polite">
             {notice ?? (state === 'Opened' ? 'Exact source preserved' : state === 'Saved' ? 'Exact source saved' : '')}

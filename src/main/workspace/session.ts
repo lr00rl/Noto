@@ -124,6 +124,11 @@ export class WorkspaceSession {
     return this.activePath ? this.documents.get(this.activePath)?.opened ?? null : null;
   }
 
+  /** The folder open now, which the remote control reports and never changes. */
+  get folder(): string | null {
+    return this.folderRoot;
+  }
+
   get currentPath(): string | null {
     return this.activePath;
   }
